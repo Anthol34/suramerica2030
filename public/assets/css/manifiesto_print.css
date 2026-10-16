@@ -1,0 +1,140 @@
+@page { 
+    size: A4 landscape; 
+    margin: 8mm; 
+}
+
+body { 
+    font-family: Arial, Helvetica, sans-serif; 
+    font-size: 11px; 
+    background: #f4f6f9;
+    color: #000; 
+    margin: 0; 
+    padding: 20px;
+}
+
+body.is-email {
+    background: white;
+    padding: 0;
+}
+
+.paper-container {
+    background: #ffffff; 
+    max-width: 1100px;
+    margin: 0 auto; 
+    padding: 25px;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.15);
+    border-radius: 4px;
+}
+
+body.is-email .paper-container {
+    max-width: 100%;
+    padding: 0;
+    box-shadow: none;
+}
+
+.text-center { 
+    text-align: center; 
+} 
+
+.text-right { 
+    text-align: right; 
+} 
+
+.bold { 
+    font-weight: bold; 
+}
+
+table { 
+    width: 100%; 
+    border-collapse: collapse; 
+    margin-top: 8px; 
+}
+
+th, td { 
+    border: 1px solid #000; 
+    padding: 5px 4px; 
+    text-align: center; 
+    text-transform: uppercase; 
+    font-size: 10px; 
+}
+
+th { 
+    background-color: #f0f0f0; 
+    font-weight: bold; 
+}
+
+.header-table { 
+    border: none; 
+    margin-bottom: 8px; 
+}
+
+.header-table td { 
+    border: none; 
+    text-align: left; 
+    padding: 3px; 
+    font-size: 10px; 
+}
+
+[contenteditable="true"] {
+    outline: 1px dashed #4a90e2; 
+    background-color: rgba(74, 144, 226, 0.05); 
+    border-radius: 2px;
+    min-height: 14px; 
+    transition: all 0.2s;
+}
+
+[contenteditable="true"]:hover { 
+    background-color: rgba(74, 144, 226, 0.15); 
+    outline: 1px solid #1a437a; 
+}
+
+[contenteditable="true"]:focus { 
+    background-color: #ffffff; 
+    outline: 2px solid #28a745; 
+}
+
+.btn-delete-row { 
+    background: #dc3545; 
+    color: white; 
+    border: none; 
+    border-radius: 3px; 
+    cursor: pointer; 
+    font-weight: bold; 
+    font-size: 10px; 
+    padding: 2px 6px; 
+}
+
+.btn-add-row { 
+    background: #17a2b8; 
+    color: white; 
+    border: none; 
+    border-radius: 4px; 
+    padding: 6px 14px; 
+    font-size: 11px; 
+    font-weight: bold; 
+    cursor: pointer; 
+    margin-top: 10px; 
+}
+
+@media print {
+    body { 
+        background: white; 
+        padding: 0; 
+    }
+    .paper-container { 
+        box-shadow: none; 
+        padding: 0; 
+        max-width: 100%; 
+    }
+    .no-print { 
+        display: none !important; 
+    }
+    [contenteditable="true"] { 
+        outline: none !important; 
+        background: transparent !important; 
+    }
+    th { 
+        background-color: #e0e0e0 !important; 
+        -webkit-print-color-adjust: exact; 
+    }
+}

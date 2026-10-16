@@ -1,0 +1,94 @@
+/* Formato Térmico de Boletos (80mm) - Suramerica 2030 */
+* { 
+    margin: 0; 
+    padding: 0; 
+    box-sizing: border-box; 
+    font-family: Arial, 'Segoe UI', Tahoma, sans-serif; 
+    font-size: 11px; 
+    color: #000; 
+    -webkit-print-color-adjust: exact; 
+    print-color-adjust: exact;
+}
+
+body { 
+    background-color: #f0f0f0; 
+    display: flex; 
+    justify-content: center; 
+    padding: 15px; 
+}
+
+.ticket { 
+    width: 280px; /* ~74mm en pantalla para simular fielmente el ancho de 80mm */
+    max-width: 100%;
+    background-color: white; 
+    padding: 10px 8px; 
+    box-shadow: 0 0 5px rgba(0,0,0,0.2); 
+}
+
+.text-center { text-align: center; } 
+.text-right { text-align: right; } 
+.bold { font-weight: bold; }
+.title { font-size: 14px; margin-bottom: 4px; }
+
+/* Estilos del Logo */
+.ticket-logo {
+    max-width: 160px;
+    height: auto;
+    display: block;
+    margin: 0 auto 5px auto;
+}
+
+.divider { border-bottom: 1px dashed #000; margin: 6px 0; }
+
+.row { 
+    display: flex; 
+    justify-content: space-between; 
+    align-items: baseline;
+    gap: 6px; 
+    margin-bottom: 2.5px; 
+    word-break: normal;
+}
+
+.row > span:first-child {
+    flex-shrink: 0;
+    white-space: nowrap;
+}
+
+.row > span:last-child {
+    text-align: right;
+    word-break: break-word;
+}
+
+.footer { font-size: 9.5px; margin-top: 10px; }
+.legal-notice { font-size: 8.5px; text-align: justify; margin-top: 5px; line-height: 1.2; font-weight: bold; }
+#qrcode img { margin: 0 auto; } /* Centrar el QR generado */
+
+@page {
+    size: auto;
+    margin: 0mm;
+}
+
+@media print {
+    @page {
+        size: auto;
+        margin: 0mm;
+    }
+    html, body { 
+        background-color: #fff !important; 
+        padding: 0 !important; 
+        margin: 0 !important; 
+        width: 100% !important; 
+        display: block !important; 
+        -webkit-print-color-adjust: exact !important; 
+        print-color-adjust: exact !important; 
+    }
+    .ticket { 
+        box-shadow: none !important; 
+        width: 100% !important; 
+        max-width: 71mm !important; /* Ajuste milimétrico óptimo para rollo de 80mm */
+        margin: 0 auto !important; /* Centrado automático para equilibrar márgenes izquierdo y derecho */
+        padding: 0 3.5mm 2mm 1mm !important; /* Reduce el borde izquierdo manteniendo protegido el borde derecho */
+        display: block !important; 
+    }
+    .no-print { display: none !important; }
+}

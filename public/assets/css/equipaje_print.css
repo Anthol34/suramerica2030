@@ -1,0 +1,136 @@
+/* Etiqueta de Equipaje - Suramerica 2030 */
+* { 
+    margin: 0; 
+    padding: 0; 
+    box-sizing: border-box; 
+    font-family: 'Arial', sans-serif; 
+}
+
+body { 
+    background-color: #555; 
+    display: flex; 
+    flex-direction: column;
+    align-items: center;
+    gap: 30px; 
+    padding: 20px; 
+}
+
+.print-wrapper { 
+    width: 280px; 
+    height: 1180px; 
+    background: white; 
+    position: relative; 
+    overflow: hidden; 
+    box-shadow: 0 0 10px rgba(0,0,0,0.5); 
+    page-break-after: always;
+    break-after: page;
+}
+
+.tag-rotated { 
+    width: 1180px; 
+    height: 280px; 
+    transform: rotate(90deg); 
+    transform-origin: left top; 
+    margin-left: 280px; 
+    display: flex; 
+    flex-direction: row; 
+    background-color: white;
+}
+
+/* Bloques de 5cm (aprox 190px) con el "Punto Fantasma" para engañar a la impresora */
+.blank-space {
+    width: 190px;
+    display: flex;
+    align-items: flex-end;
+    justify-content: flex-end;
+    color: #cccccc; 
+    font-size: 4px;
+}
+
+/* Contenedor central protegido de 800px */
+.tag-content {
+    width: 800px;
+    display: flex;
+    flex-direction: row;
+}
+
+.section-left { 
+    width: 25%; 
+    border-right: 2px dashed #000; 
+    padding: 15px; 
+    display: flex; 
+    flex-direction: column; 
+    justify-content: center; 
+    align-items: center; 
+    text-align: center; 
+}
+
+.section-middle { 
+    width: 45%; 
+    padding: 15px 25px; 
+    display: flex; 
+    flex-direction: column; 
+    justify-content: center; 
+}
+
+.section-right { 
+    width: 30%; 
+    border-left: 2px dashed #000; 
+    padding: 15px; 
+    display: flex; 
+    flex-direction: column; 
+    justify-content: center; 
+    align-items: center; 
+    text-align: center; 
+    background-color: #f8f9fa; 
+}
+
+.logo-text { font-size: 18px; font-weight: 900; letter-spacing: 1px; }
+.sub-logo { font-size: 11px; margin-bottom: 10px; color: #333; }
+.barcode { font-family: 'Courier New', Courier, monospace; font-size: 32px; letter-spacing: -2px; font-weight: bold; margin: 10px 0; }
+.info-row { display: flex; justify-content: space-between; margin-bottom: 8px; font-size: 12px; }
+.info-col { display: flex; flex-direction: column; }
+.bold { font-weight: bold; font-size: 15px; text-transform: uppercase; }
+.label { font-size: 10px; color: #555; }
+.dest-huge { font-size: 45px; font-weight: 900; line-height: 0.9; margin: 10px 0; text-transform: uppercase; color: #000; letter-spacing: -1px; word-wrap: break-word;}
+.asiento-box { border: 3px solid #000; padding: 5px 20px; font-size: 30px; font-weight: bold; border-radius: 8px; margin-top: 5px; }
+
+.controls { 
+    position: fixed; 
+    bottom: 20px; 
+    right: 20px; 
+    display: flex; 
+    flex-direction: column; 
+    gap: 10px; 
+    z-index: 1000; 
+}
+
+.btn-float { 
+    padding: 15px; 
+    border: none; 
+    border-radius: 50px; 
+    cursor: pointer; 
+    font-weight: bold; 
+    box-shadow: 0 4px 6px rgba(0,0,0,0.3); 
+    color: white; 
+    font-size: 14px;
+}
+
+.btn-print { background: #0b2b56; } 
+.btn-close { background: #dc3545; }
+
+@media print {
+    body { background-color: white; padding: 0; display: block; margin: 0; }
+    .print-wrapper { 
+        box-shadow: none; 
+        border: none; 
+        margin: 0; 
+        page-break-after: always !important; 
+        break-after: page !important; 
+    }
+    .print-wrapper:last-child {
+        page-break-after: auto !important;
+        break-after: auto !important;
+    }
+    .controls, .no-print { display: none !important; }
+}

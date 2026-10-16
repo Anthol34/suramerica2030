@@ -1,0 +1,10 @@
+RewriteEngine On
+# Le decimos a Apache que el proyecto está en la subcarpeta /suramerica2030/
+RewriteBase /suramerica2030/
+
+# Si la petición es hacia un archivo o carpeta real (como imágenes, css, js), permítelo
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+
+# Redirige todo lo demás a public/index.php
+RewriteRule ^(.*)$ public/index.php?url=$1 [QSA,L]
