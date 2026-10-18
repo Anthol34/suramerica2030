@@ -34,7 +34,7 @@ class DashboardRepository {
     public function contarEncomiendasActivas() {
         // Encomiendas a nivel general que no han sido entregadas ni anuladas
         $query = "SELECT COUNT(ID_ENCOMIENDA) FROM ENCOMIENDA 
-                  WHERE ENC_ESTADO IN ('Recibido', 'En Tránsito')";
+                  WHERE ENC_ESTADO IN ('Recibido', 'En Tránsito', 'En Oficina')";
         $stmt = $this->db->prepare($query);
         $stmt->execute();
         return $stmt->fetchColumn();

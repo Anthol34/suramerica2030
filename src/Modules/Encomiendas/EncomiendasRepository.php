@@ -31,10 +31,44 @@ class EncomiendasRepository {
         return $this->db->query($query)->fetchAll(PDO::FETCH_ASSOC);
     }
 
+    public function obtenerKpisEncomiendas() {
+        $sql = "
+            SELECT 
+                COUNT(CASE WHEN e.ENC_ESTADO IN ('Recibido', 'En Tránsito', 'En Oficina') THEN 1 END) AS total_activas,
+                COALESCE(SUM(CASE WHEN e.ENC_ESTADO IN ('Recibido', 'En Tránsito', 'En Oficina') THEN f.FA_TOTAL ELSE 0 END), 0) AS total_activas_usd,
+                COALESCE(SUM(CASE WHEN e.ENC_ESTADO IN ('Recibido', 'En Tránsito', 'En Oficina') THEN e.ENC_PESO ELSE 0 END), 0) AS total_activas_kg,
+                
+                COUNT(CASE WHEN e.ENC_ESTADO = 'Recibido' THEN 1 END) AS total_recibidos,
+                COALESCE(SUM(CASE WHEN e.ENC_ESTADO = 'Recibido' THEN e.ENC_PESO ELSE 0 END), 0) AS total_recibidos_kg,
+                
+                COUNT(CASE WHEN e.ENC_ESTADO = 'En Tránsito' THEN 1 END) AS total_en_transito,
+                COALESCE(SUM(CASE WHEN e.ENC_ESTADO = 'En Tránsito' THEN e.ENC_PESO ELSE 0 END), 0) AS total_en_transito_kg,
+                
+                COUNT(CASE WHEN e.ENC_ESTADO = 'En Oficina' THEN 1 END) AS total_en_oficina,
+                COALESCE(SUM(CASE WHEN e.ENC_ESTADO = 'En Oficina' THEN e.ENC_PESO ELSE 0 END), 0) AS total_en_oficina_kg,
+                
+                COUNT(CASE WHEN e.ENC_ESTADO = 'Entregado' AND (e.ENC_RETIRO = CURDATE() OR (e.ENC_RETIRO IS NULL AND f.FA_FECHA = CURDATE())) THEN 1 END) AS entregadas_hoy,
+                COUNT(CASE WHEN e.ENC_ESTADO = 'Entregado' THEN 1 END) AS total_entregadas,
+                COALESCE(SUM(CASE WHEN e.ENC_ESTADO = 'Entregado' THEN f.FA_TOTAL ELSE 0 END), 0) AS total_entregadas_usd,
+                COUNT(CASE WHEN e.ENC_ESTADO = 'Anulado' THEN 1 END) AS total_anuladas
+            FROM ENCOMIENDA e
+            INNER JOIN FACTURA f ON e.ID_FACTURA = f.ID_FACTURA
+        ";
+        $stmt = $this->db->query($sql);
+        return $stmt->fetch(PDO::FETCH_ASSOC) ?: [];
+    }
+
     private function aplicarFiltros(&$query, &$params, $filtros) {
         $tab = $filtros['tab'] ?? 'activos';
+        $estado = $filtros['estado'] ?? '';
+
         if ($tab == 'activos') {
-            $query .= " AND e.ENC_ESTADO IN ('Recibido', 'En Tránsito') ";
+            if (!empty($estado) && in_array($estado, ['Recibido', 'En Tránsito', 'En Oficina'])) {
+                $query .= " AND e.ENC_ESTADO = :estado ";
+                $params[':estado'] = $estado;
+            } else {
+                $query .= " AND e.ENC_ESTADO IN ('Recibido', 'En Tránsito', 'En Oficina') ";
+            }
         } else {
             $buscar = $filtros['buscar'] ?? '';
             $inicio = $filtros['fecha_inicio'] ?? '';
@@ -44,6 +78,10 @@ class EncomiendasRepository {
                 $query .= " AND (f.ID_FACTURA = :b_id OR c_rem.ID_CLIENTE LIKE :b_str OR c_rem.CLI_NOMBRE LIKE :b_str OR c_des.CLI_NOMBRE LIKE :b_str) ";
                 $params[':b_id'] = (int)$buscar;
                 $params[':b_str'] = "%$buscar%";
+            }
+            if (!empty($estado)) {
+                $query .= " AND e.ENC_ESTADO = :estado ";
+                $params[':estado'] = $estado;
             }
             if ($inicio && $fin) {
                 $query .= " AND f.FA_FECHA BETWEEN :inicio AND :fin ";
@@ -63,7 +101,7 @@ class EncomiendasRepository {
     }
 
     public function obtenerTodas($filtros = [], $offset = 0, $limit = 10) {
-        $query = "SELECT e.ID_ENCOMIENDA, e.ENC_CANTIDAD, e.ENC_PESO, e.ENC_VOLUMEN, e.ENC_TIPO, e.ENC_CONTENIDO, e.ENC_ESTADO, e.ENC_RETIRO, e.DESTINO_FINAL,
+        $query = "SELECT e.ID_ENCOMIENDA, e.ENC_CANTIDAD, e.ENC_PESO, e.ENC_VOLUMEN, e.ENC_TIPO, e.ENC_CONTENIDO, e.ENC_ESTADO, e.ENC_RETIRO, e.ENC_LLEGADA, e.DESTINO_FINAL,
                          f.ID_FACTURA, f.FA_FECHA, f.FA_TOTAL, f.FECHA_VIAJE AS FECHA_DESPACHO,
                          c_rem.CLI_NOMBRE AS REM_NOMBRE, c_rem.CLI_APELLIDO AS REM_APELLIDO, c_rem.ID_CLIENTE AS REM_CI,
                          c_des.CLI_NOMBRE AS DES_NOMBRE, c_des.CLI_APELLIDO AS DES_APELLIDO, c_des.ID_CLIENTE AS DES_CI,
@@ -80,7 +118,7 @@ class EncomiendasRepository {
         $this->aplicarFiltros($query, $params, $filtros);
         $limit = (int)$limit;
         $offset = (int)$offset;
-        $query .= " ORDER BY CASE WHEN e.ENC_ESTADO = 'Entregado' THEN 1 ELSE 0 END ASC, f.FA_FECHA DESC, e.ID_ENCOMIENDA DESC LIMIT $limit OFFSET $offset";
+        $query .= " ORDER BY CASE WHEN e.ENC_ESTADO = 'Entregado' THEN 2 WHEN e.ENC_ESTADO = 'Anulado' THEN 3 ELSE 0 END ASC, f.FA_FECHA DESC, e.ID_ENCOMIENDA DESC LIMIT $limit OFFSET $offset";
         
         $stmt = $this->db->prepare($query);
         $stmt->execute($params);
@@ -125,7 +163,14 @@ class EncomiendasRepository {
 
     public function actualizarEstadoBD($id, $estado) {
         try {
-            $stmt = $this->db->prepare("UPDATE ENCOMIENDA SET ENC_ESTADO = :estado, ENC_RETIRO = IF(:estado = 'Entregado', CURDATE(), NULL) WHERE ID_ENCOMIENDA = :id");
+            if ($estado === 'Entregado') {
+                $sql = "UPDATE ENCOMIENDA SET ENC_ESTADO = :estado, ENC_RETIRO = CURDATE(), ENC_LLEGADA = COALESCE(ENC_LLEGADA, CURDATE()) WHERE ID_ENCOMIENDA = :id";
+            } elseif ($estado === 'En Oficina') {
+                $sql = "UPDATE ENCOMIENDA SET ENC_ESTADO = :estado, ENC_LLEGADA = CURDATE(), ENC_RETIRO = NULL WHERE ID_ENCOMIENDA = :id";
+            } else {
+                $sql = "UPDATE ENCOMIENDA SET ENC_ESTADO = :estado, ENC_RETIRO = NULL, ENC_LLEGADA = NULL WHERE ID_ENCOMIENDA = :id";
+            }
+            $stmt = $this->db->prepare($sql);
             return $stmt->execute([':estado' => $estado, ':id' => $id]);
         } catch (Exception $e) { return false; }
     }
@@ -156,10 +201,19 @@ class EncomiendasRepository {
         } catch (Exception $e) { $this->db->rollBack(); return $e->getMessage(); }
     }
 
+    public function registrarLlegadaOficinaBD($ids) {
+        try {
+            if (empty($ids) || !is_array($ids)) return false;
+            $inQuery = implode(',', array_fill(0, count($ids), '?'));
+            return $this->db->prepare("UPDATE ENCOMIENDA SET ENC_ESTADO = 'En Oficina', ENC_LLEGADA = CURDATE(), ENC_RETIRO = NULL WHERE ID_ENCOMIENDA IN ($inQuery)")->execute($ids);
+        } catch (Exception $e) { return false; }
+    }
+
     public function entregarEncomiendasBD($ids) {
         try {
+            if (empty($ids) || !is_array($ids)) return false;
             $inQuery = implode(',', array_fill(0, count($ids), '?'));
-            return $this->db->prepare("UPDATE ENCOMIENDA SET ENC_ESTADO = 'Entregado', ENC_RETIRO = CURDATE() WHERE ID_ENCOMIENDA IN ($inQuery)")->execute($ids);
+            return $this->db->prepare("UPDATE ENCOMIENDA SET ENC_ESTADO = 'Entregado', ENC_RETIRO = CURDATE(), ENC_LLEGADA = COALESCE(ENC_LLEGADA, CURDATE()) WHERE ID_ENCOMIENDA IN ($inQuery)")->execute($ids);
         } catch (Exception $e) { return false; }
     }
 

@@ -62,7 +62,7 @@ class EncomiendasController {
                 header("Location: /suramerica2030/encomiendas?status=error&msg=" . urlencode("Acceso denegado: Tu rol no tiene permisos para despachar encomiendas."));
                 exit();
             }
-            if ($estado == 'Entregado' && !$this->tienePermisoLlegada()) {
+            if (($estado == 'Entregado' || $estado == 'En Oficina') && !$this->tienePermisoLlegada()) {
                 header("Location: /suramerica2030/encomiendas?status=error&msg=" . urlencode("Acceso denegado: Tu rol no tiene permisos para registrar llegada o entrega de encomiendas."));
                 exit();
             }
@@ -85,6 +85,21 @@ class EncomiendasController {
             else header("Location: /suramerica2030/encomiendas?status=error&msg=".urlencode($res));
             exit();
         }
+    }
+
+    public function llegadaOficina() {
+        if (!$this->tienePermisoLlegada()) {
+            header("Location: /suramerica2030/encomiendas?status=error&msg=" . urlencode("Acceso denegado: Tu rol no tiene permisos para registrar llegada a oficina."));
+            exit();
+        }
+        if ($_SERVER['REQUEST_METHOD'] == 'POST' && !empty($_POST['encomiendas_ids'])) {
+            $res = $this->repository->registrarLlegadaOficinaBD($_POST['encomiendas_ids']);
+            if ($res) header("Location: /suramerica2030/encomiendas?status=success_llegada");
+            else header("Location: /suramerica2030/encomiendas?status=error&msg=" . urlencode("No se pudo registrar la llegada a oficina."));
+            exit();
+        }
+        header("Location: /suramerica2030/encomiendas");
+        exit();
     }
 
     public function entregarMultiples() {

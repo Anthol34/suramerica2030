@@ -16,18 +16,19 @@ $puedeEditarPrecios = (isset($_SESSION['rol_id']) && $_SESSION['rol_id'] == 1) |
 </div>
 
 <?php if(isset($_GET['status'])): ?>
-    <div class="alert <?= strpos($_GET['status'], 'error') !== false ? 'alert-danger' : 'alert-success' ?> alert-dismissible fade show">
+    <div class="alert <?= strpos($_GET['status'], 'error') !== false ? 'alert-danger' : 'alert-success' ?> alert-dismissible fade show shadow-sm">
         <?php 
             if($_GET['status'] == 'success') echo '✅ Estado actualizado correctamente.';
             elseif($_GET['status'] == 'success_recepcion') echo '✅ Encomienda recibida y cobro registrado en caja.';
             elseif($_GET['status'] == 'success_despacho') echo '🚚 Paquetes despachados y listos para el manifiesto.';
+            elseif($_GET['status'] == 'success_llegada') echo '🏢 Lote de paquetes marcados como EN OFICINA (listos para retiro).';
             elseif($_GET['status'] == 'success_unificar') {
                 echo '✅ <strong>¡Despachos Integrados con Éxito!</strong> Se han unificado en un solo despacho y manifiesto único.';
                 if (!empty($_GET['fecha_d']) && !empty($_GET['ruta_d'])) {
                     echo ' <a href="/suramerica2030/manifiesto/imprimirCarga?fecha='.htmlspecialchars($_GET['fecha_d']).'&ruta_id='.htmlspecialchars($_GET['ruta_d']).'" target="_blank" class="btn btn-sm btn-dark ms-2 fw-bold">🖨️ Ver Manifiesto Unificado Ahora</a>';
                 }
             }
-            elseif($_GET['status'] == 'success_entregado') echo '✅ Lote de paquetes marcados como LLEGADOS/ENTREGADOS exitosamente.';
+            elseif($_GET['status'] == 'success_entregado') echo '✅ Lote de paquetes marcados como ENTREGADOS AL CLIENTE exitosamente.';
             elseif($_GET['status'] == 'success_email') echo '✉️ ¡Manifiesto enviado por correo exitosamente!';
             elseif($_GET['status'] == 'success_delete') echo '🛑 Encomienda anulada. Se ha registrado el egreso en caja.';
             else echo '❌ Error: ' . htmlspecialchars($_GET['msg'] ?? 'Operación fallida.');
@@ -36,12 +37,174 @@ $puedeEditarPrecios = (isset($_SESSION['rol_id']) && $_SESSION['rol_id'] == 1) |
     </div>
 <?php endif; ?>
 
-<!-- NAVEGACIÓN DE PESTAÑAS -->
-<ul class="nav nav-tabs mb-4">
-    <li class="nav-item"><a class="nav-link <?= (!isset($filtros['tab']) || $filtros['tab'] == 'activos') ? 'active fw-bold' : '' ?>" href="?tab=activos">📦 Paquetes en Tránsito / Bodega</a></li>
-    <li class="nav-item"><a class="nav-link <?= (isset($filtros['tab']) && $filtros['tab'] == 'historial') ? 'active fw-bold' : '' ?>" href="?tab=historial">📚 Buscador e Historial</a></li>
-    <li class="nav-item"><a class="nav-link text-primary fw-bold" href="/suramerica2030/manifiesto?tab=carga">📋 Manifiesto de Carga ➔</a></li>
-</ul>
+<!-- ESTILOS VISUALES PARA KPIS Y ESTADOS -->
+<style>
+.kpi-card-enc {
+    border: none;
+    border-radius: 12px;
+    transition: all 0.25s ease;
+    text-decoration: none !important;
+    display: block;
+    background: #fff;
+}
+.kpi-card-enc:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.08) !important;
+}
+.kpi-card-enc.active-kpi {
+    box-shadow: 0 0 0 2px #0d6efd, 0 8px 22px rgba(13, 110, 253, 0.18) !important;
+    background-color: #f7faff;
+}
+.kpi-icon-box-enc {
+    width: 48px;
+    height: 48px;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.4rem;
+    flex-shrink: 0;
+}
+</style>
+
+<!-- TARJETAS KPI DE GESTIÓN DE ENCOMIENDAS -->
+<?php
+$tabActual = $filtros['tab'] ?? 'activos';
+$estadoFiltro = $filtros['estado'] ?? '';
+?>
+<div class="row g-3 mb-4">
+    <!-- KPI 1: TOTAL ACTIVAS -->
+    <div class="col-xl col-md-4 col-sm-6">
+        <a href="?tab=activos" class="card kpi-card-enc shadow-sm border-start border-4 border-primary h-100 <?= ($tabActual == 'activos' && empty($estadoFiltro)) ? 'active-kpi' : '' ?>" title="Clic para ver todas las encomiendas activas en el sistema">
+            <div class="card-body d-flex align-items-center p-3">
+                <div class="kpi-icon-box-enc bg-primary bg-opacity-10 text-primary me-3">
+                    📦
+                </div>
+                <div class="overflow-hidden">
+                    <div class="text-muted small fw-bold text-uppercase text-truncate">Total Activas</div>
+                    <h4 class="fw-bold mb-0 text-dark"><?= number_format($kpis['total_activas'] ?? 0) ?></h4>
+                    <div class="small text-muted mt-1 text-truncate">
+                        $<?= number_format($kpis['total_activas_usd'] ?? 0, 2) ?> | <?= number_format($kpis['total_activas_kg'] ?? 0, 1) ?> Kg
+                    </div>
+                </div>
+            </div>
+        </a>
+    </div>
+
+    <!-- KPI 2: EN BODEGA ORIGEN -->
+    <div class="col-xl col-md-4 col-sm-6">
+        <a href="?tab=activos&estado=Recibido" class="card kpi-card-enc shadow-sm border-start border-4 border-secondary h-100 <?= ($tabActual == 'activos' && $estadoFiltro == 'Recibido') ? 'active-kpi' : '' ?>" title="Clic para filtrar encomiendas recibidas en bodega de origen">
+            <div class="card-body d-flex align-items-center p-3">
+                <div class="kpi-icon-box-enc bg-secondary bg-opacity-10 text-secondary me-3">
+                    🏬
+                </div>
+                <div class="overflow-hidden">
+                    <div class="text-secondary small fw-bold text-uppercase text-truncate">En Bodega Origen</div>
+                    <h4 class="fw-bold mb-0 text-secondary"><?= number_format($kpis['total_recibidos'] ?? 0) ?></h4>
+                    <div class="small text-muted mt-1 text-truncate">
+                        <?= number_format($kpis['total_recibidos_kg'] ?? 0, 1) ?> Kg por despachar
+                    </div>
+                </div>
+            </div>
+        </a>
+    </div>
+
+    <!-- KPI 3: EN TRÁNSITO -->
+    <div class="col-xl col-md-4 col-sm-6">
+        <a href="?tab=activos&estado=En+Tr%C3%A1nsito" class="card kpi-card-enc shadow-sm border-start border-4 border-primary h-100 <?= ($tabActual == 'activos' && $estadoFiltro == 'En Tránsito') ? 'active-kpi' : '' ?>" title="Clic para filtrar encomiendas que viajan en buses">
+            <div class="card-body d-flex align-items-center p-3">
+                <div class="kpi-icon-box-enc bg-primary bg-opacity-10 text-primary me-3">
+                    🚚
+                </div>
+                <div class="overflow-hidden">
+                    <div class="text-primary small fw-bold text-uppercase text-truncate">En Camino (Tránsito)</div>
+                    <h4 class="fw-bold mb-0 text-primary"><?= number_format($kpis['total_en_transito'] ?? 0) ?></h4>
+                    <div class="small text-muted mt-1 text-truncate">
+                        <?= number_format($kpis['total_en_transito_kg'] ?? 0, 1) ?> Kg en ruta
+                    </div>
+                </div>
+            </div>
+        </a>
+    </div>
+
+    <!-- KPI 4: LLEGÓ A OFICINA -->
+    <div class="col-xl col-md-6 col-sm-6">
+        <a href="?tab=activos&estado=En+Oficina" class="card kpi-card-enc shadow-sm border-start border-4 border-info h-100 <?= ($tabActual == 'activos' && $estadoFiltro == 'En Oficina') ? 'active-kpi' : '' ?>" title="Clic para filtrar encomiendas en sucursal listas para entrega">
+            <div class="card-body d-flex align-items-center p-3">
+                <div class="kpi-icon-box-enc bg-info bg-opacity-10 text-info me-3">
+                    🏢
+                </div>
+                <div class="overflow-hidden">
+                    <div class="text-info small fw-bold text-uppercase text-truncate">Llegó a Oficina</div>
+                    <h4 class="fw-bold mb-0 text-dark"><?= number_format($kpis['total_en_oficina'] ?? 0) ?></h4>
+                    <div class="small text-muted mt-1 text-truncate">
+                        Disponibles p/ retiro cliente
+                    </div>
+                </div>
+            </div>
+        </a>
+    </div>
+
+    <!-- KPI 5: ENTREGADAS -->
+    <div class="col-xl col-md-6 col-sm-12">
+        <a href="?tab=historial&estado=Entregado" class="card kpi-card-enc shadow-sm border-start border-4 border-success h-100 <?= ($tabActual == 'historial' && $estadoFiltro == 'Entregado') ? 'active-kpi' : '' ?>" title="Clic para ver encomiendas entregadas">
+            <div class="card-body d-flex align-items-center p-3">
+                <div class="kpi-icon-box-enc bg-success bg-opacity-10 text-success me-3">
+                    ✅
+                </div>
+                <div class="overflow-hidden">
+                    <div class="text-success small fw-bold text-uppercase text-truncate">Entregadas Hoy / Total</div>
+                    <h4 class="fw-bold mb-0 text-success">
+                        <?= number_format($kpis['entregadas_hoy'] ?? 0) ?>
+                        <span class="fs-6 fw-normal text-muted">hoy</span>
+                    </h4>
+                    <div class="small text-muted mt-1 text-truncate">
+                        <?= number_format($kpis['total_entregadas'] ?? 0) ?> entregadas ($<?= number_format($kpis['total_entregadas_usd'] ?? 0, 2) ?>)
+                    </div>
+                </div>
+            </div>
+        </a>
+    </div>
+</div>
+
+<!-- NAVEGACIÓN DE PESTAÑAS Y SUBFILTROS -->
+<div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+    <ul class="nav nav-tabs border-bottom-0 mb-0">
+        <li class="nav-item">
+            <a class="nav-link <?= (!isset($filtros['tab']) || $filtros['tab'] == 'activos') ? 'active fw-bold' : '' ?>" href="?tab=activos">
+                📦 Paquetes Activos
+            </a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link <?= (isset($filtros['tab']) && $filtros['tab'] == 'historial') ? 'active fw-bold' : '' ?>" href="?tab=historial">
+                📚 Buscador e Historial General
+            </a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link text-primary fw-bold" href="/suramerica2030/manifiesto?tab=carga">
+                📋 Manifiesto de Carga ➔
+            </a>
+        </li>
+    </ul>
+
+    <?php if(!isset($filtros['tab']) || $filtros['tab'] == 'activos'): ?>
+        <div class="d-flex gap-1 flex-wrap align-items-center">
+            <span class="small fw-bold text-muted me-1">Filtrar:</span>
+            <a href="?tab=activos" class="btn btn-sm <?= empty($filtros['estado']) ? 'btn-dark' : 'btn-outline-secondary' ?> fw-bold py-1 px-2">
+                Todos (<?= $kpis['total_activas'] ?? 0 ?>)
+            </a>
+            <a href="?tab=activos&estado=Recibido" class="btn btn-sm <?= (($filtros['estado'] ?? '') == 'Recibido') ? 'btn-secondary text-white' : 'btn-outline-secondary' ?> fw-bold py-1 px-2">
+                🏬 Bodega (<?= $kpis['total_recibidos'] ?? 0 ?>)
+            </a>
+            <a href="?tab=activos&estado=En+Tr%C3%A1nsito" class="btn btn-sm <?= (($filtros['estado'] ?? '') == 'En Tránsito') ? 'btn-primary' : 'btn-outline-primary' ?> fw-bold py-1 px-2">
+                🚚 Tránsito (<?= $kpis['total_en_transito'] ?? 0 ?>)
+            </a>
+            <a href="?tab=activos&estado=En+Oficina" class="btn btn-sm <?= (($filtros['estado'] ?? '') == 'En Oficina') ? 'btn-info text-dark' : 'btn-outline-info text-dark' ?> fw-bold py-1 px-2">
+                🏢 En Oficina (<?= $kpis['total_en_oficina'] ?? 0 ?>)
+            </a>
+        </div>
+    <?php endif; ?>
+</div>
 
 <!-- BUSCADOR E HISTORIAL -->
 <?php if(isset($filtros['tab']) && $filtros['tab'] == 'historial'): ?>
@@ -49,11 +212,32 @@ $puedeEditarPrecios = (isset($_SESSION['rol_id']) && $_SESSION['rol_id'] == 1) |
     <div class="card-body">
         <form action="/suramerica2030/encomiendas" method="GET" class="row g-3 align-items-end">
             <input type="hidden" name="tab" value="historial">
-            <div class="col-md-3"><label class="form-label fw-bold text-secondary">Buscar (Cédula o Nombre)</label><input type="text" name="buscar" class="form-control" placeholder="Ej: 131415..." value="<?= htmlspecialchars($filtros['buscar'] ?? '') ?>"></div>
-            <div class="col-md-3"><label class="form-label fw-bold text-secondary">Estado del Paquete</label><select name="estado" class="form-select"><option value="">Todos</option><option value="Recibido" <?= (($filtros['estado'] ?? '') == 'Recibido') ? 'selected' : '' ?>>Recibidos (Bodega)</option><option value="En Tránsito" <?= (($filtros['estado'] ?? '') == 'En Tránsito') ? 'selected' : '' ?>>En Tránsito</option><option value="Entregado" <?= (($filtros['estado'] ?? '') == 'Entregado') ? 'selected' : '' ?>>Entregados</option><option value="Anulado" <?= (($filtros['estado'] ?? '') == 'Anulado') ? 'selected' : '' ?>>Anulados</option></select></div>
-            <div class="col-md-2"><label class="form-label fw-bold text-secondary">Desde</label><input type="date" name="fecha_inicio" class="form-control" value="<?= htmlspecialchars($filtros['fecha_inicio'] ?? '') ?>"></div>
-            <div class="col-md-2"><label class="form-label fw-bold text-secondary">Hasta</label><input type="date" name="fecha_fin" class="form-control" value="<?= htmlspecialchars($filtros['fecha_fin'] ?? '') ?>"></div>
-            <div class="col-md-2"><button type="submit" class="btn btn-primary w-100 fw-bold">🔍 Buscar</button></div>
+            <div class="col-md-3">
+                <label class="form-label fw-bold text-secondary">Buscar (Cédula o Nombre)</label>
+                <input type="text" name="buscar" class="form-control" placeholder="Ej: 131415..." value="<?= htmlspecialchars($filtros['buscar'] ?? '') ?>">
+            </div>
+            <div class="col-md-3">
+                <label class="form-label fw-bold text-secondary">Estado del Paquete</label>
+                <select name="estado" class="form-select">
+                    <option value="">Todos los Estados</option>
+                    <option value="Recibido" <?= (($filtros['estado'] ?? '') == 'Recibido') ? 'selected' : '' ?>>🏬 Recibidos (Bodega Origen)</option>
+                    <option value="En Tránsito" <?= (($filtros['estado'] ?? '') == 'En Tránsito') ? 'selected' : '' ?>>🚚 En Tránsito (En Ruta)</option>
+                    <option value="En Oficina" <?= (($filtros['estado'] ?? '') == 'En Oficina') ? 'selected' : '' ?>>🏢 En Oficina (Disponible Retiro)</option>
+                    <option value="Entregado" <?= (($filtros['estado'] ?? '') == 'Entregado') ? 'selected' : '' ?>>✅ Entregados</option>
+                    <option value="Anulado" <?= (($filtros['estado'] ?? '') == 'Anulado') ? 'selected' : '' ?>>🛑 Anulados</option>
+                </select>
+            </div>
+            <div class="col-md-2">
+                <label class="form-label fw-bold text-secondary">Desde</label>
+                <input type="date" name="fecha_inicio" class="form-control" value="<?= htmlspecialchars($filtros['fecha_inicio'] ?? '') ?>">
+            </div>
+            <div class="col-md-2">
+                <label class="form-label fw-bold text-secondary">Hasta</label>
+                <input type="date" name="fecha_fin" class="form-control" value="<?= htmlspecialchars($filtros['fecha_fin'] ?? '') ?>">
+            </div>
+            <div class="col-md-2">
+                <button type="submit" class="btn btn-primary w-100 fw-bold">🔍 Buscar</button>
+            </div>
         </form>
     </div>
 </div>
@@ -67,26 +251,28 @@ $puedeEditarPrecios = (isset($_SESSION['rol_id']) && $_SESSION['rol_id'] == 1) |
             <div class="bg-light p-3 border-bottom d-flex justify-content-between align-items-center flex-wrap gap-3">
                 <div class="d-flex align-items-center gap-2">
                     <?php if($puedeDespachar): ?>
-                        <label class="fw-bold text-secondary mb-0">Fecha de Despacho:</label>
-                        <input type="date" name="fecha_despacho" class="form-control form-control-sm text-primary fw-bold" style="width: 150px;" value="<?= date('Y-m-d') ?>" required>
+                        <label class="fw-bold text-secondary mb-0 small text-uppercase">Fecha Despacho:</label>
+                        <input type="date" name="fecha_despacho" class="form-control form-control-sm text-primary fw-bold" style="width: 145px;" value="<?= date('Y-m-d') ?>" required>
                     <?php endif; ?>
                 </div>
                 
                 <!-- BOTONES CONTROLADOS POR PERMISOS DE ROL -->
-                <div class="d-flex gap-2">
+                <div class="d-flex gap-2 flex-wrap">
                     <?php if($puedeDespachar): ?>
-                        <button type="submit" formaction="/suramerica2030/encomiendas/despachar" class="btn btn-primary btn-sm fw-bold shadow-sm" onclick="return confirm('¿Despachar los paquetes seleccionados a esta fecha?');">
+                        <button type="submit" formaction="/suramerica2030/encomiendas/despachar" class="btn btn-primary btn-sm fw-bold shadow-sm" onclick="return confirm('¿Despachar los paquetes seleccionados a esta fecha? Pasarán a estado: En Tránsito.');">
                             🚚 Despachar (Bodega ➔ Bus)
                         </button>
                     <?php endif; ?>
                     <?php if($puedeRegistrarLlegada): ?>
-                        <!-- formnovalidate sirve para saltarse la obligación de poner fecha, ya que el modelo usa la fecha del sistema CURDATE() automáticamente para las entregas -->
-                        <button type="submit" formaction="/suramerica2030/encomiendas/entregarMultiples" class="btn btn-success btn-sm fw-bold shadow-sm" onclick="return confirm('¿Marcar paquetes seleccionados como LLEGADOS / ENTREGADOS?');" formnovalidate>
-                            ✅ Registrar Llegada / Entrega
+                        <button type="submit" formaction="/suramerica2030/encomiendas/llegadaOficina" class="btn btn-info btn-sm fw-bold shadow-sm text-dark" onclick="return confirm('¿Marcar paquetes seleccionados como LLEGADOS A OFICINA (Disponibles para retiro)?');" formnovalidate>
+                            🏢 Llegó a Oficina
+                        </button>
+                        <button type="submit" formaction="/suramerica2030/encomiendas/entregarMultiples" class="btn btn-success btn-sm fw-bold shadow-sm" onclick="return confirm('¿Marcar paquetes seleccionados como ENTREGADOS AL CLIENTE?');" formnovalidate>
+                            ✅ Entregar al Cliente
                         </button>
                     <?php endif; ?>
                     <a href="/suramerica2030/encomiendas/imprimirEnTransito" target="_blank" class="btn btn-dark btn-sm fw-bold shadow-sm" title="Imprimir manifiesto de todas las encomiendas que están en tránsito actualmente">
-                        📋 Manifiesto en Tránsito (<?= $totalEnTransito ?? 0 ?>)
+                        📋 Manifiesto en Tránsito (<?= $kpis['total_en_transito'] ?? ($totalEnTransito ?? 0) ?>)
                     </a>
                 </div>
             </div>
@@ -114,8 +300,7 @@ $puedeEditarPrecios = (isset($_SESSION['rol_id']) && $_SESSION['rol_id'] == 1) |
                                     <?php 
                                         $permiteSeleccionar = false;
                                         if ($puedeDespachar && $paquete['ENC_ESTADO'] == 'Recibido') $permiteSeleccionar = true;
-                                        if ($puedeRegistrarLlegada && $paquete['ENC_ESTADO'] == 'En Tránsito') $permiteSeleccionar = true;
-                                        if ($puedeDespachar && $puedeRegistrarLlegada && ($paquete['ENC_ESTADO'] == 'Recibido' || $paquete['ENC_ESTADO'] == 'En Tránsito')) $permiteSeleccionar = true;
+                                        if ($puedeRegistrarLlegada && in_array($paquete['ENC_ESTADO'], ['En Tránsito', 'En Oficina'])) $permiteSeleccionar = true;
                                     ?>
                                     <?php if($permiteSeleccionar): ?>
                                         <input type="checkbox" name="encomiendas_ids[]" value="<?= $paquete['ID_ENCOMIENDA'] ?>" class="form-check-input border-secondary shadow-sm">
@@ -142,14 +327,39 @@ $puedeEditarPrecios = (isset($_SESSION['rol_id']) && $_SESSION['rol_id'] == 1) |
                                 <td>
                                     <?php 
                                         $estado = $paquete['ENC_ESTADO'] ? $paquete['ENC_ESTADO'] : 'Recibido';
-                                        if ($estado == 'Recibido') $badge = 'bg-secondary'; elseif ($estado == 'En Tránsito') $badge = 'bg-primary'; elseif ($estado == 'Entregado') $badge = 'bg-success'; elseif ($estado == 'Anulado') $badge = 'bg-danger text-white text-decoration-line-through'; else $badge = 'bg-dark';
+                                        if ($estado == 'Recibido') {
+                                            $badge = 'bg-secondary text-white';
+                                            $badgeIcon = '🏬';
+                                        } elseif ($estado == 'En Tránsito') {
+                                            $badge = 'bg-primary text-white';
+                                            $badgeIcon = '🚚';
+                                        } elseif ($estado == 'En Oficina') {
+                                            $badge = 'bg-info text-dark';
+                                            $badgeIcon = '🏢';
+                                        } elseif ($estado == 'Entregado') {
+                                            $badge = 'bg-success text-white';
+                                            $badgeIcon = '✅';
+                                        } elseif ($estado == 'Anulado') {
+                                            $badge = 'bg-danger text-white text-decoration-line-through';
+                                            $badgeIcon = '🛑';
+                                        } else {
+                                            $badge = 'bg-dark text-white';
+                                            $badgeIcon = '📦';
+                                        }
                                     ?>
-                                    <span class="badge <?= $badge ?> fs-6"><?= $estado ?></span>
+                                    <span class="badge <?= $badge ?> fs-6"><?= $badgeIcon ?> <?= $estado ?></span>
                                     <?php if(($paquete['SOLICITUD_ESTADO'] ?? '') === 'PENDIENTE' && $estado != 'Anulado'): ?>
                                         <div class="mt-1"><span class="badge bg-warning text-dark border" style="font-size: 11px;">⏳ Anulación Solicitada</span></div>
                                     <?php endif; ?>
-                                    <?php if($estado == 'En Tránsito' && !empty($paquete['FECHA_DESPACHO'])): ?><div class="mt-1"><small class="text-primary fw-bold">Sale: <?= $paquete['FECHA_DESPACHO'] ?></small></div><?php endif; ?>
-                                    <?php if($estado == 'Entregado' && !empty($paquete['ENC_RETIRO'])): ?><div class="mt-1"><small class="text-success fw-bold">Entregado: <?= $paquete['ENC_RETIRO'] ?></small></div><?php endif; ?>
+                                    <?php if($estado == 'En Tránsito' && !empty($paquete['FECHA_DESPACHO'])): ?>
+                                        <div class="mt-1"><small class="text-primary fw-bold">🚚 Despacho: <?= $paquete['FECHA_DESPACHO'] ?></small></div>
+                                    <?php endif; ?>
+                                    <?php if($estado == 'En Oficina' && !empty($paquete['ENC_LLEGADA'])): ?>
+                                        <div class="mt-1"><small class="text-info fw-bold" style="color: #055160 !important;">🏢 Llegó: <?= $paquete['ENC_LLEGADA'] ?></small></div>
+                                    <?php endif; ?>
+                                    <?php if($estado == 'Entregado' && !empty($paquete['ENC_RETIRO'])): ?>
+                                        <div class="mt-1"><small class="text-success fw-bold">✅ Retirado: <?= $paquete['ENC_RETIRO'] ?></small></div>
+                                    <?php endif; ?>
                                 </td>
                                 <td class="text-center">
                                     <div class="dropdown">
@@ -163,6 +373,20 @@ $puedeEditarPrecios = (isset($_SESSION['rol_id']) && $_SESSION['rol_id'] == 1) |
                                             <?php if($estado == 'Anulado'): ?>
                                                 <li><span class="dropdown-item text-muted disabled">❌ Guía Anulada</span></li>
                                             <?php else: ?>
+                                                <?php if($puedeRegistrarLlegada && $estado == 'En Tránsito'): ?>
+                                                    <li>
+                                                        <a class="dropdown-item fw-bold text-info" href="/suramerica2030/encomiendas/actualizar?id_encomienda=<?= $paquete['ID_ENCOMIENDA'] ?>&estado=En+Oficina" onclick="return confirm('¿Marcar guía #<?= $paquete['ID_FACTURA'] ?> como LLEGADA A OFICINA?');">
+                                                            🏢 Llegó a Oficina
+                                                        </a>
+                                                    </li>
+                                                <?php endif; ?>
+                                                <?php if($puedeRegistrarLlegada && ($estado == 'En Tránsito' || $estado == 'En Oficina')): ?>
+                                                    <li>
+                                                        <a class="dropdown-item fw-bold text-success" href="/suramerica2030/encomiendas/actualizar?id_encomienda=<?= $paquete['ID_ENCOMIENDA'] ?>&estado=Entregado" onclick="return confirm('¿Confirmar entrega al cliente de guía #<?= $paquete['ID_FACTURA'] ?>?');">
+                                                            ✅ Entregar al Cliente
+                                                        </a>
+                                                    </li>
+                                                <?php endif; ?>
                                                 <?php if($puedeDespachar || $puedeRegistrarLlegada): ?>
                                                     <li>
                                                         <a class="dropdown-item fw-bold text-primary" href="#" data-bs-toggle="modal" data-bs-target="#modalEstado<?= $paquete['ID_ENCOMIENDA'] ?>">
@@ -170,24 +394,22 @@ $puedeEditarPrecios = (isset($_SESSION['rol_id']) && $_SESSION['rol_id'] == 1) |
                                                         </a>
                                                     </li>
                                                 <?php endif; ?>
-                                                <?php if($estado != 'Anulado'): ?>
-                                                    <li><hr class="dropdown-divider"></li>
-                                                    <?php if(($paquete['SOLICITUD_ESTADO'] ?? '') === 'PENDIENTE'): ?>
-                                                        <li><span class="dropdown-item text-warning fw-bold disabled">⏳ Anulación en Revisión</span></li>
+                                                <li><hr class="dropdown-divider"></li>
+                                                <?php if(($paquete['SOLICITUD_ESTADO'] ?? '') === 'PENDIENTE'): ?>
+                                                    <li><span class="dropdown-item text-warning fw-bold disabled">⏳ Anulación en Revisión</span></li>
+                                                <?php else: ?>
+                                                    <?php if((isset($_SESSION['p_anular']) && $_SESSION['p_anular'] == 1) || (isset($_SESSION['rol_id']) && $_SESSION['rol_id'] == 1)): ?>
+                                                        <li>
+                                                            <a class="dropdown-item fw-bold text-danger" href="#" data-bs-toggle="modal" data-bs-target="#modalEliminar<?= $paquete['ID_ENCOMIENDA'] ?>">
+                                                                ❌ Anular Encomienda
+                                                            </a>
+                                                        </li>
                                                     <?php else: ?>
-                                                        <?php if((isset($_SESSION['p_anular']) && $_SESSION['p_anular'] == 1) || (isset($_SESSION['rol_id']) && $_SESSION['rol_id'] == 1)): ?>
-                                                            <li>
-                                                                <a class="dropdown-item fw-bold text-danger" href="#" data-bs-toggle="modal" data-bs-target="#modalEliminar<?= $paquete['ID_ENCOMIENDA'] ?>">
-                                                                    ❌ Anular Encomienda
-                                                                </a>
-                                                            </li>
-                                                        <?php else: ?>
-                                                            <li>
-                                                                <a class="dropdown-item fw-bold text-warning" href="#" data-bs-toggle="modal" data-bs-target="#modalSolicitarAnulacionEnc<?= $paquete['ID_ENCOMIENDA'] ?>">
-                                                                    📩 Solicitar Anulación
-                                                                </a>
-                                                            </li>
-                                                        <?php endif; ?>
+                                                        <li>
+                                                            <a class="dropdown-item fw-bold text-warning" href="#" data-bs-toggle="modal" data-bs-target="#modalSolicitarAnulacionEnc<?= $paquete['ID_ENCOMIENDA'] ?>">
+                                                                📩 Solicitar Anulación
+                                                            </a>
+                                                        </li>
                                                     <?php endif; ?>
                                                 <?php endif; ?>
                                             <?php endif; ?>
@@ -203,13 +425,14 @@ $puedeEditarPrecios = (isset($_SESSION['rol_id']) && $_SESSION['rol_id'] == 1) |
                                         <div class="modal-header bg-primary text-white"><h5 class="modal-title fs-6">Guía #<?= $paquete['ID_FACTURA'] ?></h5><button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button></div>
                                         <div class="modal-body">
                                             <input type="hidden" name="id_encomienda_ind" value="<?= $paquete['ID_ENCOMIENDA'] ?>">
-                                            <label class="form-label text-muted">Cambiar estado del paquete:</label>
-                                            <select name="estado_ind" class="form-select" onchange="window.location.href='/suramerica2030/encomiendas/actualizar?id_encomienda=<?= $paquete['ID_ENCOMIENDA'] ?>&estado='+this.value">
-                                                <option value="Recibido" <?= $estado == 'Recibido' ? 'selected' : '' ?>>📦 Recibido en Origen</option>
+                                            <label class="form-label text-muted small fw-bold">Cambiar estado del paquete:</label>
+                                            <select name="estado_ind" class="form-select" onchange="window.location.href='/suramerica2030/encomiendas/actualizar?id_encomienda=<?= $paquete['ID_ENCOMIENDA'] ?>&estado='+encodeURIComponent(this.value)">
+                                                <option value="Recibido" <?= $estado == 'Recibido' ? 'selected' : '' ?>>🏬 Recibido en Origen (Bodega)</option>
                                                 <?php if($puedeDespachar): ?>
                                                     <option value="En Tránsito" <?= $estado == 'En Tránsito' ? 'selected' : '' ?>>🚚 En Tránsito hacia Destino</option>
                                                 <?php endif; ?>
                                                 <?php if($puedeRegistrarLlegada): ?>
+                                                    <option value="En Oficina" <?= $estado == 'En Oficina' ? 'selected' : '' ?>>🏢 Llegó a Oficina (Listo para Retiro)</option>
                                                     <option value="Entregado" <?= $estado == 'Entregado' ? 'selected' : '' ?>>✅ Entregado a Destinatario</option>
                                                 <?php endif; ?>
                                             </select>

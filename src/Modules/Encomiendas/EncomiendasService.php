@@ -21,7 +21,8 @@ class EncomiendasService {
             'pagina' => $pagina,
             'totalRegistros' => $totalRegistros,
             'totalEnTransito' => $this->repository->contarEncomiendasEnTransito(),
-            'directorioCorreos' => $this->repository->obtenerDirectorioCorreos()
+            'directorioCorreos' => $this->repository->obtenerDirectorioCorreos(),
+            'kpis' => $this->repository->obtenerKpisEncomiendas()
         ];
 
         if (isset($filtros['tab']) && $filtros['tab'] == 'carga') {
