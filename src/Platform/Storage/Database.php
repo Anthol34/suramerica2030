@@ -6,7 +6,7 @@ class Database {
     private $host = 'localhost';
     private $db_name = 'suramerica2030_db';
     private $username = 'root'; 
-    private $password = 'supermario@001'; // ¡Ojo! Pon aquí la contraseña real de tu AppServ
+    private $password = 'Sura@2030'; // ¡Ojo! Pon aquí la contraseña real de tu AppServ
     private $conn;
 
     public function getConnection() {

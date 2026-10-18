@@ -166,14 +166,15 @@ class EncomiendasRepository {
     public function eliminarEncomiendaBD($idFactura, $usuarioId, $sucursalId) {
         try {
             $this->db->beginTransaction();
-            $stmtCheck = $this->db->prepare("SELECT e.ENC_ESTADO, f.FA_TOTAL FROM ENCOMIENDA e INNER JOIN FACTURA f ON e.ID_FACTURA = f.ID_FACTURA WHERE f.ID_FACTURA = ?");
+            $stmtCheck = $this->db->prepare("SELECT e.ENC_ESTADO, f.FA_TOTAL, f.ID_SUCURSAL FROM ENCOMIENDA e INNER JOIN FACTURA f ON e.ID_FACTURA = f.ID_FACTURA WHERE f.ID_FACTURA = ?");
             $stmtCheck->execute([$idFactura]);
             $data = $stmtCheck->fetch(PDO::FETCH_ASSOC);
 
             if ($data && $data['ENC_ESTADO'] != 'Anulado') {
+                $sucursalAfectada = !empty($data['ID_SUCURSAL']) ? $data['ID_SUCURSAL'] : $sucursalId;
                 $this->db->prepare("UPDATE ENCOMIENDA SET ENC_ESTADO = 'Anulado' WHERE ID_FACTURA = ?")->execute([$idFactura]);
                 $stmtCaja = $this->db->prepare("INSERT INTO MOVIMIENTO_CAJA (ID_USUARIO, ID_SUCURSAL, ID_FACTURA, TIPO_MOVIMIENTO, METODO_PAGO, MONTO, CONCEPTO) VALUES (?, ?, ?, 'EGRESO', 'EFECTIVO', ?, 'Anulación de Encomienda (Reembolso)')");
-                $stmtCaja->execute([$usuarioId, $sucursalId, $idFactura, floatval($data['FA_TOTAL'])]);
+                $stmtCaja->execute([$usuarioId, $sucursalAfectada, $idFactura, floatval($data['FA_TOTAL'])]);
 
                 // Auto-aprobar cualquier solicitud de anulación pendiente para esta encomienda
                 $this->db->prepare("UPDATE SOLICITUD_ANULACION SET ESTADO = 'APROBADA', ID_USUARIO_RESPONDE = ?, FECHA_RESPUESTA = NOW() WHERE TIPO_VENTA = 'ENCOMIENDA' AND ID_REFERENCIA = ? AND ESTADO = 'PENDIENTE'")

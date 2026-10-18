@@ -173,7 +173,7 @@
                             </td>
                             <td>
                                 <strong>Factura #<?= $s['ID_FACTURA'] ?? $s['ID_REFERENCIA'] ?></strong><br>
-                                <small class="text-muted"><?= htmlspecialchars($s['SUCURSAL_SOLICITA'] ?? 'Sucursal') ?></small>
+                                <span class="badge bg-light text-dark border">📍 Caja <?= htmlspecialchars($s['SUCURSAL_VENTA_NOMBRE'] ?? $s['SUCURSAL_SOLICITA'] ?? 'Sucursal') ?></span>
                             </td>
                             <td>
                                 <strong><?= htmlspecialchars(trim(($s['CLI_NOMBRE'] ?? '') . ' ' . ($s['CLI_APELLIDO'] ?? '')) ?: 'N/A') ?></strong><br>
@@ -217,7 +217,7 @@
                                             <form action="/suramerica2030/caja/procesar_solicitud_anulacion" method="POST" style="display:inline;">
                                                 <input type="hidden" name="id_solicitud" value="<?= $s['ID_SOLICITUD'] ?>">
                                                 <input type="hidden" name="accion" value="APROBAR">
-                                                <button type="submit" class="btn btn-sm btn-success fw-bold" title="Aprobar Anulación" onclick="return confirm('¿Confirmas que deseas APROBAR la anulación #<?= $s['ID_SOLICITUD'] ?>? Se anulará la venta, se liberará el asiento (si aplica) y se registrará un egreso de $<?= number_format($s['MONTO_DEVOLVER'], 2) ?> en caja.');">
+                                                <button type="submit" class="btn btn-sm btn-success fw-bold" title="Aprobar Anulación" onclick="return confirm('¿Confirmas que deseas APROBAR la anulación #<?= $s['ID_SOLICITUD'] ?>? Se anulará la venta y se registrará un egreso de $<?= number_format($s['MONTO_DEVOLVER'], 2) ?> en la caja de <?= htmlspecialchars($s['SUCURSAL_VENTA_NOMBRE'] ?? $s['SUCURSAL_SOLICITA'] ?? 'la sucursal') ?>.');">
                                                     ✔️ Aprobar
                                                 </button>
                                             </form>

@@ -640,8 +640,13 @@ class PasajesRepository {
             $this->db->prepare("UPDATE PASAJE SET ESTADO = 'DEVUELTO', OBSERVACION = ?, PAX_ASIENTO = NULL WHERE ID_PASAJE = ?")->execute([$motivo, $datos['id_pasaje']]);
 
             if (floatval($datos['monto_devolver']) > 0) {
-                $idFactura = $this->db->query("SELECT ID_FACTURA FROM PASAJE WHERE ID_PASAJE = " . intval($datos['id_pasaje']))->fetchColumn();
-                $this->db->prepare("INSERT INTO MOVIMIENTO_CAJA (ID_USUARIO, ID_SUCURSAL, ID_FACTURA, TIPO_MOVIMIENTO, METODO_PAGO, MONTO, CONCEPTO) VALUES (?, ?, ?, 'EGRESO', 'EFECTIVO', ?, ?)")->execute([$usuarioId, $sucursalId, $idFactura, floatval($datos['monto_devolver']), $motivo]);
+                $stmtFac = $this->db->prepare("SELECT f.ID_FACTURA, f.ID_SUCURSAL FROM PASAJE p INNER JOIN FACTURA f ON p.ID_FACTURA = f.ID_FACTURA WHERE p.ID_PASAJE = ?");
+                $stmtFac->execute([$datos['id_pasaje']]);
+                $facInfo = $stmtFac->fetch(PDO::FETCH_ASSOC);
+                $idFactura = $facInfo['ID_FACTURA'] ?? null;
+                $sucursalAfectada = !empty($facInfo['ID_SUCURSAL']) ? $facInfo['ID_SUCURSAL'] : $sucursalId;
+
+                $this->db->prepare("INSERT INTO MOVIMIENTO_CAJA (ID_USUARIO, ID_SUCURSAL, ID_FACTURA, TIPO_MOVIMIENTO, METODO_PAGO, MONTO, CONCEPTO) VALUES (?, ?, ?, 'EGRESO', 'EFECTIVO', ?, ?)")->execute([$usuarioId, $sucursalAfectada, $idFactura, floatval($datos['monto_devolver']), $motivo]);
             }
 
             // Si existía una solicitud de anulación pendiente para este pasaje, marcarla como APROBADA
@@ -717,13 +722,38 @@ class PasajesRepository {
                 return "Ya existe una solicitud de anulación pendiente de revisión para esta venta.";
             }
 
+            // Identificar la factura y la sucursal donde ocurrió la venta original
+            $facId = !empty($idFactura) ? $idFactura : null;
+            if (empty($facId)) {
+                if ($tipoVenta === 'PASAJE') {
+                    $facId = $this->db->query("SELECT ID_FACTURA FROM PASAJE WHERE ID_PASAJE = " . intval($idReferencia))->fetchColumn();
+                } elseif ($tipoVenta === 'ENCOMIENDA' || $tipoVenta === 'VALOR') {
+                    $facId = $idReferencia;
+                }
+            }
+
+            $sucursalVenta = null;
+            if (!empty($facId)) {
+                $stmtFac = $this->db->prepare("SELECT ID_SUCURSAL FROM FACTURA WHERE ID_FACTURA = ?");
+                $stmtFac->execute([$facId]);
+                $sucursalVenta = $stmtFac->fetchColumn();
+
+                if (empty($sucursalVenta)) {
+                    $stmtMov = $this->db->prepare("SELECT ID_SUCURSAL FROM MOVIMIENTO_CAJA WHERE ID_FACTURA = ? AND TIPO_MOVIMIENTO = 'INGRESO' ORDER BY ID_MOVIMIENTO ASC LIMIT 1");
+                    $stmtMov->execute([$facId]);
+                    $sucursalVenta = $stmtMov->fetchColumn();
+                }
+            }
+
+            $sucursalFinal = !empty($sucursalVenta) ? $sucursalVenta : $sucursalId;
+
             $stmt = $this->db->prepare("INSERT INTO SOLICITUD_ANULACION (TIPO_VENTA, ID_REFERENCIA, ID_FACTURA, ID_USUARIO_SOLICITA, ID_SUCURSAL, MONTO_DEVOLVER, MOTIVO, ESTADO, FECHA_SOLICITUD) VALUES (?, ?, ?, ?, ?, ?, ?, 'PENDIENTE', NOW())");
             $stmt->execute([
                 $tipoVenta,
                 $idReferencia,
-                $idFactura,
+                $facId,
                 $usuarioId,
-                $sucursalId,
+                $sucursalFinal,
                 floatval($montoDevolver),
                 trim($motivo)
             ]);
@@ -752,9 +782,13 @@ class PasajesRepository {
             $sql = "SELECT s.*, 
                            us.NOMBRE as USUARIO_SOLICITA_NOMBRE, 
                            suc.CIUDAD as SUCURSAL_NOMBRE, 
+                           suc_fac.CIUDAD as SUCURSAL_VENTA_NOMBRE,
+                           COALESCE(suc_fac.CIUDAD, suc.CIUDAD, 'Central') as SUCURSAL_SOLICITA,
                            ur.NOMBRE as USUARIO_RESPONDE_NOMBRE,
                            p.PAX_ASIENTO, p.PRECIO_TOTAL as PASAJE_PRECIO, p.SALDO as PASAJE_SALDO, p.ESTADO as PASAJE_ESTADO,
-                           c.CLI_NOMBRE, c.CLI_APELLIDO, c.ID_CLIENTE,
+                           COALESCE(c.CLI_NOMBRE, c_fac.CLI_NOMBRE) as CLI_NOMBRE, 
+                           COALESCE(c.CLI_APELLIDO, c_fac.CLI_APELLIDO) as CLI_APELLIDO, 
+                           COALESCE(c.ID_CLIENTE, c_fac.ID_CLIENTE) as ID_CLIENTE,
                            r.RUT_ORIGEN, r.RUT_DESTINO,
                            f.FECHA_VIAJE, f.FA_FECHA, f.FA_TOTAL,
                            b.BUS_PLACA
@@ -764,7 +798,9 @@ class PasajesRepository {
                     LEFT JOIN USUARIO ur ON s.ID_USUARIO_RESPONDE = ur.ID_USUARIO
                     LEFT JOIN PASAJE p ON (s.TIPO_VENTA = 'PASAJE' AND s.ID_REFERENCIA = p.ID_PASAJE)
                     LEFT JOIN CLIENTE c ON p.ID_CLIENTE = c.ID_CLIENTE
-                    LEFT JOIN FACTURA f ON COALESCE(s.ID_FACTURA, p.ID_FACTURA) = f.ID_FACTURA
+                    LEFT JOIN FACTURA f ON COALESCE(s.ID_FACTURA, p.ID_FACTURA, CASE WHEN s.TIPO_VENTA IN ('ENCOMIENDA', 'VALOR') THEN s.ID_REFERENCIA END) = f.ID_FACTURA
+                    LEFT JOIN SUCURSAL suc_fac ON f.ID_SUCURSAL = suc_fac.ID_SUCURSAL
+                    LEFT JOIN CLIENTE c_fac ON f.ID_CLIENTE = c_fac.ID_CLIENTE
                     LEFT JOIN RUTA r ON f.ID_RUTA = r.ID_RUTA
                     LEFT JOIN BUS b ON p.ID_BUS = b.ID_BUS
                     WHERE 1=1 ";
@@ -812,7 +848,33 @@ class PasajesRepository {
                 return "La solicitud no existe o ya fue procesada previamente.";
             }
 
-            $idSucursal = !empty($sucursalAdminId) ? $sucursalAdminId : $sol['ID_SUCURSAL'];
+            // Identificar la factura asociada a la venta
+            $idFactura = $sol['ID_FACTURA'];
+            if (empty($idFactura)) {
+                if ($sol['TIPO_VENTA'] === 'PASAJE') {
+                    $idFactura = $this->db->query("SELECT ID_FACTURA FROM PASAJE WHERE ID_PASAJE = " . intval($sol['ID_REFERENCIA']))->fetchColumn();
+                } elseif ($sol['TIPO_VENTA'] === 'ENCOMIENDA' || $sol['TIPO_VENTA'] === 'VALOR') {
+                    $idFactura = $sol['ID_REFERENCIA'];
+                }
+            }
+
+            // Identificar la sucursal donde ocurrió la venta originalmente para asignar el egreso a esa caja
+            $idSucursalVenta = null;
+            if (!empty($idFactura)) {
+                $stmtFac = $this->db->prepare("SELECT ID_SUCURSAL FROM FACTURA WHERE ID_FACTURA = ?");
+                $stmtFac->execute([$idFactura]);
+                $idSucursalVenta = $stmtFac->fetchColumn();
+
+                if (empty($idSucursalVenta)) {
+                    $stmtMov = $this->db->prepare("SELECT ID_SUCURSAL FROM MOVIMIENTO_CAJA WHERE ID_FACTURA = ? AND TIPO_MOVIMIENTO = 'INGRESO' ORDER BY ID_MOVIMIENTO ASC LIMIT 1");
+                    $stmtMov->execute([$idFactura]);
+                    $idSucursalVenta = $stmtMov->fetchColumn();
+                }
+            }
+
+            // La caja afectada por el reembolso DEBE ser la sucursal de la venta
+            // Prioridad: 1. Sucursal de la Factura/Ingreso | 2. Sucursal de la Solicitud | 3. Sucursal Admin
+            $idSucursal = !empty($idSucursalVenta) ? $idSucursalVenta : (!empty($sol['ID_SUCURSAL']) ? $sol['ID_SUCURSAL'] : $sucursalAdminId);
 
             if ($sol['TIPO_VENTA'] === 'PASAJE') {
                 $idPasaje = $sol['ID_REFERENCIA'];
@@ -823,15 +885,10 @@ class PasajesRepository {
 
                 $montoDevolver = floatval($sol['MONTO_DEVOLVER']);
                 if ($montoDevolver > 0) {
-                    $idFactura = $sol['ID_FACTURA'];
-                    if (!$idFactura) {
-                        $idFactura = $this->db->query("SELECT ID_FACTURA FROM PASAJE WHERE ID_PASAJE = " . intval($idPasaje))->fetchColumn();
-                    }
                     $this->db->prepare("INSERT INTO MOVIMIENTO_CAJA (ID_USUARIO, ID_SUCURSAL, ID_FACTURA, TIPO_MOVIMIENTO, METODO_PAGO, MONTO, CONCEPTO, ESTADO_APROBACION) VALUES (?, ?, ?, 'EGRESO', 'EFECTIVO', ?, ?, 'APROBADO')")
                              ->execute([$usuarioAdminId, $idSucursal, $idFactura, $montoDevolver, $motivo]);
                 }
             } elseif ($sol['TIPO_VENTA'] === 'ENCOMIENDA') {
-                $idFactura = $sol['ID_REFERENCIA'];
                 $this->db->prepare("UPDATE ENCOMIENDA SET ENC_ESTADO = 'Anulado' WHERE ID_FACTURA = ?")->execute([$idFactura]);
                 $montoDevolver = floatval($sol['MONTO_DEVOLVER']);
                 if ($montoDevolver > 0) {
@@ -839,7 +896,6 @@ class PasajesRepository {
                              ->execute([$usuarioAdminId, $idSucursal, $idFactura, $montoDevolver, 'Anulación de Encomienda aprobada por Admin (Reembolso)']);
                 }
             } elseif ($sol['TIPO_VENTA'] === 'VALOR') {
-                $idFactura = $sol['ID_REFERENCIA'];
                 $this->db->prepare("UPDATE VALOR SET VA_ESTADO = 'Anulado' WHERE ID_FACTURA = ?")->execute([$idFactura]);
                 $montoDevolver = floatval($sol['MONTO_DEVOLVER']);
                 if ($montoDevolver > 0) {

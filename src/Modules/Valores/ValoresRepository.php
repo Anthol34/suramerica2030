@@ -147,14 +147,15 @@ class ValoresRepository {
     public function eliminarValorBD($idFactura, $usuarioId, $sucursalId) {
         try {
             $this->db->beginTransaction();
-            $stmtCheck = $this->db->prepare("SELECT v.VA_ESTADO, f.FA_TOTAL FROM VALOR v INNER JOIN FACTURA f ON v.ID_FACTURA = f.ID_FACTURA WHERE f.ID_FACTURA = ?");
+            $stmtCheck = $this->db->prepare("SELECT v.VA_ESTADO, f.FA_TOTAL, f.ID_SUCURSAL FROM VALOR v INNER JOIN FACTURA f ON v.ID_FACTURA = f.ID_FACTURA WHERE f.ID_FACTURA = ?");
             $stmtCheck->execute([$idFactura]);
             $data = $stmtCheck->fetch(PDO::FETCH_ASSOC);
 
             if ($data && $data['VA_ESTADO'] == 'Por Retirar') {
+                $sucursalAfectada = !empty($data['ID_SUCURSAL']) ? $data['ID_SUCURSAL'] : $sucursalId;
                 $this->db->prepare("UPDATE VALOR SET VA_ESTADO = 'Anulado' WHERE ID_FACTURA = ?")->execute([$idFactura]);
                 $stmtCaja = $this->db->prepare("INSERT INTO MOVIMIENTO_CAJA (ID_USUARIO, ID_SUCURSAL, ID_FACTURA, TIPO_MOVIMIENTO, METODO_PAGO, MONTO, CONCEPTO) VALUES (?, ?, ?, 'EGRESO', 'EFECTIVO', ?, 'Anulación de Envío de Valores (Reembolso)')");
-                $stmtCaja->execute([$usuarioId, $sucursalId, $idFactura, floatval($data['FA_TOTAL'])]);
+                $stmtCaja->execute([$usuarioId, $sucursalAfectada, $idFactura, floatval($data['FA_TOTAL'])]);
 
                 $this->db->prepare("UPDATE SOLICITUD_ANULACION SET ESTADO = 'APROBADA', ID_USUARIO_RESPONDE = ?, FECHA_RESPUESTA = NOW() WHERE TIPO_VENTA = 'VALOR' AND ID_REFERENCIA = ? AND ESTADO = 'PENDIENTE'")
                          ->execute([$usuarioId, $idFactura]);
