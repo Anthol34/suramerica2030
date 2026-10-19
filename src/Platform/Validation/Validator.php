@@ -56,6 +56,49 @@ class Validator {
     }
 
     /**
+     * Alias para validar correo electrónico.
+     */
+    public static function validarEmail($email) {
+        return self::email($email);
+    }
+
+    public static function validarCedula($cedula) {
+        return self::cedula($cedula);
+    }
+
+    public static function validarRUC($ruc) {
+        return self::ruc($ruc);
+    }
+
+    public static function validarIdentificacion($tipo, $numero) {
+        return self::identificacion($tipo, $numero);
+    }
+
+    public static function validarTelefono($telefono) {
+        return self::telefono($telefono);
+    }
+
+    public static function validarMonto($monto, $min = 0.01, $max = null) {
+        return self::monto($monto, $min, $max);
+    }
+
+    public static function validarFecha($fecha, $formato = 'Y-m-d') {
+        return self::fecha($fecha, $formato);
+    }
+
+    public static function validarRangoFechas($fechaInicio, $fechaFin) {
+        return self::rangoFechas($fechaInicio, $fechaFin);
+    }
+
+    public static function validarPlaca($placa) {
+        return self::placa($placa);
+    }
+
+    public static function validarPassword($password, $min = 6) {
+        return self::password($password, $min);
+    }
+
+    /**
      * Valida un monto monetario numérico mayor a cero y opcionalmente con un tope.
      */
     public static function monto($monto, $min = 0.01, $max = null) {
@@ -72,18 +115,39 @@ class Validator {
      * @param float $efectivo
      * @param float $transferencia
      * @param float $tolerancia Centavos de margen para errores de redondeo de punto flotante
-     * @return bool
+     * @return array ['valido' => bool, 'mensaje' => string]
      */
     public static function pagoMixto($total, $efectivo, $transferencia, $tolerancia = 0.02) {
         $tot = round(floatval($total), 2);
         $ef = round(floatval($efectivo), 2);
         $tr = round(floatval($transferencia), 2);
 
-        if ($tot <= 0) return false;
-        if ($ef < 0 || $tr < 0) return false;
+        if ($tot <= 0) {
+            return ['valido' => false, 'mensaje' => 'El monto total a pagar debe ser mayor a 0.'];
+        }
+        if ($ef < 0 || $tr < 0) {
+            return ['valido' => false, 'mensaje' => 'Los montos en efectivo y transferencia no pueden ser negativos.'];
+        }
 
         $suma = round($ef + $tr, 2);
-        return abs($suma - $tot) <= $tolerancia;
+        $diff = round($suma - $tot, 2);
+        if (abs($diff) > $tolerancia) {
+            return [
+                'valido' => false,
+                'mensaje' => "La suma de Efectivo ($" . number_format($ef, 2) . ") y Transferencia ($" . number_format($tr, 2) . ") es $" . number_format($suma, 2) . ", pero el total requerido es $" . number_format($tot, 2) . " (diferencia de $" . number_format($diff, 2) . ")."
+            ];
+        }
+
+        return ['valido' => true, 'mensaje' => 'Pago mixto correcto.'];
+    }
+
+    public static function validarPagoMixto($total, $efectivo, $transferencia, $tolerancia = 0.02) {
+        return self::pagoMixto($total, $efectivo, $transferencia, $tolerancia);
+    }
+
+    public static function esPagoMixtoValido($total, $efectivo, $transferencia, $tolerancia = 0.02) {
+        $res = self::pagoMixto($total, $efectivo, $transferencia, $tolerancia);
+        return !empty($res['valido']);
     }
 
     /**
@@ -127,6 +191,60 @@ class Validator {
         $texto = strip_tags($texto);
         $texto = preg_replace('/\s+/', ' ', $texto);
         return trim($texto);
+    }
+
+    /**
+     * Limpia un identificador alfanumérico eliminando espacios y caracteres especiales.
+     */
+    public static function limpiarAlfanumerico($str) {
+        if (!is_string($str) && !is_numeric($str)) return '';
+        return strtoupper(trim(preg_replace('/[^a-zA-Z0-9]/', '', (string)$str)));
+    }
+
+    /**
+     * Limpia un número de teléfono conservando solo dígitos y el signo + internacional.
+     */
+    public static function limpiarTelefono($tel) {
+        if (!is_string($tel) && !is_numeric($tel)) return '';
+        return trim(preg_replace('/[^\d+]/', '', (string)$tel));
+    }
+
+    /**
+     * Limpia y estandariza una placa vehicular eliminando caracteres extraños.
+     */
+    public static function limpiarPlaca($placa) {
+        if (!is_string($placa) && !is_numeric($placa)) return '';
+        $p = strtoupper(trim((string)$placa));
+        return preg_replace('/[^A-Z0-9-]/', '', $p);
+    }
+
+    /**
+     * Limpia un valor numérico/monetario conservando dígitos y punto decimal.
+     */
+    public static function limpiarNumero($num) {
+        if (!is_string($num) && !is_numeric($num)) return '';
+        return preg_replace('/[^\d.]/', '', (string)$num);
+    }
+
+    /**
+     * Limpia un correo electrónico.
+     */
+    public static function limpiarEmail($email) {
+        if (!is_string($email)) return '';
+        return strtolower(trim(filter_var($email, FILTER_SANITIZE_EMAIL)));
+    }
+
+    /**
+     * Soporte dinámico para métodos estáticos del tipo 'validar<NombreMetodo>'.
+     */
+    public static function __callStatic($name, $arguments) {
+        if (strpos($name, 'validar') === 0 && strlen($name) > 7) {
+            $metodo = lcfirst(substr($name, 7));
+            if (method_exists(self::class, $metodo)) {
+                return forward_static_call_array([self::class, $metodo], $arguments);
+            }
+        }
+        throw new \BadMethodCallException("Método estático '{$name}' no existe en " . self::class);
     }
 
     /**
