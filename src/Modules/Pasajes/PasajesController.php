@@ -12,14 +12,15 @@ class PasajesController {
 
     public function index() {
         $filtros = [
-            'tab'          => $_GET['tab'] ?? 'activos',
-            'buscar'       => trim($_GET['buscar'] ?? ''),
-            'tipo_fecha'   => $_GET['tipo_fecha'] ?? 'viaje',
-            'fecha_inicio' => trim($_GET['fecha_inicio'] ?? ''),
-            'fecha_fin'    => trim($_GET['fecha_fin'] ?? ''),
-            'dia_semana'   => trim($_GET['dia_semana'] ?? ''),
-            'ruta_id'      => (int)($_GET['ruta_id'] ?? 0),
-            'estado'       => trim($_GET['estado'] ?? '')
+            'tab'           => $_GET['tab'] ?? 'activos',
+            'filtro_rapido' => trim($_GET['filtro_rapido'] ?? ''),
+            'buscar'        => trim($_GET['buscar'] ?? ''),
+            'tipo_fecha'    => $_GET['tipo_fecha'] ?? 'viaje',
+            'fecha_inicio'  => trim($_GET['fecha_inicio'] ?? ''),
+            'fecha_fin'     => trim($_GET['fecha_fin'] ?? ''),
+            'dia_semana'    => trim($_GET['dia_semana'] ?? ''),
+            'ruta_id'       => (int)($_GET['ruta_id'] ?? 0),
+            'estado'        => trim($_GET['estado'] ?? '')
         ];
         $pagina = isset($_GET['pagina']) ? max(1, (int)$_GET['pagina']) : 1;
         

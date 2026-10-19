@@ -8,7 +8,7 @@ class PasajesService {
         $this->repository = new PasajesRepository();
     }
 
-    public function obtenerDatosIniciales($filtros, $pagina) {
+    public function obtenerDatosIniciales($filtros, $pagina = 1) {
         $tabActual = $filtros['tab'] ?? 'activos';
         $limite = ($tabActual === 'equipaje') ? 30 : 10;
         $offset = ($pagina - 1) * $limite;
@@ -39,6 +39,7 @@ class PasajesService {
             'pasajes' => $pasajes,
             'equipajesCentral' => $equipajesCentral,
             'kpisEquipaje' => $kpisEquipaje,
+            'kpisPasajes' => $this->repository->obtenerKpisPasajes(),
             'totalPaginas' => max(1, ceil($totalRegistros / $limite)),
             'paginaActual' => $pagina,
             'pagina' => $pagina,

@@ -20,6 +20,35 @@ class PasajesRepository {
         return $this->db->query("SELECT * FROM BUS ORDER BY BUS_MARCA, BUS_MODELO")->fetchAll(PDO::FETCH_ASSOC);
     }
 
+    public function obtenerKpisPasajes() {
+        $sql = "
+            SELECT 
+                COUNT(CASE WHEN p.ESTADO != 'DEVUELTO' AND (f.FECHA_VIAJE >= CURDATE() OR f.FECHA_VIAJE IS NULL) THEN 1 END) AS total_activos,
+                COALESCE(SUM(CASE WHEN p.ESTADO != 'DEVUELTO' AND (f.FECHA_VIAJE >= CURDATE() OR f.FECHA_VIAJE IS NULL) THEN p.PRECIO_TOTAL ELSE 0 END), 0) AS total_activos_usd,
+                
+                COUNT(CASE WHEN p.ESTADO != 'DEVUELTO' AND f.FECHA_VIAJE = CURDATE() THEN 1 END) AS viajan_hoy,
+                COALESCE(SUM(CASE WHEN p.ESTADO != 'DEVUELTO' AND f.FECHA_VIAJE = CURDATE() THEN p.PRECIO_TOTAL ELSE 0 END), 0) AS viajan_hoy_usd,
+
+                COUNT(CASE WHEN p.ESTADO != 'DEVUELTO' AND f.FECHA_VIAJE BETWEEN CURDATE() AND DATE_ADD(CURDATE(), INTERVAL 7 DAY) THEN 1 END) AS viajan_proximos_7,
+
+                COUNT(CASE WHEN f.FA_FECHA = CURDATE() AND p.ESTADO != 'DEVUELTO' THEN 1 END) AS vendidos_hoy,
+                COALESCE(SUM(CASE WHEN f.FA_FECHA = CURDATE() AND p.ESTADO != 'DEVUELTO' THEN (p.PRECIO_TOTAL - p.SALDO) ELSE 0 END), 0) AS cobrado_hoy_usd,
+
+                COUNT(CASE WHEN p.ESTADO != 'DEVUELTO' AND f.FECHA_VIAJE IS NULL THEN 1 END) AS fecha_abierta,
+
+                COUNT(CASE WHEN p.ESTADO = 'RESERVA' THEN 1 END) AS reservas_pendientes,
+                COALESCE(SUM(CASE WHEN p.ESTADO = 'RESERVA' THEN p.SALDO ELSE 0 END), 0) AS saldo_reservas_usd,
+
+                COUNT(CASE WHEN p.ESTADO = 'PAGADO' THEN 1 END) AS total_pagados,
+                COALESCE(SUM(CASE WHEN p.ESTADO = 'PAGADO' THEN p.PRECIO_TOTAL ELSE 0 END), 0) AS total_pagados_usd,
+                COUNT(CASE WHEN p.ESTADO = 'DEVUELTO' THEN 1 END) AS total_devueltos
+            FROM PASAJE p
+            INNER JOIN FACTURA f ON p.ID_FACTURA = f.ID_FACTURA
+        ";
+        $stmt = $this->db->query($sql);
+        return $stmt->fetch(PDO::FETCH_ASSOC) ?: [];
+    }
+
     public function contarTodos($filtros = []) {
         $query = "SELECT COUNT(*) FROM PASAJE p INNER JOIN FACTURA f ON p.ID_FACTURA = f.ID_FACTURA LEFT JOIN CLIENTE c ON p.ID_CLIENTE = c.ID_CLIENTE WHERE 1=1 ";
         $params = [];
@@ -104,9 +133,21 @@ class PasajesRepository {
     private function aplicarFiltros(&$query, &$params, $filtros) {
         $tab = $filtros['tab'] ?? 'activos';
         $buscar = trim($filtros['buscar'] ?? '');
+        $filtroRapido = trim($filtros['filtro_rapido'] ?? '');
         
         if ($tab == 'activos') {
-            $query .= " AND p.ESTADO != 'DEVUELTO' AND (f.FECHA_VIAJE >= CURDATE() OR f.FECHA_VIAJE IS NULL) ";
+            if ($filtroRapido === 'hoy') {
+                $query .= " AND p.ESTADO != 'DEVUELTO' AND f.FECHA_VIAJE = CURDATE() ";
+            } elseif ($filtroRapido === 'proximos_7') {
+                $query .= " AND p.ESTADO != 'DEVUELTO' AND f.FECHA_VIAJE BETWEEN CURDATE() AND DATE_ADD(CURDATE(), INTERVAL 7 DAY) ";
+            } elseif ($filtroRapido === 'abiertas') {
+                $query .= " AND p.ESTADO != 'DEVUELTO' AND f.FECHA_VIAJE IS NULL ";
+            } elseif ($filtroRapido === 'reservas') {
+                $query .= " AND p.ESTADO = 'RESERVA' AND (f.FECHA_VIAJE >= CURDATE() OR f.FECHA_VIAJE IS NULL) ";
+            } else {
+                $query .= " AND p.ESTADO != 'DEVUELTO' AND (f.FECHA_VIAJE >= CURDATE() OR f.FECHA_VIAJE IS NULL) ";
+            }
+
             if ($buscar !== '') {
                 $query .= " AND (f.ID_FACTURA = :b_id OR c.ID_CLIENTE LIKE :b_str OR c.CLI_NOMBRE LIKE :b_str OR c.CLI_APELLIDO LIKE :b_str OR CONCAT(c.CLI_NOMBRE, ' ', c.CLI_APELLIDO) LIKE :b_str OR p.PAX_ASIENTO = :b_asi) ";
                 $params[':b_id'] = is_numeric($buscar) ? (int)$buscar : 0;

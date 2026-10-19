@@ -16,18 +16,182 @@ $puedeAnularDirecto = (isset($_SESSION['rol_id']) && $_SESSION['rol_id'] == 1) |
     </div>
 <?php endif; ?>
 
-<!-- NAVEGACIÓN DE PESTAÑAS -->
-<ul class="nav nav-tabs mb-4">
-    <li class="nav-item">
-        <a class="nav-link <?= (!isset($filtros['tab']) || $filtros['tab'] == 'activos') ? 'active fw-bold' : '' ?>" href="?tab=activos">⏳ Viajes Activos</a>
-    </li>
-    <li class="nav-item">
-        <a class="nav-link <?= (isset($filtros['tab']) && $filtros['tab'] == 'historial') ? 'active fw-bold' : '' ?>" href="?tab=historial">📚 Buscador e Historial</a>
-    </li>
-    <li class="nav-item">
-        <a class="nav-link <?= (isset($filtros['tab']) && $filtros['tab'] == 'equipaje') ? 'active fw-bold' : '' ?>" href="?tab=equipaje">🧳 Módulo de Equipaje & Sobrepeso</a>
-    </li>
-</ul>
+<!-- ESTILOS VISUALES PARA KPIS DE PASAJES -->
+<style>
+.kpi-card-pasaje {
+    border: none;
+    border-radius: 12px;
+    transition: all 0.25s ease;
+    text-decoration: none !important;
+    display: block;
+    background: #fff;
+}
+.kpi-card-pasaje:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.08) !important;
+}
+.kpi-card-pasaje.active-kpi {
+    box-shadow: 0 0 0 2px #0d6efd, 0 8px 22px rgba(13, 110, 253, 0.18) !important;
+    background-color: #f7faff;
+}
+.kpi-icon-box-pasaje {
+    width: 48px;
+    height: 48px;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.4rem;
+    flex-shrink: 0;
+}
+</style>
+
+<?php
+$tabActual = $filtros['tab'] ?? 'activos';
+$filtroRapido = $filtros['filtro_rapido'] ?? '';
+?>
+
+<!-- TARJETAS KPI DE VENTA DE PASAJES (Visible en Activos e Historial) -->
+<?php if($tabActual !== 'equipaje'): ?>
+<div class="row g-3 mb-4">
+    <!-- KPI 1: TOTAL ACTIVOS -->
+    <div class="col-xl col-md-4 col-sm-6">
+        <a href="?tab=activos" class="card kpi-card-pasaje shadow-sm border-start border-4 border-primary h-100 <?= ($tabActual == 'activos' && empty($filtroRapido)) ? 'active-kpi' : '' ?>" title="Clic para ver todos los pasajes activos (próximos viajes y abiertos)">
+            <div class="card-body d-flex align-items-center p-3">
+                <div class="kpi-icon-box-pasaje bg-primary bg-opacity-10 text-primary me-3">
+                    🎫
+                </div>
+                <div class="overflow-hidden">
+                    <div class="text-muted small fw-bold text-uppercase text-truncate">Boletos Activos</div>
+                    <h4 class="fw-bold mb-0 text-dark"><?= number_format($kpisPasajes['total_activos'] ?? 0) ?></h4>
+                    <div class="small text-muted mt-1 text-truncate">
+                        $<?= number_format($kpisPasajes['total_activos_usd'] ?? 0, 2) ?> USD | <?= $kpisPasajes['viajan_proximos_7'] ?? 0 ?> próx. 7 días
+                    </div>
+                </div>
+            </div>
+        </a>
+    </div>
+
+    <!-- KPI 2: VIAJAN HOY -->
+    <div class="col-xl col-md-4 col-sm-6">
+        <a href="?tab=activos&filtro_rapido=hoy" class="card kpi-card-pasaje shadow-sm border-start border-4 border-info h-100 <?= ($tabActual == 'activos' && $filtroRapido === 'hoy') ? 'active-kpi' : '' ?>" title="Clic para filtrar pasajeros con viaje programado para hoy">
+            <div class="card-body d-flex align-items-center p-3">
+                <div class="kpi-icon-box-pasaje bg-info bg-opacity-10 text-info me-3">
+                    🚌
+                </div>
+                <div class="overflow-hidden">
+                    <div class="text-info small fw-bold text-uppercase text-truncate">Viajan Hoy</div>
+                    <h4 class="fw-bold mb-0 text-dark"><?= number_format($kpisPasajes['viajan_hoy'] ?? 0) ?></h4>
+                    <div class="small text-muted mt-1 text-truncate">
+                        <?= ($kpisPasajes['viajan_hoy'] ?? 0) > 0 ? '$'.number_format($kpisPasajes['viajan_hoy_usd'] ?? 0, 2).' en salidas' : 'Sin salidas hoy' ?>
+                    </div>
+                </div>
+            </div>
+        </a>
+    </div>
+
+    <!-- KPI 3: VENTAS HOY -->
+    <div class="col-xl col-md-4 col-sm-6">
+        <a href="?tab=historial&tipo_fecha=emision&fecha_inicio=<?= date('Y-m-d') ?>&fecha_fin=<?= date('Y-m-d') ?>" class="card kpi-card-pasaje shadow-sm border-start border-4 border-success h-100 <?= ($tabActual == 'historial' && ($filtros['tipo_fecha'] ?? '') === 'emision' && ($filtros['fecha_inicio'] ?? '') === date('Y-m-d')) ? 'active-kpi' : '' ?>" title="Clic para ver boletos emitidos el día de hoy">
+            <div class="card-body d-flex align-items-center p-3">
+                <div class="kpi-icon-box-pasaje bg-success bg-opacity-10 text-success me-3">
+                    💵
+                </div>
+                <div class="overflow-hidden">
+                    <div class="text-success small fw-bold text-uppercase text-truncate">Ventas de Hoy</div>
+                    <h4 class="fw-bold mb-0 text-success">
+                        <?= number_format($kpisPasajes['vendidos_hoy'] ?? 0) ?>
+                        <span class="fs-6 fw-normal text-muted">boletos</span>
+                    </h4>
+                    <div class="small text-muted mt-1 text-truncate">
+                        $<?= number_format($kpisPasajes['cobrado_hoy_usd'] ?? 0, 2) ?> USD cobrados
+                    </div>
+                </div>
+            </div>
+        </a>
+    </div>
+
+    <!-- KPI 4: FECHAS ABIERTAS -->
+    <div class="col-xl col-md-6 col-sm-6">
+        <a href="?tab=activos&filtro_rapido=abiertas" class="card kpi-card-pasaje shadow-sm border-start border-4 border-warning h-100 <?= ($tabActual == 'activos' && $filtroRapido === 'abiertas') ? 'active-kpi' : '' ?>" title="Clic para filtrar boletos con fecha abierta pendientes de programar">
+            <div class="card-body d-flex align-items-center p-3">
+                <div class="kpi-icon-box-pasaje bg-warning bg-opacity-10 text-warning me-3">
+                    ⏳
+                </div>
+                <div class="overflow-hidden">
+                    <div class="text-warning small fw-bold text-uppercase text-truncate">Fechas Abiertas</div>
+                    <h4 class="fw-bold mb-0 text-dark"><?= number_format($kpisPasajes['fecha_abierta'] ?? 0) ?></h4>
+                    <div class="small text-muted mt-1 text-truncate">
+                        Pendientes de asignar bus
+                    </div>
+                </div>
+            </div>
+        </a>
+    </div>
+
+    <!-- KPI 5: RESERVAS CON SALDO -->
+    <div class="col-xl col-md-6 col-sm-12">
+        <a href="?tab=activos&filtro_rapido=reservas" class="card kpi-card-pasaje shadow-sm border-start border-4 border-danger h-100 <?= ($tabActual == 'activos' && $filtroRapido === 'reservas') ? 'active-kpi' : '' ?>" title="Clic para filtrar reservas activas con saldo por cobrar">
+            <div class="card-body d-flex align-items-center p-3">
+                <div class="kpi-icon-box-pasaje bg-danger bg-opacity-10 text-danger me-3">
+                    ⚠️
+                </div>
+                <div class="overflow-hidden">
+                    <div class="text-danger small fw-bold text-uppercase text-truncate">Reservas con Saldo</div>
+                    <h4 class="fw-bold mb-0 text-danger">
+                        <?= number_format($kpisPasajes['reservas_pendientes'] ?? 0) ?>
+                    </h4>
+                    <div class="small text-muted mt-1 text-truncate">
+                        $<?= number_format($kpisPasajes['saldo_reservas_usd'] ?? 0, 2) ?> USD por liquidar
+                    </div>
+                </div>
+            </div>
+        </a>
+    </div>
+</div>
+<?php endif; ?>
+
+<!-- NAVEGACIÓN DE PESTAÑAS Y SUBFILTROS -->
+<div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
+    <ul class="nav nav-tabs border-bottom-0 mb-0">
+        <li class="nav-item">
+            <a class="nav-link <?= (!isset($filtros['tab']) || $filtros['tab'] == 'activos') ? 'active fw-bold' : '' ?>" href="?tab=activos">
+                ⏳ Viajes Activos
+            </a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link <?= (isset($filtros['tab']) && $filtros['tab'] == 'historial') ? 'active fw-bold' : '' ?>" href="?tab=historial">
+                📚 Buscador e Historial General
+            </a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link <?= (isset($filtros['tab']) && $filtros['tab'] == 'equipaje') ? 'active fw-bold' : '' ?>" href="?tab=equipaje">
+                🧳 Módulo de Equipaje & Sobrepeso
+            </a>
+        </li>
+    </ul>
+
+    <?php if(!isset($filtros['tab']) || $filtros['tab'] == 'activos'): ?>
+        <div class="d-flex gap-1 flex-wrap align-items-center">
+            <span class="small fw-bold text-muted me-1">Filtrar:</span>
+            <a href="?tab=activos" class="btn btn-sm <?= empty($filtroRapido) ? 'btn-dark' : 'btn-outline-secondary' ?> fw-bold py-1 px-2">
+                Todos (<?= $kpisPasajes['total_activos'] ?? 0 ?>)
+            </a>
+            <a href="?tab=activos&filtro_rapido=hoy" class="btn btn-sm <?= ($filtroRapido === 'hoy') ? 'btn-info text-dark' : 'btn-outline-info text-dark' ?> fw-bold py-1 px-2">
+                🚌 Hoy (<?= $kpisPasajes['viajan_hoy'] ?? 0 ?>)
+            </a>
+            <a href="?tab=activos&filtro_rapido=proximos_7" class="btn btn-sm <?= ($filtroRapido === 'proximos_7') ? 'btn-primary' : 'btn-outline-primary' ?> fw-bold py-1 px-2">
+                📅 Próx. 7 Días (<?= $kpisPasajes['viajan_proximos_7'] ?? 0 ?>)
+            </a>
+            <a href="?tab=activos&filtro_rapido=abiertas" class="btn btn-sm <?= ($filtroRapido === 'abiertas') ? 'btn-warning text-dark' : 'btn-outline-warning text-dark' ?> fw-bold py-1 px-2">
+                ⏳ Abiertas (<?= $kpisPasajes['fecha_abierta'] ?? 0 ?>)
+            </a>
+            <a href="?tab=activos&filtro_rapido=reservas" class="btn btn-sm <?= ($filtroRapido === 'reservas') ? 'btn-danger' : 'btn-outline-danger' ?> fw-bold py-1 px-2">
+                ⚠️ Reservas (<?= $kpisPasajes['reservas_pendientes'] ?? 0 ?>)
+            </a>
+        </div>
+    <?php endif; ?>
+</div>
 
 <!-- BUSCADOR E HISTORIAL AVANZADO (Solo visible en Historial) -->
 <?php if(isset($filtros['tab']) && $filtros['tab'] == 'historial'): ?>
@@ -580,6 +744,58 @@ $puedeAnularDirecto = (isset($_SESSION['rol_id']) && $_SESSION['rol_id'] == 1) |
     <?php endif; ?>
 
 <?php else: ?>
+
+<?php if (!isset($filtros['tab']) || $filtros['tab'] === 'activos'): ?>
+    <div class="card shadow-sm border-0 mb-3" style="border-radius: 12px; background: #ffffff;">
+        <div class="card-body p-2 p-md-3">
+            <form method="GET" action="/suramerica2030/pasajes" class="row g-2 align-items-center">
+                <input type="hidden" name="tab" value="activos">
+                <?php if(!empty($filtroRapido)): ?>
+                    <input type="hidden" name="filtro_rapido" value="<?= htmlspecialchars($filtroRapido) ?>">
+                <?php endif; ?>
+                <div class="col-md-7 col-12">
+                    <div class="input-group">
+                        <span class="input-group-text bg-light border-end-0 text-muted">🔍</span>
+                        <input type="text" name="buscar" class="form-control border-start-0" placeholder="Buscar pasajero activo por Nombre, CI, Factura o Asiento..." value="<?= htmlspecialchars($filtros['buscar'] ?? '') ?>">
+                        <button type="submit" class="btn btn-primary fw-bold px-3">Buscar</button>
+                        <?php if(!empty($filtros['buscar'])): ?>
+                            <a href="?tab=activos<?= !empty($filtroRapido) ? '&filtro_rapido='.urlencode($filtroRapido) : '' ?>" class="btn btn-outline-secondary" title="Limpiar búsqueda">✕</a>
+                        <?php endif; ?>
+                    </div>
+                </div>
+                <div class="col-md-5 col-12 d-flex justify-content-md-end align-items-center gap-2">
+                    <?php if(!empty($filtroRapido) || !empty($filtros['buscar'])): ?>
+                        <div class="d-flex align-items-center gap-1">
+                            <?php if(!empty($filtroRapido)): ?>
+                                <?php 
+                                $nombresRapidos = [
+                                    'hoy' => '🚌 Viajan Hoy',
+                                    'proximos_7' => '📅 Próx. 7 Días',
+                                    'abiertas' => '⏳ Fechas Abiertas',
+                                    'reservas' => '⚠️ Con Saldo / Reservas'
+                                ];
+                                ?>
+                                <span class="badge bg-primary-subtle text-primary border border-primary-subtle py-1 px-2">
+                                    <?= $nombresRapidos[$filtroRapido] ?? $filtroRapido ?>
+                                </span>
+                            <?php endif; ?>
+                            <?php if(!empty($filtros['buscar'])): ?>
+                                <span class="badge bg-secondary-subtle text-secondary border border-secondary-subtle py-1 px-2">
+                                    "<?= htmlspecialchars($filtros['buscar']) ?>"
+                                </span>
+                            <?php endif; ?>
+                            <a href="?tab=activos" class="btn btn-sm btn-outline-danger py-0 px-2 rounded-pill fw-bold" title="Quitar todos los filtros">✖ Limpiar</a>
+                        </div>
+                    <?php else: ?>
+                        <span class="text-muted small fw-bold">
+                            Total <?= $totalRegistros ?? count($pasajes) ?> viaje(s) activo(s)
+                        </span>
+                    <?php endif; ?>
+                </div>
+            </form>
+        </div>
+    </div>
+<?php endif; ?>
 
 <div class="card shadow-sm border-0 table-responsive">
     <table class="table table-hover align-middle mb-0">
