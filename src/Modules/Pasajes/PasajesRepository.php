@@ -13,7 +13,85 @@ class PasajesRepository {
     }
 
     public function obtenerRutas() {
-        return $this->db->query("SELECT * FROM RUTA WHERE COALESCE(ESTADO, 'ACTIVO') = 'ACTIVO' ORDER BY RUT_ORIGEN, RUT_DESTINO")->fetchAll(PDO::FETCH_ASSOC);
+        $sql = "
+            SELECT r.*,
+                   r.RUT_SAHORA AS HORA_SALIDA,
+                   op.NOMBRE_COMERCIAL AS OPERADOR_NOMBRE,
+                   op.TIPO_OPERADOR AS OPERADOR_TIPO
+            FROM RUTA r
+            LEFT JOIN OPERADOR op ON r.ID_OPERADOR = op.ID_OPERADOR
+            WHERE COALESCE(r.ESTADO, 'ACTIVO') = 'ACTIVO'
+            ORDER BY r.RUT_ORIGEN, r.RUT_DESTINO, r.ID_RUTA
+        ";
+        $rutas = $this->db->query($sql)->fetchAll(PDO::FETCH_ASSOC);
+
+        if (!empty($rutas)) {
+            $ids = implode(',', array_map('intval', array_column($rutas, 'ID_RUTA')));
+            $sqlTramos = "
+                SELECT rt.*,
+                       op.NOMBRE_COMERCIAL AS OPERADOR_TRAMO_NOMBRE
+                FROM RUTA_TRAMO rt
+                LEFT JOIN OPERADOR op ON rt.ID_OPERADOR = op.ID_OPERADOR
+                WHERE rt.ID_RUTA IN ($ids)
+                ORDER BY rt.ID_RUTA, rt.ORDEN ASC
+            ";
+            $tramosRows = $this->db->query($sqlTramos)->fetchAll(PDO::FETCH_ASSOC);
+            $tramosPorRuta = [];
+            foreach ($tramosRows as $tr) {
+                $tramosPorRuta[$tr['ID_RUTA']][] = $tr;
+            }
+
+            foreach ($rutas as &$r) {
+                $tramos = $tramosPorRuta[$r['ID_RUTA']] ?? [];
+                $r['TRAMOS'] = $tramos;
+                $r['NUM_TRAMOS'] = count($tramos);
+
+                $tienePanamericana = false;
+                if (strtoupper($r['MODALIDAD'] ?? '') === 'PANAMERICANA' ||
+                    stripos($r['OPERADOR_NOMBRE'] ?? '', 'PANAMERICANA') !== false) {
+                    $tienePanamericana = true;
+                }
+                foreach ($tramos as $tr) {
+                    if (intval($tr['ID_OPERADOR'] ?? 0) === 2 ||
+                        stripos($tr['OPERADOR'] ?? '', 'PANAMERICANA') !== false ||
+                        stripos($tr['OPERADOR_TRAMO_NOMBRE'] ?? '', 'PANAMERICANA') !== false) {
+                        $tienePanamericana = true;
+                        break;
+                    }
+                }
+                $r['TIENE_PANAMERICANA'] = $tienePanamericana;
+
+                $ciudades = [];
+                foreach ($tramos as $tr) {
+                    if (empty($ciudades)) $ciudades[] = $tr['ORIGEN_TRAMO'];
+                    $ciudades[] = $tr['DESTINO_TRAMO'];
+                }
+                $rutaItinerarioStr = !empty($ciudades) ? implode(' ➔ ', $ciudades) : ($r['RUT_ORIGEN'] . ' ➔ ' . $r['RUT_DESTINO']);
+
+                if ($r['TIPO_VIAJE'] === 'CONEXION' || count($tramos) > 0) {
+                    if ($tienePanamericana) {
+                        $r['ETIQUETA_MODALIDAD'] = '⭐ Vía Panamericana (' . count($tramos) . ' Tramos: ' . $rutaItinerarioStr . ')';
+                        $r['ITINERARIO_TEXTO'] = $rutaItinerarioStr . ' (Vía Panamericana directo a Cúcuta)';
+                    } elseif (count($tramos) >= 3 || strtoupper($r['MODALIDAD'] ?? '') === 'CONEXION_TRAMOS') {
+                        $numTr = count($tramos) > 0 ? count($tramos) . ' Conexiones / Tramos' : 'Conexión por Tramos';
+                        $r['ETIQUETA_MODALIDAD'] = '🔀 ' . $numTr . ' (' . $rutaItinerarioStr . ')';
+                        $r['ITINERARIO_TEXTO'] = $rutaItinerarioStr . ' (Conexiones nacionales)';
+                    } elseif (count($tramos) > 0) {
+                        $r['ETIQUETA_MODALIDAD'] = '🔄 Conexión (' . count($tramos) . ' Tramos: ' . $rutaItinerarioStr . ')';
+                        $r['ITINERARIO_TEXTO'] = $rutaItinerarioStr;
+                    } else {
+                        $r['ETIQUETA_MODALIDAD'] = '🔄 Transbordo / Conexión';
+                        $r['ITINERARIO_TEXTO'] = 'Transbordo internacional';
+                    }
+                } else {
+                    $r['ETIQUETA_MODALIDAD'] = '➡️ Directo (' . ($r['OPERADOR_NOMBRE'] ?: 'Suramérica') . ')';
+                    $r['ITINERARIO_TEXTO'] = 'Viaje directo sin transbordo';
+                }
+            }
+            unset($r);
+        }
+
+        return $rutas;
     }
 
     public function obtenerBuses() {

@@ -40,18 +40,19 @@
                         <!-- ID_RUTA que se envía en el POST -->
                         <input type="hidden" name="ruta_id" id="ruta_id_nuevo" value="" required>
 
-                        <!-- Selector auxiliar si existen múltiples horarios para el mismo trayecto -->
+                        <!-- Selector auxiliar si existen múltiples horarios o modalidades para el mismo trayecto -->
                         <div class="col-12 d-none" id="caja_multiple_horario">
-                            <label class="fw-bold text-secondary small">Varios horarios disponibles para este trayecto:</label>
+                            <label class="fw-bold text-primary small"><i class="fas fa-route me-1"></i> Itinerarios y modalidades disponibles para este trayecto:</label>
                             <select id="sel_horario_pasaje" class="form-select form-select-sm border-info" onchange="seleccionarRutaEspecifica(this.value)">
                             </select>
                         </div>
 
                         <!-- Tarjeta Resumen de la Ruta Seleccionada -->
                         <div class="col-12 mt-2 d-none" id="info_ruta_seleccionada">
-                            <div class="p-2 bg-white rounded border d-flex justify-content-between align-items-center flex-wrap gap-2">
+                            <div class="p-2 bg-white rounded border d-flex justify-content-between align-items-center flex-wrap gap-2 shadow-sm">
                                 <div>
                                     <span id="badge_tipo_viaje" class="badge bg-success fs-6">➡️ DIRECTO</span>
+                                    <span id="badge_modalidad" class="badge bg-primary text-white fs-6 ms-1" style="display: none;"></span>
                                     <span id="badge_horario" class="badge bg-light text-dark border ms-1">⏰ 08:00</span>
                                     <span id="badge_tramo_nombre" class="fw-bold text-dark ms-2 small"></span>
                                 </div>
@@ -61,6 +62,10 @@
                                     <span id="badge_equipaje" class="badge bg-warning text-dark ms-2">🧳 35 Kg máx</span>
                                 </div>
                             </div>
+
+                            <!-- Desglose interactivo de Tramos y Operadores -->
+                            <div id="detalle_tramos_ruta" class="mt-2 d-none"></div>
+
                             <small id="alerta_tramos" class="text-danger fw-bold d-none mt-2 d-block">
                                 ⚠️ Esta ruta es de conexiones / transbordo internacional. Los buses y asientos exactos por tramo se asignarán en el embarque (puedes dejarlos en blanco).
                             </small>

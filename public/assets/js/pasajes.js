@@ -192,9 +192,18 @@ function alCambiarDestinoPasaje() {
         matches.forEach(m => {
             let opt = document.createElement('option');
             opt.value = m.ID_RUTA;
-            let esConex = (m.TIPO_VIAJE === 'CONEXION') ? 'Transbordo' : 'Directo';
-            let modStr = (m.MODALIDAD === 'PANAMERICANA') ? '⭐ Vía Panamericana (Directo a Cúcuta)' : ((m.MODALIDAD === 'CONEXION_TRAMOS') ? '🔀 Vía Conexión Tramos' : esConex);
-            opt.textContent = `${modStr} — Tarifa: $${parseFloat(m.PRECIO_PASAJE).toFixed(2)} (Salida: ${m.HORA_SALIDA ? m.HORA_SALIDA.substring(0,5) : '08:00'})`;
+            
+            let label = m.ETIQUETA_MODALIDAD || '';
+            if (!label) {
+                let esConex = (m.TIPO_VIAJE === 'CONEXION') ? 'Transbordo' : 'Directo';
+                let modStr = (m.MODALIDAD === 'PANAMERICANA' || m.TIENE_PANAMERICANA) 
+                    ? '⭐ Vía Panamericana (Directo a Cúcuta)' 
+                    : ((m.MODALIDAD === 'CONEXION_TRAMOS' || (m.TRAMOS && m.TRAMOS.length >= 3)) ? '🔀 3 Conexiones / Tramos' : esConex);
+                label = modStr;
+            }
+            
+            let hora = m.HORA_SALIDA ? m.HORA_SALIDA.substring(0, 5) : (m.RUT_SAHORA ? m.RUT_SAHORA.substring(0, 5) : '08:00');
+            opt.textContent = `${label} — Tarifa: $${parseFloat(m.PRECIO_PASAJE).toFixed(2)} (Salida: ${hora})`;
             selHorario.appendChild(opt);
         });
         seleccionarRutaEspecifica(matches[0].ID_RUTA);
@@ -233,22 +242,80 @@ function seleccionarRutaEspecifica(rutaId) {
         modBadge.className = 'badge ms-1 fs-6';
         badgeTipo.parentNode.insertBefore(modBadge, document.getElementById('badge_horario'));
     }
-    if (r.MODALIDAD === 'PANAMERICANA') {
+    if (r.MODALIDAD === 'PANAMERICANA' || r.TIENE_PANAMERICANA) {
         modBadge.className = 'badge bg-primary text-white fs-6 ms-1';
         modBadge.innerHTML = '⭐ Vía Panamericana';
         modBadge.style.display = 'inline-block';
-    } else if (r.MODALIDAD === 'CONEXION_TRAMOS') {
+    } else if (r.MODALIDAD === 'CONEXION_TRAMOS' || (r.TRAMOS && r.TRAMOS.length >= 3)) {
+        let nConex = (r.TRAMOS && r.TRAMOS.length) ? r.TRAMOS.length + ' Conexiones' : '3 Conexiones';
         modBadge.className = 'badge bg-secondary text-white fs-6 ms-1';
-        modBadge.innerHTML = '🔀 Vía Tramos';
+        modBadge.innerHTML = '🔀 ' + nConex;
+        modBadge.style.display = 'inline-block';
+    } else if (r.MODALIDAD && r.MODALIDAD !== 'ESTANDAR') {
+        modBadge.className = 'badge bg-info text-dark fs-6 ms-1';
+        modBadge.innerHTML = r.MODALIDAD;
         modBadge.style.display = 'inline-block';
     } else {
         modBadge.style.display = 'none';
     }
     
-    document.getElementById('badge_horario').textContent = '⏰ ' + (r.HORA_SALIDA ? r.HORA_SALIDA.substring(0,5) : '08:00');
+    let horaStr = r.HORA_SALIDA ? r.HORA_SALIDA.substring(0, 5) : (r.RUT_SAHORA ? r.RUT_SAHORA.substring(0, 5) : '08:00');
+    document.getElementById('badge_horario').textContent = '⏰ ' + horaStr;
     document.getElementById('badge_tramo_nombre').textContent = r.RUT_ORIGEN + ' ➔ ' + r.RUT_DESTINO;
     document.getElementById('badge_precio').textContent = '$' + parseFloat(r.PRECIO_PASAJE).toFixed(2);
     document.getElementById('badge_equipaje').textContent = '🧳 ' + parseFloat(r.LIMITE_EQUIPAJE_KG || 35) + ' Kg máx';
+
+    // Desglose interactivo de Tramos y Operadores
+    let contenedorTramos = document.getElementById('detalle_tramos_ruta');
+    if (contenedorTramos) {
+        if (r.TRAMOS && r.TRAMOS.length > 0) {
+            contenedorTramos.classList.remove('d-none');
+            let isPanamRuta = (r.MODALIDAD === 'PANAMERICANA' || r.TIENE_PANAMERICANA);
+            let badgeRutaTipo = isPanamRuta 
+                ? '<span class="badge bg-primary text-white"><i class="fas fa-star me-1"></i>Vía Panamericana</span>' 
+                : `<span class="badge bg-secondary text-white"><i class="fas fa-random me-1"></i>${r.TRAMOS.length} Conexiones</span>`;
+            
+            let htmlTramos = `
+                <div class="card border-0 bg-light p-2 rounded shadow-sm">
+                    <div class="d-flex justify-content-between align-items-center mb-2 pb-1 border-bottom">
+                        <span class="fw-bold text-dark small">
+                            <i class="fas fa-network-wired text-primary me-1"></i> Desglose de Tramos y Empresas (${r.TRAMOS.length} tramos):
+                        </span>
+                        ${badgeRutaTipo}
+                    </div>
+                    <div class="d-flex flex-column gap-1">
+            `;
+            r.TRAMOS.forEach((tr, idx) => {
+                let isPanam = (tr.ID_OPERADOR == 2) || (tr.OPERADOR && tr.OPERADOR.toUpperCase().includes('PANAMERICANA')) || (tr.OPERADOR_TRAMO_NOMBRE && tr.OPERADOR_TRAMO_NOMBRE.toUpperCase().includes('PANAMERICANA'));
+                let opBadgeClass = isPanam ? 'badge bg-primary text-white' : 'badge bg-success text-white';
+                let opIcon = isPanam ? 'fa-star' : 'fa-bus';
+                let opNombre = isPanam ? 'PANAMERICANA' : (tr.OPERADOR_TRAMO_NOMBRE || tr.OPERADOR || 'Suramérica 2030');
+                let pvpNum = parseFloat(tr.PVP_TRAMO || 0);
+                let pvpBadge = pvpNum > 0 ? `<span class="badge bg-white text-dark border ms-1">$${pvpNum.toFixed(2)}</span>` : '';
+                
+                htmlTramos += `
+                    <div class="d-flex justify-content-between align-items-center bg-white px-2 py-1 rounded border small">
+                        <div>
+                            <span class="badge bg-dark me-1">Tramo ${tr.ORDEN || (idx + 1)}</span>
+                            <strong>${tr.ORIGEN_TRAMO}</strong> <i class="fas fa-arrow-right text-muted mx-1"></i> <strong>${tr.DESTINO_TRAMO}</strong>
+                        </div>
+                        <div>
+                            <span class="${opBadgeClass}"><i class="fas ${opIcon} me-1"></i>${opNombre}</span>
+                            ${pvpBadge}
+                        </div>
+                    </div>
+                `;
+            });
+            htmlTramos += `
+                    </div>
+                </div>
+            `;
+            contenedorTramos.innerHTML = htmlTramos;
+        } else {
+            contenedorTramos.classList.add('d-none');
+            contenedorTramos.innerHTML = '';
+        }
+    }
     
     let alertaTramos = document.getElementById('alerta_tramos');
     let busIdSelect = document.getElementById('bus_id_nuevo');
