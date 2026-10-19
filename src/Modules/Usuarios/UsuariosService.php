@@ -1,6 +1,8 @@
 <?php
 namespace Modules\Usuarios;
 
+use Platform\Validation\Validator;
+
 class UsuariosService {
     private $repository;
 
@@ -17,17 +19,41 @@ class UsuariosService {
     }
 
     public function procesarGuardarUsuario($postData) {
-        $postData['hash'] = password_hash($postData['password'], PASSWORD_DEFAULT);
-        $postData['username'] = trim(strtolower($postData['username']));
-        $postData['email'] = trim(strtolower($postData['email']));
+        $username = trim(strtolower($postData['username'] ?? ''));
+        $email = trim(strtolower($postData['email'] ?? ''));
+        $password = $postData['password'] ?? '';
+
+        if (empty($username) || strlen($username) < 3) {
+            return "El nombre de usuario debe contener al menos 3 caracteres.";
+        }
+        if (!empty($email) && !Validator::validarEmail($email)) {
+            return "El correo electrónico no tiene un formato válido.";
+        }
+        if (strlen($password) < 4) {
+            return "La contraseña de acceso debe tener al menos 4 caracteres.";
+        }
+
+        $postData['hash'] = password_hash($password, PASSWORD_DEFAULT);
+        $postData['username'] = $username;
+        $postData['email'] = $email;
 
         return $this->repository->crearUsuarioBD($postData);
     }
 
     public function procesarEditarUsuario($postData) {
+        $username = trim(strtolower($postData['username'] ?? ''));
+        $email = trim(strtolower($postData['email'] ?? ''));
+
+        if (empty($username) || strlen($username) < 3) {
+            return "El nombre de usuario debe contener al menos 3 caracteres.";
+        }
+        if (!empty($email) && !Validator::validarEmail($email)) {
+            return "El correo electrónico no tiene un formato válido.";
+        }
+
         $postData['hash'] = !empty($postData['password']) ? password_hash($postData['password'], PASSWORD_DEFAULT) : null;
-        $postData['username'] = trim(strtolower($postData['username']));
-        $postData['email'] = trim(strtolower($postData['email']));
+        $postData['username'] = $username;
+        $postData['email'] = $email;
 
         return $this->repository->editarUsuarioBD($postData);
     }

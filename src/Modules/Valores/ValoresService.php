@@ -1,5 +1,6 @@
-<?php
 namespace Modules\Valores;
+
+use Platform\Validation\Validator;
 
 class ValoresService {
     private $repository;
@@ -27,12 +28,13 @@ class ValoresService {
     public function procesarEnvio($postData, $usuarioId, $sucursalId) {
         // Validaciones base
         if (empty($postData['cliente_id']) || empty($postData['destinatario_ci']) || empty($postData['monto_enviar'])) {
-            return ['status' => 'error', 'mensaje' => 'Datos incompletos.'];
+            return ['status' => 'error', 'mensaje' => 'Todos los datos principales de remitente, destinatario y monto son obligatorios.'];
         }
 
-        // Recalcular comisión en el servidor por seguridad
         $montoEnviar = floatval($postData['monto_enviar']);
-        if ($montoEnviar <= 0) return ['status' => 'error', 'mensaje' => 'El monto debe ser mayor a 0.'];
+        if ($montoEnviar <= 0) {
+            return ['status' => 'error', 'mensaje' => 'El monto a transferir debe ser mayor a 0.'];
+        }
 
         $rutas = $this->repository->obtenerRutas();
         $comisionBase = 10.0;
@@ -45,22 +47,38 @@ class ValoresService {
         $comisionCalculada = ($montoEnviar * $comisionBase) / 100;
         $montoTotalBackend = $montoEnviar + $comisionCalculada;
 
+        $metodoPago = trim($postData['metodo_pago'] ?? 'EFECTIVO');
+        $montoEfectivo = floatval($postData['monto_efectivo'] ?? 0);
+        $montoTransferencia = floatval($postData['monto_transferencia'] ?? 0);
+
+        if ($metodoPago === 'MIXTO') {
+            $valMixto = Validator::pagoMixto($montoTotalBackend, $montoEfectivo, $montoTransferencia);
+            if (!$valMixto['valido']) {
+                return ['status' => 'error', 'mensaje' => $valMixto['mensaje']];
+            }
+        } elseif ($metodoPago === 'EFECTIVO') {
+            $montoEfectivo = $montoTotalBackend;
+            $montoTransferencia = 0.0;
+        } else {
+            $montoTransferencia = $montoTotalBackend;
+            $montoEfectivo = 0.0;
+        }
+
         $datosLimpios = [
             'ruta_id' => intval($postData['ruta_id']),
-            'cliente_id' => trim($postData['cliente_id']),
+            'cliente_id' => Validator::limpiarAlfanumerico($postData['cliente_id']),
             'cliente_nombre' => trim($postData['cliente_nombre']),
             'cliente_apellido' => trim($postData['cliente_apellido']),
-            'cliente_telefono' => trim($postData['cliente_telefono']),
-            'destinatario_ci' => trim($postData['destinatario_ci']),
+            'cliente_telefono' => Validator::limpiarTelefono($postData['cliente_telefono'] ?? ''),
+            'destinatario_ci' => Validator::limpiarAlfanumerico($postData['destinatario_ci']),
             'destinatario_nombre' => trim($postData['destinatario_nombre']),
             'destinatario_apellido' => trim($postData['destinatario_apellido']),
-            'destinatario_telefono' => trim($postData['destinatario_telefono']),
+            'destinatario_telefono' => Validator::limpiarTelefono($postData['destinatario_telefono'] ?? ''),
             'monto_enviar' => $montoEnviar,
             'monto_total' => $montoTotalBackend,
-            'metodo_pago' => $postData['metodo_pago'],
-            'monto_efectivo' => floatval($postData['monto_efectivo'] ?? 0),
-            'monto_transferencia' => floatval($postData['monto_transferencia'] ?? 0),
-            'detalle_destinatario' => "Para: " . trim($postData['destinatario_nombre']) . " " . trim($postData['destinatario_apellido'])
+            'metodo_pago' => $metodoPago,
+            'monto_efectivo' => $montoEfectivo,
+            'monto_transferencia' => $montoTransferencia,
         ];
 
         $res = $this->repository->registrarEnvioBD($datosLimpios, $usuarioId, $sucursalId);

@@ -557,17 +557,4 @@
     </div>
 </div>
 
-<script>
-function generarUsuarioJS(idNombre, idUsuario) {
-    let inputNombre = document.getElementById(idNombre).value.trim().toLowerCase();
-    let nombreLimpio = inputNombre.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
-    let partes = nombreLimpio.split(' ').filter(Boolean);
-    let usuarioSugerido = "";
-    if (partes.length >= 2) {
-        usuarioSugerido = partes[0] + '.' + partes[1]; 
-    } else if (partes.length === 1) {
-        usuarioSugerido = partes[0]; 
-    }
-    document.getElementById(idUsuario).value = usuarioSugerido;
-}
-</script>
+<script src="/suramerica2030/public/assets/js/usuarios.js?v=<?= @filemtime(__DIR__ . '/../../../../public/assets/js/usuarios.js') ?: time() ?>"></script>

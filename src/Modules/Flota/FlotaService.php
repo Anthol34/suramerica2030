@@ -1,6 +1,8 @@
 <?php
 namespace Modules\Flota;
 
+use Platform\Validation\Validator;
+
 class FlotaService {
     private $repository;
 
@@ -128,18 +130,22 @@ class FlotaService {
         if (empty($nombre)) {
             return "El nombre comercial del operador es obligatorio.";
         }
+        $correo = trim($postData['correo'] ?? '');
+        if (!empty($correo) && !Validator::validarEmail($correo)) {
+            return "El correo electrónico del operador no tiene un formato válido.";
+        }
         $datos = [
             'nombre_comercial' => $nombre,
             'razon_social' => trim($postData['razon_social'] ?? $nombre),
             'tipo_operador' => $postData['tipo_operador'] ?? 'SOCIO_AFILIADO',
-            'identificacion' => trim($postData['identificacion'] ?? ''),
-            'telefono' => trim($postData['telefono'] ?? ''),
-            'correo' => trim($postData['correo'] ?? ''),
+            'identificacion' => Validator::limpiarAlfanumerico($postData['identificacion'] ?? ''),
+            'telefono' => Validator::limpiarTelefono($postData['telefono'] ?? ''),
+            'correo' => $correo,
             'banco' => trim($postData['banco'] ?? ''),
             'tipo_cuenta' => trim($postData['tipo_cuenta'] ?? 'CORRIENTE'),
             'numero_cuenta' => trim($postData['numero_cuenta'] ?? ''),
             'titular_cuenta' => trim($postData['titular_cuenta'] ?? ''),
-            'titular_doc' => trim($postData['titular_doc'] ?? ''),
+            'titular_doc' => Validator::limpiarAlfanumerico($postData['titular_doc'] ?? ''),
             'estado' => $postData['estado'] ?? 'ACTIVO',
             'observaciones' => trim($postData['observaciones'] ?? '')
         ];
@@ -155,19 +161,23 @@ class FlotaService {
         if (empty($nombre)) {
             return "El nombre comercial del operador es obligatorio.";
         }
+        $correo = trim($postData['correo'] ?? '');
+        if (!empty($correo) && !Validator::validarEmail($correo)) {
+            return "El correo electrónico del operador no tiene un formato válido.";
+        }
         $datos = [
             'id_operador' => $idOperador,
             'nombre_comercial' => $nombre,
             'razon_social' => trim($postData['razon_social'] ?? $nombre),
             'tipo_operador' => $postData['tipo_operador'] ?? 'SOCIO_AFILIADO',
-            'identificacion' => trim($postData['identificacion'] ?? ''),
-            'telefono' => trim($postData['telefono'] ?? ''),
-            'correo' => trim($postData['correo'] ?? ''),
+            'identificacion' => Validator::limpiarAlfanumerico($postData['identificacion'] ?? ''),
+            'telefono' => Validator::limpiarTelefono($postData['telefono'] ?? ''),
+            'correo' => $correo,
             'banco' => trim($postData['banco'] ?? ''),
             'tipo_cuenta' => trim($postData['tipo_cuenta'] ?? 'CORRIENTE'),
             'numero_cuenta' => trim($postData['numero_cuenta'] ?? ''),
             'titular_cuenta' => trim($postData['titular_cuenta'] ?? ''),
-            'titular_doc' => trim($postData['titular_doc'] ?? ''),
+            'titular_doc' => Validator::limpiarAlfanumerico($postData['titular_doc'] ?? ''),
             'estado' => $postData['estado'] ?? 'ACTIVO',
             'observaciones' => trim($postData['observaciones'] ?? '')
         ];
@@ -183,10 +193,16 @@ class FlotaService {
         if (intval($postData['asientos']) <= 0) {
             return "El bus debe tener al menos 1 asiento.";
         }
+        if (!empty($postData['placa'])) {
+            $postData['placa'] = Validator::limpiarPlaca($postData['placa']);
+        }
         return $this->repository->agregarBusYSocioBD($postData);
     }
 
     public function procesarEditarBus($postData) {
+        if (!empty($postData['placa'])) {
+            $postData['placa'] = Validator::limpiarPlaca($postData['placa']);
+        }
         return $this->repository->actualizarBusYSocioBD($postData);
     }
 

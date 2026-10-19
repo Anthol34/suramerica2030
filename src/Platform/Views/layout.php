@@ -411,7 +411,9 @@ if (isset($titulo)) {
 <?php 
     $vSanitizarJs = @filemtime(__DIR__ . '/../../../public/assets/js/sanitizar-inputs.js') ?: time();
     $vMobileJs = @filemtime(__DIR__ . '/../../../public/assets/js/mobile-nav.js') ?: time();
+    $vValidacionesJs = @filemtime(__DIR__ . '/../../../public/assets/js/validaciones.js') ?: time();
 ?>
+<script src="/suramerica2030/public/assets/js/validaciones.js?v=<?= $vValidacionesJs ?>"></script>
 <script src="/suramerica2030/public/assets/js/sanitizar-inputs.js?v=<?= $vSanitizarJs ?>"></script>
 <!-- Script de Navegación Móvil (Menú Hamburguesa y Drawer Lateral) -->
 <script src="/suramerica2030/public/assets/js/mobile-nav.js?v=<?= $vMobileJs ?>"></script>

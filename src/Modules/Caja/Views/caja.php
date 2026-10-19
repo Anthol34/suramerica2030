@@ -357,115 +357,9 @@ $esAdmin = (isset($_SESSION['rol_id']) && intval($_SESSION['rol_id']) === 1);
 </div>
 
 <script>
-function actualizarContadorMovimientos() {
-    const checks = document.querySelectorAll('.mov-checkbox:checked');
-    const count = checks.length;
-    const btn = document.getElementById('btnMoverSeleccionados');
-    const countSpan = document.getElementById('countMover');
-    
-    if (countSpan) countSpan.textContent = count;
-    if (btn) {
-        btn.disabled = count === 0;
-        if (count > 0) {
-            btn.classList.remove('btn-outline-warning');
-            btn.classList.add('btn-warning');
-        } else {
-            btn.classList.remove('btn-warning');
-            btn.classList.add('btn-outline-warning');
-        }
-    }
-}
-
-function seleccionarTodosMovimientos(master) {
-    const checks = document.querySelectorAll('.mov-checkbox');
-    checks.forEach(c => c.checked = master.checked);
-    actualizarContadorMovimientos();
-}
-
-function abrirModalMoverFecha() {
-    const checks = document.querySelectorAll('.mov-checkbox:checked');
-    if (checks.length === 0) {
-        alert('Por favor selecciona al menos una transacción para cambiar de fecha.');
-        return;
-    }
-    poblarModalMoverFecha(checks);
-}
-
-function moverMovimientoIndividual(id, concepto, monto, tipo, factura, hora) {
-    const checks = document.querySelectorAll('.mov-checkbox');
-    checks.forEach(c => c.checked = (c.value == id));
-    actualizarContadorMovimientos();
-    
-    const targetCheck = document.querySelector('.mov-checkbox[value="' + id + '"]');
-    if (targetCheck) {
-        poblarModalMoverFecha([targetCheck]);
-    }
-}
-
-function poblarModalMoverFecha(checks) {
-    const containerHidden = document.getElementById('hiddenMovimientosContainer');
-    const containerDetalle = document.getElementById('modalDetalleSeleccionados');
-    const numSpan = document.getElementById('modalNumSeleccionados');
-    
-    if (!containerHidden || !containerDetalle) return;
-    
-    containerHidden.innerHTML = '';
-    containerDetalle.innerHTML = '';
-    if (numSpan) numSpan.textContent = checks.length;
-    
-    checks.forEach(c => {
-        const hiddenInput = document.createElement('input');
-        hiddenInput.type = 'hidden';
-        hiddenInput.name = 'movimientos_ids[]';
-        hiddenInput.value = c.value;
-        containerHidden.appendChild(hiddenInput);
-        
-        const item = document.createElement('div');
-        item.className = 'd-flex justify-content-between align-items-center py-1 border-bottom';
-        item.style.fontSize = '12px';
-        
-        const isIngreso = c.dataset.tipo === 'INGRESO';
-        const badgeColor = isIngreso ? 'bg-success' : 'bg-danger';
-        const badgeText = isIngreso ? '+ Ingreso' : '- Egreso';
-        const facturaText = c.dataset.factura ? '<span class="badge bg-secondary ms-1">Fact ' + c.dataset.factura + '</span>' : '';
-        
-        item.innerHTML = '<div>' +
-            '<span class="badge ' + badgeColor + '" style="font-size:10px;">' + badgeText + '</span> ' +
-            '<strong>' + (c.dataset.concepto || 'Transacción') + '</strong>' +
-            facturaText +
-            '</div>' +
-            '<div class="fw-bold ' + (isIngreso ? 'text-success' : 'text-danger') + '">$' + (c.dataset.monto || '0.00') + '</div>';
-            
-        containerDetalle.appendChild(item);
-    });
-    
-    const inputFecha = document.getElementById('inputNuevaFechaMover');
-    if (inputFecha && !inputFecha.value) {
-        inputFecha.value = '<?= htmlspecialchars($fecha_consulta) ?>';
-    }
-    
-    const modalEl = document.getElementById('modalMoverFecha');
-    if (modalEl) {
-        const modal = new bootstrap.Modal(modalEl);
-        modal.show();
-    }
-}
-
-function validarFormMoverFecha() {
-    const inputFecha = document.getElementById('inputNuevaFechaMover');
-    if (!inputFecha || !inputFecha.value) {
-        alert('Por favor selecciona la fecha de destino.');
-        return false;
-    }
-    const fechaActual = '<?= htmlspecialchars($fecha_consulta) ?>';
-    if (inputFecha.value === fechaActual) {
-        if (!confirm('La fecha seleccionada (' + inputFecha.value + ') es la misma que la fecha actual. ¿Deseas continuar?')) {
-            return false;
-        }
-    }
-    return true;
-}
+window.CAJA_CONFIG = { fechaConsulta: <?= json_encode($fecha_consulta) ?> };
 </script>
+<script src="/suramerica2030/public/assets/js/caja.js?v=<?= @filemtime(__DIR__ . '/../../../../public/assets/js/caja.js') ?: time() ?>"></script>
 <?php endif; ?>
 
 <!-- MODAL: ABRIR CAJA / INICIAR TURNO -->
@@ -572,14 +466,4 @@ function validarFormMoverFecha() {
         </div>
     </div>
 </div>
-
-<script>
-function establecerFondoInicialCaja(monto) {
-    const inp = document.getElementById('apertura_valor_inicial_caja');
-    if (inp) {
-        inp.value = parseFloat(monto).toFixed(2);
-        inp.focus();
-        inp.select();
-    }
-}
-</script>
+<script src="/suramerica2030/public/assets/js/caja.js?v=<?= @filemtime(__DIR__ . '/../../../../public/assets/js/caja.js') ?: time() ?>"></script>
