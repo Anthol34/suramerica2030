@@ -53,8 +53,25 @@
             }
         }
 
-        $operadoresUnicos = array_values(array_unique(array_filter(array_map('trim', array_column($rutas, 'MODALIDAD')))));
-        sort($operadoresUnicos);
+        // Extraer Operadores Reales Únicos (desde tabla OPERADOR y RUTA)
+        $operadoresUnicos = [];
+        foreach ($rutas as $r) {
+            $nomOp = !empty($r['OPERADOR_NOMBRE']) ? trim($r['OPERADOR_NOMBRE']) : 'Suramérica 2030';
+            $operadoresUnicos[$nomOp] = $nomOp;
+        }
+        foreach ($operadores as $op) {
+            if (!empty($op['NOMBRE_COMERCIAL'])) {
+                $operadoresUnicos[trim($op['NOMBRE_COMERCIAL'])] = trim($op['NOMBRE_COMERCIAL']);
+            }
+        }
+        ksort($operadoresUnicos);
+
+        // Extraer Modalidades Reales Únicas
+        $modalidadesUnicas = array_values(array_unique(array_filter(array_map('trim', array_column($rutas, 'MODALIDAD')))));
+        if (!in_array('ESTANDAR', $modalidadesUnicas)) $modalidadesUnicas[] = 'ESTANDAR';
+        if (!in_array('PANAMERICANA', $modalidadesUnicas)) $modalidadesUnicas[] = 'PANAMERICANA';
+        if (!in_array('CONEXION_TRAMOS', $modalidadesUnicas)) $modalidadesUnicas[] = 'CONEXION_TRAMOS';
+        sort($modalidadesUnicas);
         ?>
 
         <!-- TARJETAS DE RESUMEN Y FILTRADO RÁPIDO (KPIS) -->
@@ -125,12 +142,12 @@
                     </div>
                 </div>
 
-                <!-- FILA 2: MODALIDAD, ITINERARIO, ESTADO Y CORREDOR -->
+                <!-- FILA 2: OPERADOR, MODALIDAD, TIPO DE VIAJE, ESTADO Y CORREDOR -->
                 <div class="row g-2 align-items-center">
                     <div class="col-6 col-md-3">
                         <div class="input-group input-group-sm">
                             <span class="input-group-text bg-white text-muted">🏢 Operador:</span>
-                            <select id="filtroModalidadRutas" class="form-select bg-white">
+                            <select id="filtroOperadorRutas" class="form-select bg-white">
                                 <option value="">Todos los Operadores</option>
                                 <?php foreach($operadoresUnicos as $op): ?>
                                     <option value="<?= htmlspecialchars(mb_strtolower($op)) ?>"><?= htmlspecialchars($op) ?></option>
@@ -140,34 +157,47 @@
                     </div>
                     <div class="col-6 col-md-3">
                         <div class="input-group input-group-sm">
-                            <span class="input-group-text bg-white text-muted">🚌 Viaje:</span>
-                            <select id="filtroTipoViajeRutas" class="form-select bg-white">
-                                <option value="">Todos los Viajes</option>
-                                <option value="directo">➡️ Directo</option>
-                                <option value="conexion">🔄 Con Conexión</option>
+                            <span class="input-group-text bg-white text-muted">🔀 Modalidad:</span>
+                            <select id="filtroModalidadRutas" class="form-select bg-white">
+                                <option value="">Todas las Modalidades</option>
+                                <?php foreach($modalidadesUnicas as $mod): ?>
+                                    <option value="<?= htmlspecialchars(mb_strtolower($mod)) ?>">
+                                        <?= htmlspecialchars(\Platform\Helpers\ModalidadHelper::formatearEtiqueta($mod)) ?>
+                                    </option>
+                                <?php endforeach; ?>
                             </select>
                         </div>
                     </div>
-                    <div class="col-6 col-md-3">
+                    <div class="col-6 col-md-2">
+                        <div class="input-group input-group-sm">
+                            <span class="input-group-text bg-white text-muted">🚌 Viaje:</span>
+                            <select id="filtroTipoViajeRutas" class="form-select bg-white">
+                                <option value="">Todos</option>
+                                <option value="directo">➡️ Directo</option>
+                                <option value="conexion">🔄 Conexión</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="col-6 col-md-2">
                         <div class="input-group input-group-sm">
                             <span class="input-group-text bg-white text-muted">🔘 Estado:</span>
                             <select id="filtroEstadoRutas" class="form-select bg-white">
-                                <option value="">Todos los Estados</option>
+                                <option value="">Todos</option>
                                 <option value="activo">✅ Activas</option>
                                 <option value="inactivo">⏸️ Inactivas</option>
                             </select>
                         </div>
                     </div>
-                    <div class="col-6 col-md-3">
+                    <div class="col-12 col-md-2">
                         <div class="input-group input-group-sm">
                             <span class="input-group-text bg-white text-muted">🛤️ Corredor:</span>
                             <select id="filtroCorredorRutas" class="form-select bg-white">
-                                <option value="">Todos los Corredores</option>
+                                <option value="">Todos</option>
                                 <?php foreach($corredores as $cor): 
                                     $cant = $rutasPorCorredor[$cor['ID_CORREDOR']] ?? 0;
                                 ?>
                                     <option value="<?= $cor['ID_CORREDOR'] ?>">
-                                        <?= htmlspecialchars($cor['CODIGO'] . ' - ' . $cor['NOMBRE']) ?> (<?= $cant ?>)
+                                        <?= htmlspecialchars($cor['CODIGO']) ?> (<?= $cant ?>)
                                     </option>
                                 <?php endforeach; ?>
                             </select>
@@ -232,9 +262,11 @@
                                 data-corredor="<?= $r['ID_CORREDOR'] ?? '' ?>" 
                                 data-origen="<?= htmlspecialchars(mb_strtolower(trim($r['RUT_ORIGEN']))) ?>" 
                                 data-destino="<?= htmlspecialchars(mb_strtolower(trim($r['RUT_DESTINO']))) ?>" 
-                                data-modalidad="<?= htmlspecialchars(mb_strtolower(!empty($r['OPERADOR_NOMBRE']) ? $r['OPERADOR_NOMBRE'] : ($r['MODALIDAD'] ?? 'ESTANDAR'))) ?>" 
-                                data-tipo-viaje="<?= htmlspecialchars(mb_strtolower($r['TIPO_VIAJE'] ?? 'DIRECTO')) ?>" 
-                                data-estado="<?= htmlspecialchars(mb_strtolower($r['ESTADO'] ?? 'ACTIVO')) ?>" 
+                                data-operador="<?= htmlspecialchars(mb_strtolower(!empty($r['OPERADOR_NOMBRE']) ? trim($r['OPERADOR_NOMBRE']) : 'suramérica 2030')) ?>" 
+                                data-id-operador="<?= $r['ID_OPERADOR'] ?? '' ?>"
+                                data-modalidad="<?= htmlspecialchars(mb_strtolower(trim($r['MODALIDAD'] ?? 'estandar'))) ?>" 
+                                data-tipo-viaje="<?= htmlspecialchars(mb_strtolower($r['TIPO_VIAJE'] ?? 'directo')) ?>" 
+                                data-estado="<?= htmlspecialchars(mb_strtolower($r['ESTADO'] ?? 'activo')) ?>" 
                                 data-search="<?= strtolower(htmlspecialchars($r['RUT_ORIGEN'] . ' ' . $r['RUT_DESTINO'] . ' ' . ($r['NOMBRE_CORREDOR'] ?? '') . ' #' . $r['ID_RUTA'] . ' ' . ($r['OPERADOR_NOMBRE'] ?? '') . ' ' . ($r['MODALIDAD'] ?? ''))) ?>">
                                 <td><span class="badge bg-secondary">#<?= $r['ID_RUTA'] ?></span></td>
                                 <td>
@@ -247,23 +279,24 @@
                                         </div>
                                     <?php endif; ?>
                                 </td>
-                                <td data-search="<?= strtolower(htmlspecialchars((!empty($r['OPERADOR_NOMBRE']) ? $r['OPERADOR_NOMBRE'] : ($r['MODALIDAD'] ?? '')) . ' ' . ($r['TIPO_VIAJE'] ?? ''))) ?>">
+                                <td data-search="<?= strtolower(htmlspecialchars((!empty($r['OPERADOR_NOMBRE']) ? $r['OPERADOR_NOMBRE'] : '') . ' ' . ($r['MODALIDAD'] ?? '') . ' ' . ($r['TIPO_VIAJE'] ?? ''))) ?>">
                                     <?php 
                                         $mod = $r['MODALIDAD'] ?? 'ESTANDAR';
                                         $esConexion = ($r['TIPO_VIAJE'] ?? '') === 'CONEXION';
-                                        $operadorDirecto = !empty($r['OPERADOR_NOMBRE']) ? $r['OPERADOR_NOMBRE'] : ((!empty($mod) && $mod !== 'ESTANDAR' && $mod !== 'CONEXION_TRAMOS') ? $mod : 'Suramérica 2030 (Flota Propia)');
+                                        $operadorDirecto = !empty($r['OPERADOR_NOMBRE']) ? $r['OPERADOR_NOMBRE'] : 'Suramérica 2030 (Flota Propia)';
+                                        $numTramos = count($r['TRAMOS_DETALLE'] ?? []);
                                         $admiteSp = isset($r['ADMITE_SOBREPESO']) ? intval($r['ADMITE_SOBREPESO']) : 1;
                                     ?>
                                     <div class="d-flex flex-column gap-1">
-                                        <?php if($esConexion): ?>
-                                            <span class="badge bg-info text-dark" title="Viaje con transbordo y conexiones">🔄 Conexión (<?= count($r['TRAMOS_DETALLE'] ?? []) ?> tramos)</span>
-                                        <?php else: ?>
-                                            <span class="badge bg-success text-white">➡️ Directo</span>
-                                            <span class="badge bg-light text-dark border text-truncate" style="max-width: 175px;" title="Operador: <?= htmlspecialchars($operadorDirecto) ?>">🏢 <?= htmlspecialchars($operadorDirecto) ?></span>
+                                        <div class="d-flex align-items-center gap-1 flex-wrap">
+                                            <?= \Platform\Helpers\ModalidadHelper::renderBadge($mod, $numTramos, $operadorDirecto) ?>
+                                            <span class="badge bg-light text-dark border text-truncate" style="max-width: 175px;" title="Operador Principal: <?= htmlspecialchars($operadorDirecto) ?>">🏢 <?= htmlspecialchars($operadorDirecto) ?></span>
+                                        </div>
+                                        <?php if(!$esConexion): ?>
                                             <?php if($admiteSp): ?>
-                                                <span class="badge bg-success-subtle text-success border border-success-subtle" title="Sobrepeso amparado y cobrado en Ecuador" style="font-size: 0.70rem;">🧳 Sobrepeso: SÍ</span>
+                                                <span class="badge bg-success-subtle text-success border border-success-subtle" title="Sobrepeso amparado y cobrado en Ecuador" style="font-size: 0.70rem; width: fit-content;">🧳 Sobrepeso: SÍ</span>
                                             <?php else: ?>
-                                                <span class="badge bg-warning-subtle text-dark border border-warning-subtle" title="Sin cobro de sobrepeso en oficina" style="font-size: 0.70rem;">⚠️ Sobrepeso: NO</span>
+                                                <span class="badge bg-warning-subtle text-dark border border-warning-subtle" title="Sin cobro de sobrepeso en oficina" style="font-size: 0.70rem; width: fit-content;">⚠️ Sobrepeso: NO</span>
                                             <?php endif; ?>
                                         <?php endif; ?>
                                     </div>
@@ -428,13 +461,31 @@
                                     </div>
 
                                     <div class="row g-2 mt-2">
-                                        <div class="col-12">
+                                        <div class="col-md-6">
                                             <label class="form-label text-primary fw-bold">Tipo de Itinerario</label>
-                                            <select name="tipo_viaje" class="form-select border-primary fw-bold" onchange="toggleTramos(this.value, 'tramos_edit_<?= $r['ID_RUTA'] ?>')">
+                                            <select name="tipo_viaje" id="edit_tipo_viaje_<?= $r['ID_RUTA'] ?>" class="form-select border-primary fw-bold" onchange="toggleTramos(this.value, 'tramos_edit_<?= $r['ID_RUTA'] ?>'); condicionarModalidadAutomatica('<?= $r['ID_RUTA'] ?>');">
                                                 <option value="DIRECTO" <?= ($r['TIPO_VIAJE'] ?? '') === 'DIRECTO' ? 'selected' : '' ?>>➡️ Viaje Directo (Un solo operador / bus)</option>
                                                 <option value="CONEXION" <?= ($r['TIPO_VIAJE'] ?? '') === 'CONEXION' ? 'selected' : '' ?>>🔄 Con Conexiones (Tramos Operativos y Transbordos)</option>
                                             </select>
-                                            <small class="text-muted">Si es directo, el operador y sobrepeso se definen aquí; si es conexión, se configuran en el Bloque de Tramos.</small>
+                                            <small class="text-muted">Si es directo o conexión con transbordos.</small>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <label class="form-label text-primary fw-bold">🔀 Modalidad Logística del Servicio</label>
+                                            <?php 
+                                                $currMod = $r['MODALIDAD'] ?? 'ESTANDAR';
+                                                $esPreset = in_array($currMod, ['ESTANDAR', 'PANAMERICANA', 'CONEXION_TRAMOS', 'Conexión Multitramo', 'AUTO']);
+                                            ?>
+                                            <select name="modalidad" id="modalidad_select_edit_<?= $r['ID_RUTA'] ?>" class="form-select border-info fw-bold text-dark" onchange="alCambiarModalidadSelect(this, '<?= $r['ID_RUTA'] ?>')">
+                                                <option value="AUTO">🤖 Automático (según Operador y Tramos)</option>
+                                                <option value="PANAMERICANA" <?= $currMod === 'PANAMERICANA' ? 'selected' : '' ?>>⭐ Vía Panamericana</option>
+                                                <option value="CONEXION_TRAMOS" <?= ($currMod === 'CONEXION_TRAMOS' || $currMod === 'Conexión Multitramo') ? 'selected' : '' ?>>🔀 Conexión por Tramos</option>
+                                                <option value="ESTANDAR" <?= $currMod === 'ESTANDAR' ? 'selected' : '' ?>>➡️ Directo Estándar</option>
+                                                <option value="OTRO" <?= !$esPreset ? 'selected' : '' ?>>✏️ Nombre Personalizado...</option>
+                                            </select>
+                                            <div id="caja_modalidad_personalizada_<?= $r['ID_RUTA'] ?>" class="<?= !$esPreset ? '' : 'd-none' ?> mt-1">
+                                                <input type="text" name="modalidad_personalizada" class="form-control form-control-sm border-info" placeholder="Ej: Ruta Expresa Internacional" value="<?= htmlspecialchars(!$esPreset ? $currMod : '') ?>">
+                                            </div>
+                                            <small class="text-muted" style="font-size:11px;">Nombre con el que se identificará este trayecto en Taquilla y Finanzas.</small>
                                         </div>
                                     </div>
 
@@ -443,10 +494,10 @@
                                         <div class="row g-2 align-items-center">
                                             <div class="col-md-6">
                                                 <label class="form-label small text-dark mb-0 fw-bold">🏢 Operador de la Ruta Directa</label>
-                                                <select name="id_operador" class="form-select form-select-sm fw-bold border-primary text-primary" onchange="const nom = this.options[this.selectedIndex].getAttribute('data-nombre'); const hid = this.form.querySelector('input[name=operador]'); if(hid) hid.value = nom;">
+                                                <select name="id_operador" id="edit_id_operador_<?= $r['ID_RUTA'] ?>" class="form-select form-select-sm fw-bold border-primary text-primary" onchange="const nom = this.options[this.selectedIndex].getAttribute('data-nombre'); const hid = this.form.querySelector('input[name=operador]'); if(hid) hid.value = nom; condicionarModalidadPorOperador(this.value, '<?= $r['ID_RUTA'] ?>');">
                                                      <?= $generarOpcionesOperadores($r['ID_OPERADOR'] ?? 1) ?>
                                                  </select>
-                                                 <input type="hidden" name="operador" value="<?= htmlspecialchars(!empty($r['OPERADOR_NOMBRE']) ? $r['OPERADOR_NOMBRE'] : ((!empty($r['MODALIDAD']) && $r['MODALIDAD'] !== 'ESTANDAR' && $r['MODALIDAD'] !== 'CONEXION_TRAMOS') ? $r['MODALIDAD'] : 'Suramérica 2030 (Flota Propia)')) ?>">
+                                                 <input type="hidden" name="operador" value="<?= htmlspecialchars(!empty($r['OPERADOR_NOMBRE']) ? $r['OPERADOR_NOMBRE'] : 'Suramérica 2030 (Flota Propia)') ?>">
                                                 <small class="text-muted" style="font-size:11px;">Empresa o socio responsable de la operación directa.</small>
                                             </div>
                                             <div class="col-md-6">
@@ -512,7 +563,7 @@
                                                         </div>
                                                         <div class="col-md-4">
                                                             <label class="form-label small text-muted mb-0 fw-bold">Operador del Tramo</label>
-                                                            <select name="tramo_id_operador[]" class="form-select form-select-sm fw-bold border-primary" onchange="const nom = this.options[this.selectedIndex].getAttribute('data-nombre'); const hid = this.closest('.row').querySelector('input[name=\'tramo_operador[]\']'); if(hid) hid.value = nom;">
+                                                            <select name="tramo_id_operador[]" class="form-select form-select-sm fw-bold border-primary" onchange="const nom = this.options[this.selectedIndex].getAttribute('data-nombre'); const hid = this.closest('.row').querySelector('input[name=\'tramo_operador[]\']'); if(hid) hid.value = nom; condicionarModalidadPorTramos('<?= $r['ID_RUTA'] ?>');">
                                                                  <?= $generarOpcionesOperadores($tramo['id_operador'] ?? $tramo['ID_OPERADOR'] ?? 1) ?>
                                                              </select>
                                                              <input type="hidden" name="tramo_operador[]" value="<?= htmlspecialchars($tOperador) ?>">
@@ -751,13 +802,27 @@
                                 </div>
 
                                 <div class="row g-2 mt-2">
-                                    <div class="col-12">
+                                    <div class="col-md-6">
                                         <label class="form-label text-primary fw-bold">Tipo de Itinerario</label>
-                                        <select name="tipo_viaje" class="form-select border-primary fw-bold" onchange="toggleTramos(this.value, 'tramos_nuevos')">
+                                        <select name="tipo_viaje" id="nuevo_tipo_viaje" class="form-select border-primary fw-bold" onchange="toggleTramos(this.value, 'tramos_nuevos'); condicionarModalidadAutomatica('');">
                                             <option value="DIRECTO">➡️ Viaje Directo (Un solo operador / bus)</option>
                                             <option value="CONEXION">🔄 Con Conexiones (Tramos Operativos y Transbordos)</option>
                                         </select>
-                                        <small class="text-muted">Si es directo, el operador y sobrepeso se definen aquí; si es conexión, se configuran en el Bloque de Tramos.</small>
+                                        <small class="text-muted">Si es directo o conexión con transbordos.</small>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label class="form-label text-primary fw-bold">🔀 Modalidad Logística del Servicio</label>
+                                        <select name="modalidad" id="modalidad_select_edit_" class="form-select border-info fw-bold text-dark" onchange="alCambiarModalidadSelect(this, '')">
+                                            <option value="AUTO" selected>🤖 Automático (según Operador y Tramos)</option>
+                                            <option value="PANAMERICANA">⭐ Vía Panamericana</option>
+                                            <option value="CONEXION_TRAMOS">🔀 Con Conexión por Tramos</option>
+                                            <option value="ESTANDAR">➡️ Directo Estándar</option>
+                                            <option value="OTRO">✏️ Nombre Personalizado...</option>
+                                        </select>
+                                        <div id="caja_modalidad_personalizada_" class="d-none mt-1">
+                                            <input type="text" name="modalidad_personalizada" class="form-control form-control-sm border-info" placeholder="Ej: Ruta Expresa Internacional" value="">
+                                        </div>
+                                        <small class="text-muted" style="font-size:11px;">Nombre con el que se identificará este trayecto en Taquilla y Finanzas.</small>
                                     </div>
                                 </div>
 
@@ -766,7 +831,7 @@
                                     <div class="row g-2 align-items-center">
                                         <div class="col-md-6">
                                             <label class="form-label small text-dark mb-0 fw-bold">🏢 Operador de la Ruta Directa</label>
-                                            <select name="id_operador" class="form-select form-select-sm fw-bold border-primary text-primary" onchange="const nom = this.options[this.selectedIndex].getAttribute('data-nombre'); const hid = this.form.querySelector('input[name=operador]'); if(hid) hid.value = nom;">
+                                            <select name="id_operador" id="nuevo_id_operador" class="form-select form-select-sm fw-bold border-primary text-primary" onchange="const nom = this.options[this.selectedIndex].getAttribute('data-nombre'); const hid = this.form.querySelector('input[name=operador]'); if(hid) hid.value = nom; condicionarModalidadPorOperador(this.value, '');">
                                                  <?= $generarOpcionesOperadores(1) ?>
                                              </select>
                                              <input type="hidden" name="operador" value="Suramérica 2030 (Flota Propia)">

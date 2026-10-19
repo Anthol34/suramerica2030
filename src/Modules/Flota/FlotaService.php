@@ -87,11 +87,24 @@ class FlotaService {
         }
 
         $idOperador = !empty($datos['id_operador']) ? intval($datos['id_operador']) : (!empty($datos['operador_id']) ? intval($datos['operador_id']) : 1);
-        $operador = trim($datos['operador_nombre'] ?? $datos['operador'] ?? $datos['operador_directo'] ?? $datos['modalidad'] ?? 'Suramérica 2030');
-        if ($tipoViaje === 'CONEXION') {
-            $operador = 'Conexión Multitramo';
-            $idOperador = null;
+        $operadorNombre = trim($datos['operador_nombre'] ?? $datos['operador'] ?? $datos['operador_directo'] ?? '');
+
+        // Resolver Modalidad: Respeta selección explícita/personalizada o resuelve automáticamente por reglas
+        $modalidadInput = trim($datos['modalidad'] ?? '');
+        if ($modalidadInput === 'OTRO' && !empty($datos['modalidad_personalizada'])) {
+            $modalidad = trim($datos['modalidad_personalizada']);
+        } elseif (!empty($modalidadInput) && $modalidadInput !== 'AUTO') {
+            $modalidad = $modalidadInput;
+        } else {
+            $modalidad = \Platform\Helpers\ModalidadHelper::resolverModalidadAutomatica($idOperador, $tipoViaje, $tramos, $operadorNombre);
         }
+
+        // Si es conexión sin operador explícito, asignar según modalidad
+        if ($tipoViaje === 'CONEXION' && empty($datos['id_operador'])) {
+            $idOperador = ($modalidad === 'PANAMERICANA') ? 2 : 1;
+        }
+
+        $operador = !empty($operadorNombre) ? $operadorNombre : ($idOperador == 2 ? 'Panamericana' : 'Suramérica 2030');
         $admiteSp = isset($datos['admite_sobrepeso']) ? intval($datos['admite_sobrepeso']) : 1;
 
         return [
@@ -101,7 +114,7 @@ class FlotaService {
             'origen' => trim($datos['origen']),
             'destino' => trim($datos['destino']),
             'tipo_viaje' => $tipoViaje,
-            'modalidad' => $operador,
+            'modalidad' => $modalidad,
             'operador' => $operador,
             'admite_sobrepeso' => $admiteSp,
             'dias_salida' => $diasSalida,

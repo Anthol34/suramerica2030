@@ -180,7 +180,7 @@ function addTramo(containerId, rutaId = '') {
                     </div>
                     <div class="col-md-4">
                         <label class="form-label small text-muted mb-0 fw-bold">Operador del Tramo</label>
-                        <select name="tramo_id_operador[]" class="form-select form-select-sm border-primary fw-bold" onchange="const nom = this.options[this.selectedIndex].getAttribute(\'data-nombre\'); const hid = this.closest(\'.row\').querySelector(\'input[name=\\\'tramo_operador[]\\\']\'); if(hid) hid.value = nom;">
+                        <select name="tramo_id_operador[]" class="form-select form-select-sm border-primary fw-bold" onchange="const nom = this.options[this.selectedIndex].getAttribute(\'data-nombre\'); const hid = this.closest(\'.row\').querySelector(\'input[name=\\\'tramo_operador[]\\\']\'); if(hid) hid.value = nom; condicionarModalidadPorTramos(\'${rutaId}\');">
                             ${HTML_OPCIONES_OPERADORES}
                         </select>
                         <input type="hidden" name="tramo_operador[]" value="Panamericana de Transportes">
@@ -223,6 +223,7 @@ function addTramo(containerId, rutaId = '') {
     container.insertAdjacentHTML('beforeend', html);
     actualizarTitulosTramos(container);
     recalcularTotalesRuta(rutaId);
+    condicionarModalidadPorTramos(rutaId);
 }
 
 function eliminarTramoCard(btn, rutaId) {
@@ -235,6 +236,7 @@ function eliminarTramoCard(btn, rutaId) {
         actualizarTitulosTramos(container);
     }
     recalcularTotalesRuta(rutaId);
+    condicionarModalidadPorTramos(rutaId);
 }
 
 function recalcularFinanzasTramo(input, rutaId) {
@@ -357,6 +359,9 @@ function aplicarFiltrosYPaginarRutas(nuevaPagina = 1) {
     const selectDestino = document.getElementById('filtroDestinoRutas');
     const fDestino = selectDestino ? selectDestino.value.trim().toLowerCase() : '';
 
+    const selectOperador = document.getElementById('filtroOperadorRutas');
+    const fOperador = selectOperador ? selectOperador.value.trim().toLowerCase() : '';
+
     const selectModalidad = document.getElementById('filtroModalidadRutas');
     const fModalidad = selectModalidad ? selectModalidad.value.trim().toLowerCase() : '';
 
@@ -405,16 +410,18 @@ function aplicarFiltrosYPaginarRutas(nuevaPagina = 1) {
     // Filtrar filas coincidentes
     const filasCoincidentes = todasLasFilas.filter(fila => {
         const cCorredor = fila.getAttribute('data-corredor') || '';
-        const cOrigen = fila.getAttribute('data-origen') || '';
-        const cDestino = fila.getAttribute('data-destino') || '';
-        const cModalidad = fila.getAttribute('data-modalidad') || '';
-        const cTipoViaje = fila.getAttribute('data-tipo-viaje') || '';
-        const cEstado = fila.getAttribute('data-estado') || '';
-        const searchFila = fila.getAttribute('data-search') || '';
+        const cOrigen = (fila.getAttribute('data-origen') || '').toLowerCase();
+        const cDestino = (fila.getAttribute('data-destino') || '').toLowerCase();
+        const cOperador = (fila.getAttribute('data-operador') || '').toLowerCase();
+        const cModalidad = (fila.getAttribute('data-modalidad') || '').toLowerCase();
+        const cTipoViaje = (fila.getAttribute('data-tipo-viaje') || '').toLowerCase();
+        const cEstado = (fila.getAttribute('data-estado') || '').toLowerCase();
+        const searchFila = (fila.getAttribute('data-search') || '').toLowerCase();
 
         if (query && !searchFila.includes(query)) return false;
         if (fOrigen && cOrigen !== fOrigen) return false;
         if (fDestino && cDestino !== fDestino) return false;
+        if (fOperador && cOperador !== fOperador && !cOperador.includes(fOperador)) return false;
         if (fModalidad && cModalidad !== fModalidad) return false;
         if (fTipoViaje && cTipoViaje !== fTipoViaje) return false;
         if (fEstado && cEstado !== fEstado) return false;
@@ -426,7 +433,7 @@ function aplicarFiltrosYPaginarRutas(nuevaPagina = 1) {
     const totalCoincidentes = filasCoincidentes.length;
 
     // Actualizar badge de filtros activos
-    actualizarBadgeFiltrosActivosRutas(query, fOrigen, fDestino, fModalidad, fTipoViaje, fEstado, fCorredor);
+    actualizarBadgeFiltrosActivosRutas(query, fOrigen, fDestino, fOperador, fModalidad, fTipoViaje, fEstado, fCorredor);
 
     // Calcular límites y páginas
     let rpp = (limiteVal === 'all') ? (totalCoincidentes || 1) : parseInt(limiteVal, 10);
@@ -467,7 +474,7 @@ function aplicarFiltrosYPaginarRutas(nuevaPagina = 1) {
     // Actualizar badge de total
     const badgeTotal = document.getElementById('badgeTotalRutas');
     if (badgeTotal) {
-        if (fCorredor || query || fOrigen || fDestino || fModalidad || fTipoViaje || fEstado) {
+        if (fCorredor || query || fOrigen || fDestino || fOperador || fModalidad || fTipoViaje || fEstado) {
             badgeTotal.textContent = `${totalCoincidentes} de ${todasLasFilas.length} rutas`;
         } else {
             badgeTotal.textContent = `${todasLasFilas.length} rutas`;
@@ -478,7 +485,7 @@ function aplicarFiltrosYPaginarRutas(nuevaPagina = 1) {
     renderizarBotonesPaginacionRutas(totalPaginas, totalCoincidentes);
 }
 
-function actualizarBadgeFiltrosActivosRutas(query, ori, des, mod, viaje, est, cor) {
+function actualizarBadgeFiltrosActivosRutas(query, ori, des, op, mod, viaje, est, cor) {
     const badge = document.getElementById('badgeFiltrosActivosRutas');
     if (!badge) return;
     
@@ -486,6 +493,7 @@ function actualizarBadgeFiltrosActivosRutas(query, ori, des, mod, viaje, est, co
     if (query) activos.push(`"${query}"`);
     if (ori) activos.push(`Origen: ${ori.toUpperCase()}`);
     if (des) activos.push(`Destino: ${des.toUpperCase()}`);
+    if (op) activos.push(`Operador: ${op.toUpperCase()}`);
     if (mod) activos.push(`Modalidad: ${mod.toUpperCase()}`);
     if (viaje) activos.push(`Viaje: ${viaje.toUpperCase()}`);
     if (est) activos.push(`Estado: ${est.toUpperCase()}`);
@@ -504,6 +512,7 @@ function limpiarTodosFiltrosRutas() {
     const inputBuscador = document.getElementById('buscadorRutas');
     const selectOrigen = document.getElementById('filtroOrigenRutas');
     const selectDestino = document.getElementById('filtroDestinoRutas');
+    const selectOperador = document.getElementById('filtroOperadorRutas');
     const selectModalidad = document.getElementById('filtroModalidadRutas');
     const selectTipoViaje = document.getElementById('filtroTipoViajeRutas');
     const selectEstado = document.getElementById('filtroEstadoRutas');
@@ -512,6 +521,7 @@ function limpiarTodosFiltrosRutas() {
     if (inputBuscador) inputBuscador.value = '';
     if (selectOrigen) selectOrigen.value = '';
     if (selectDestino) selectDestino.value = '';
+    if (selectOperador) selectOperador.value = '';
     if (selectModalidad) selectModalidad.value = '';
     if (selectTipoViaje) selectTipoViaje.value = '';
     if (selectEstado) selectEstado.value = '';
@@ -639,7 +649,7 @@ document.addEventListener("DOMContentLoaded", function() {
         inputBuscador.addEventListener('input', () => aplicarFiltrosYPaginarRutas(1));
     }
 
-    ['filtroOrigenRutas', 'filtroDestinoRutas', 'filtroModalidadRutas', 'filtroTipoViajeRutas', 'filtroEstadoRutas', 'filtroCorredorRutas', 'filtroLimiteRutas'].forEach(id => {
+    ['filtroOrigenRutas', 'filtroDestinoRutas', 'filtroOperadorRutas', 'filtroModalidadRutas', 'filtroTipoViajeRutas', 'filtroEstadoRutas', 'filtroCorredorRutas', 'filtroLimiteRutas'].forEach(id => {
         const el = document.getElementById(id);
         if (el) el.addEventListener('change', () => aplicarFiltrosYPaginarRutas(1));
     });
@@ -679,3 +689,106 @@ document.addEventListener("DOMContentLoaded", function() {
     }
     aplicarFiltrosYPaginarRutas(1);
 });
+
+// ============================================================
+// CONTROL Y CONDICIONAMIENTO DE MODALIDADES
+// ============================================================
+
+function alCambiarModalidadSelect(selectEl, rutaId) {
+    const sufijo = rutaId ? '_' + rutaId : '_';
+    const cajaCustom = document.getElementById('caja_modalidad_personalizada' + sufijo);
+    if (!cajaCustom) return;
+
+    if (selectEl.value === 'OTRO') {
+        cajaCustom.classList.remove('d-none');
+        const input = cajaCustom.querySelector('input[name="modalidad_personalizada"]');
+        if (input) {
+            input.focus();
+            if (!input.value.trim()) {
+                input.placeholder = "Escriba el nombre (ej: Ruta Expresa Internacional)";
+            }
+        }
+    } else {
+        cajaCustom.classList.add('d-none');
+    }
+}
+
+function condicionarModalidadPorOperador(idOperador, rutaId) {
+    const sufijo = rutaId ? '_' + rutaId : '_';
+    const selectMod = document.getElementById('modalidad_select_edit' + sufijo);
+    if (!selectMod) return;
+
+    // Respetar si el usuario escribió un nombre personalizado explícito (OTRO)
+    if (selectMod.value === 'OTRO') {
+        const cajaCustom = document.getElementById('caja_modalidad_personalizada' + sufijo);
+        const inputCustom = cajaCustom ? cajaCustom.querySelector('input[name="modalidad_personalizada"]') : null;
+        if (inputCustom && inputCustom.value.trim().length > 0) {
+            return;
+        }
+    }
+
+    // Regla de operador: Si es Panamericana (ID 2)
+    const esPanamericana = String(idOperador) === '2';
+
+    if (esPanamericana) {
+        selectMod.value = 'PANAMERICANA';
+    } else {
+        if (selectMod.value === 'PANAMERICANA' || selectMod.value === 'AUTO') {
+            selectMod.value = 'ESTANDAR';
+        }
+    }
+    alCambiarModalidadSelect(selectMod, rutaId);
+}
+
+function condicionarModalidadPorTramos(rutaId) {
+    const sufijo = rutaId ? '_' + rutaId : '_';
+    const selectMod = document.getElementById('modalidad_select_edit' + sufijo);
+    if (!selectMod) return;
+
+    // Respetar personalizaciones manuales
+    if (selectMod.value === 'OTRO') {
+        const cajaCustom = document.getElementById('caja_modalidad_personalizada' + sufijo);
+        const inputCustom = cajaCustom ? cajaCustom.querySelector('input[name="modalidad_personalizada"]') : null;
+        if (inputCustom && inputCustom.value.trim().length > 0) {
+            return;
+        }
+    }
+
+    const containerId = rutaId ? 'lista_tramos_edit_' + rutaId : 'lista_tramos_nuevos';
+    const container = document.getElementById(containerId);
+    if (!container) return;
+
+    const opSelects = container.querySelectorAll('select[name="tramo_id_operador[]"]');
+    let tienePanamericana = false;
+    opSelects.forEach(sel => {
+        if (String(sel.value) === '2') {
+            tienePanamericana = true;
+        } else {
+            const optText = sel.options[sel.selectedIndex]?.text || '';
+            if (optText.toLowerCase().includes('panamericana')) {
+                tienePanamericana = true;
+            }
+        }
+    });
+
+    if (tienePanamericana) {
+        selectMod.value = 'PANAMERICANA';
+    } else {
+        selectMod.value = 'CONEXION_TRAMOS';
+    }
+    alCambiarModalidadSelect(selectMod, rutaId);
+}
+
+function condicionarModalidadAutomatica(rutaId) {
+    const sufijo = rutaId ? '_' + rutaId : '_';
+    const tipoViajeSelect = document.getElementById(rutaId ? 'edit_tipo_viaje_' + rutaId : 'nuevo_tipo_viaje');
+    const tipoViaje = tipoViajeSelect ? tipoViajeSelect.value : 'DIRECTO';
+
+    if (tipoViaje === 'DIRECTO') {
+        const idOpSelect = document.getElementById(rutaId ? 'edit_id_operador_' + rutaId : 'nuevo_id_operador');
+        const idOp = idOpSelect ? idOpSelect.value : '1';
+        condicionarModalidadPorOperador(idOp, rutaId);
+    } else {
+        condicionarModalidadPorTramos(rutaId);
+    }
+}
