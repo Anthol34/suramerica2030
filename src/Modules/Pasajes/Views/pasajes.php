@@ -18,6 +18,37 @@ $puedeAnularDirecto = (isset($_SESSION['rol_id']) && $_SESSION['rol_id'] == 1) |
 
 <!-- ESTILOS VISUALES PARA KPIS DE PASAJES -->
 <style>
+.kpi-row-pasajes {
+    display: flex;
+    flex-wrap: wrap;
+    margin-right: -0.5rem;
+    margin-left: -0.5rem;
+}
+.kpi-row-pasajes > .kpi-col-5 {
+    flex: 0 0 20%;
+    max-width: 20%;
+    padding-right: 0.5rem;
+    padding-left: 0.5rem;
+    margin-bottom: 1rem;
+}
+@media (max-width: 991.98px) {
+    .kpi-row-pasajes > .kpi-col-5 {
+        flex: 0 0 33.333333%;
+        max-width: 33.333333%;
+    }
+}
+@media (max-width: 767.98px) {
+    .kpi-row-pasajes > .kpi-col-5 {
+        flex: 0 0 50%;
+        max-width: 50%;
+    }
+}
+@media (max-width: 575.98px) {
+    .kpi-row-pasajes > .kpi-col-5 {
+        flex: 0 0 100%;
+        max-width: 100%;
+    }
+}
 .kpi-card-pasaje {
     border: none;
     border-radius: 12px;
@@ -25,6 +56,7 @@ $puedeAnularDirecto = (isset($_SESSION['rol_id']) && $_SESSION['rol_id'] == 1) |
     text-decoration: none !important;
     display: block;
     background: #fff;
+    height: 100%;
 }
 .kpi-card-pasaje:hover {
     transform: translateY(-3px);
@@ -53,9 +85,9 @@ $filtroRapido = $filtros['filtro_rapido'] ?? '';
 
 <!-- TARJETAS KPI DE VENTA DE PASAJES (Visible en Activos e Historial) -->
 <?php if($tabActual !== 'equipaje'): ?>
-<div class="row g-3 mb-4">
+<div class="kpi-row-pasajes row g-3 mb-4">
     <!-- KPI 1: TOTAL ACTIVOS -->
-    <div class="col-xl col-md-4 col-sm-6">
+    <div class="kpi-col-5 col-xl col-md-4 col-sm-6">
         <a href="?tab=activos" class="card kpi-card-pasaje shadow-sm border-start border-4 border-primary h-100 <?= ($tabActual == 'activos' && empty($filtroRapido)) ? 'active-kpi' : '' ?>" title="Clic para ver todos los pasajes activos (próximos viajes y abiertos)">
             <div class="card-body d-flex align-items-center p-3">
                 <div class="kpi-icon-box-pasaje bg-primary bg-opacity-10 text-primary me-3">
@@ -73,7 +105,7 @@ $filtroRapido = $filtros['filtro_rapido'] ?? '';
     </div>
 
     <!-- KPI 2: VIAJAN HOY -->
-    <div class="col-xl col-md-4 col-sm-6">
+    <div class="kpi-col-5 col-xl col-md-4 col-sm-6">
         <a href="?tab=activos&filtro_rapido=hoy" class="card kpi-card-pasaje shadow-sm border-start border-4 border-info h-100 <?= ($tabActual == 'activos' && $filtroRapido === 'hoy') ? 'active-kpi' : '' ?>" title="Clic para filtrar pasajeros con viaje programado para hoy">
             <div class="card-body d-flex align-items-center p-3">
                 <div class="kpi-icon-box-pasaje bg-info bg-opacity-10 text-info me-3">
@@ -91,7 +123,7 @@ $filtroRapido = $filtros['filtro_rapido'] ?? '';
     </div>
 
     <!-- KPI 3: VENTAS HOY -->
-    <div class="col-xl col-md-4 col-sm-6">
+    <div class="kpi-col-5 col-xl col-md-4 col-sm-6">
         <a href="?tab=historial&tipo_fecha=emision&fecha_inicio=<?= date('Y-m-d') ?>&fecha_fin=<?= date('Y-m-d') ?>" class="card kpi-card-pasaje shadow-sm border-start border-4 border-success h-100 <?= ($tabActual == 'historial' && ($filtros['tipo_fecha'] ?? '') === 'emision' && ($filtros['fecha_inicio'] ?? '') === date('Y-m-d')) ? 'active-kpi' : '' ?>" title="Clic para ver boletos emitidos el día de hoy">
             <div class="card-body d-flex align-items-center p-3">
                 <div class="kpi-icon-box-pasaje bg-success bg-opacity-10 text-success me-3">
@@ -99,10 +131,7 @@ $filtroRapido = $filtros['filtro_rapido'] ?? '';
                 </div>
                 <div class="overflow-hidden">
                     <div class="text-success small fw-bold text-uppercase text-truncate">Ventas de Hoy</div>
-                    <h4 class="fw-bold mb-0 text-success">
-                        <?= number_format($kpisPasajes['vendidos_hoy'] ?? 0) ?>
-                        <span class="fs-6 fw-normal text-muted">boletos</span>
-                    </h4>
+                    <h4 class="fw-bold mb-0 text-success"><?= number_format($kpisPasajes['vendidos_hoy'] ?? 0) ?></h4>
                     <div class="small text-muted mt-1 text-truncate">
                         $<?= number_format($kpisPasajes['cobrado_hoy_usd'] ?? 0, 2) ?> USD cobrados
                     </div>
@@ -112,7 +141,7 @@ $filtroRapido = $filtros['filtro_rapido'] ?? '';
     </div>
 
     <!-- KPI 4: FECHAS ABIERTAS -->
-    <div class="col-xl col-md-6 col-sm-6">
+    <div class="kpi-col-5 col-xl col-md-4 col-sm-6">
         <a href="?tab=activos&filtro_rapido=abiertas" class="card kpi-card-pasaje shadow-sm border-start border-4 border-warning h-100 <?= ($tabActual == 'activos' && $filtroRapido === 'abiertas') ? 'active-kpi' : '' ?>" title="Clic para filtrar boletos con fecha abierta pendientes de programar">
             <div class="card-body d-flex align-items-center p-3">
                 <div class="kpi-icon-box-pasaje bg-warning bg-opacity-10 text-warning me-3">
@@ -130,7 +159,7 @@ $filtroRapido = $filtros['filtro_rapido'] ?? '';
     </div>
 
     <!-- KPI 5: RESERVAS CON SALDO -->
-    <div class="col-xl col-md-6 col-sm-12">
+    <div class="kpi-col-5 col-xl col-md-4 col-sm-6">
         <a href="?tab=activos&filtro_rapido=reservas" class="card kpi-card-pasaje shadow-sm border-start border-4 border-danger h-100 <?= ($tabActual == 'activos' && $filtroRapido === 'reservas') ? 'active-kpi' : '' ?>" title="Clic para filtrar reservas activas con saldo por cobrar">
             <div class="card-body d-flex align-items-center p-3">
                 <div class="kpi-icon-box-pasaje bg-danger bg-opacity-10 text-danger me-3">
@@ -138,9 +167,7 @@ $filtroRapido = $filtros['filtro_rapido'] ?? '';
                 </div>
                 <div class="overflow-hidden">
                     <div class="text-danger small fw-bold text-uppercase text-truncate">Reservas con Saldo</div>
-                    <h4 class="fw-bold mb-0 text-danger">
-                        <?= number_format($kpisPasajes['reservas_pendientes'] ?? 0) ?>
-                    </h4>
+                    <h4 class="fw-bold mb-0 text-danger"><?= number_format($kpisPasajes['reservas_pendientes'] ?? 0) ?></h4>
                     <div class="small text-muted mt-1 text-truncate">
                         $<?= number_format($kpisPasajes['saldo_reservas_usd'] ?? 0, 2) ?> USD por liquidar
                     </div>
