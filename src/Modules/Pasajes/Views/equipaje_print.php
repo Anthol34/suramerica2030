@@ -76,13 +76,14 @@ $codigoSocio = trim($pasaje['CODIGO_SOCIO'] ?? ($_GET['codigo_socio'] ?? ''));
             <div>
                 <div style="display: flex; align-items: center; gap: 8px;">
                     <span style="font-size: 20px;">🎫</span>
-                    <strong style="color: #0b2b56; font-size: 14px;">Boleto Empresa Aliada / Socio (<?= htmlspecialchars($nombreAliado ?: 'Panamericana') ?>)</strong>
+                    <strong style="color: #0b2b56; font-size: 14px;">Etiquetas de Equipaje (Hoja A4 Vertical)</strong>
+                    <span style="background: #e3f2fd; color: #0b2b56; font-size: 10px; font-weight: bold; padding: 2px 6px; border-radius: 3px; border: 1px solid #90caf9;">📄 Hasta 4 por Hoja A4 (Izquierda)</span>
                     <?php if ($esAliado): ?>
                         <span style="background: #ffc107; color: #000; font-size: 10px; font-weight: bold; padding: 2px 6px; border-radius: 3px;">SISTEMA EXTERNO</span>
                     <?php endif; ?>
                 </div>
                 <div style="font-size: 11.5px; color: #555; margin-top: 2px;">
-                    Ingrese el código emitido por el sistema del socio (ej: <strong>PANA-000000</strong>) antes de imprimir las etiquetas.
+                    <?= $esAliado ? 'Ingrese el código emitido por el sistema del socio (ej: <strong>PANA-000000</strong>) antes de imprimir.' : 'Diseño vertical alineado a la izquierda (entran hasta 4 por hoja para que el papel sobrante se pueda recortar y reutilizar).' ?>
                 </div>
             </div>
             <div style="display: flex; align-items: center; gap: 8px;">
@@ -104,147 +105,163 @@ $codigoSocio = trim($pasaje['CODIGO_SOCIO'] ?? ($_GET['codigo_socio'] ?? ''));
         </div>
     </div>
 
-<?php foreach ($piezas as $index => $pz): 
-    $numPieza = $index + 1;
-    $tipoPz = strtoupper($pz['tipo'] ?? 'MALETA');
-    $pesoPz = number_format(floatval($pz['peso'] ?? 0), 1);
-    $descPz = !empty($pz['descripcion']) ? htmlspecialchars($pz['descripcion']) : '';
+<?php 
+$paginasPiezas = array_chunk($piezas, 4, true); 
+foreach ($paginasPiezas as $numPag => $grupoPiezas): 
 ?>
-    <div class="print-wrapper">
-        <div class="tag-rotated">
-            
-            <!-- 5 CM EXTRA AL INICIO -->
-            <div class="blank-space">.</div>
-            
-            <!-- CONTENIDO DE LA ETIQUETA -->
-            <div class="tag-content">
-                <div class="section-left">
-                    <div class="logo-text">SURAMERICA</div>
-                    <div class="sub-logo">TICKET DE EQUIPAJE</div>
-                    <?php if ($esAliado): ?>
-                        <div style="font-size: 10px; font-weight: 900; background: #000; color: #ffeb3b; padding: 2px 6px; border-radius: 3px; margin-top: 1px; letter-spacing: 0.5px; border: 1px solid #333;">
-                            ⭐ <?= htmlspecialchars($nombreAliado) ?>
-                        </div>
-                    <?php elseif (!empty($pasaje['OPERADOR_TRAMO']) && strtoupper($pasaje['OPERADOR_TRAMO']) !== 'PROPIO' && strtoupper($pasaje['OPERADOR_TRAMO']) !== 'GENERAL'): ?>
-                        <div style="font-size: 10px; font-weight: bold; background: #000; color: #fff; padding: 2px 4px; border-radius: 2px; margin-top: 3px; letter-spacing: 0.5px;">
-                            <?= htmlspecialchars(strtoupper($pasaje['OPERADOR_TRAMO'])) ?>
-                        </div>
-                    <?php endif; ?>
+    <div class="a4-sheet">
+        <?php foreach ($grupoPiezas as $index => $pz): 
+            $numPieza = $index + 1;
+            $tipoPz = strtoupper($pz['tipo'] ?? 'MALETA');
+            $pesoPz = number_format(floatval($pz['peso'] ?? 0), 1);
+            $descPz = !empty($pz['descripcion']) ? htmlspecialchars($pz['descripcion']) : '';
+        ?>
+            <div class="print-wrapper">
+                <div class="cut-indicator">✂ CORTE</div>
+                <div class="tag-rotated">
                     
-                    <!-- CÓDIGO DE CONTROL PROPIO DE SURAMÉRICA -->
-                    <div class="barcode">||||||||||</div>
-                    <div style="font-size: 11px; letter-spacing: 1px; font-weight: bold;">
-                        *EQP-<?= str_pad($pasaje['ID_PASAJE'], 6, '0', STR_PAD_LEFT) ?>-<?= $numPieza ?>/<?= $totalPiezas ?>*
+                    <!-- SOLAPA SUPERIOR PARA ENGRAPAR AL ASA -->
+                    <div class="blank-space">
+                        <div style="font-size: 11px; margin-bottom: 2px;">📎</div>
+                        <div>ENGRAPAR / PEGAR</div>
+                        <div style="font-size: 6.5px; color: #888; margin-top: 2px; font-weight: normal;">AL ASA DE MALETA</div>
                     </div>
                     
-                    <div style="margin-top: 10px; background: #000; color: #fff; padding: 4px 10px; border-radius: 4px; font-weight: 900; font-size: 13px; letter-spacing: 1px;">
-                        PIEZA <?= $numPieza ?> DE <?= $totalPiezas ?>
-                    </div>
+                    <!-- CONTENIDO DE LA ETIQUETA -->
+                    <div class="tag-content">
+                        <div class="section-left">
+                            <div class="logo-text">SURAMERICA</div>
+                            <div class="sub-logo">TICKET DE EQUIPAJE</div>
+                            <?php if ($esAliado): ?>
+                                <div style="font-size: 8px; font-weight: 900; background: #000; color: #ffeb3b; padding: 1.5px 4px; border-radius: 3px; margin-top: 1px; letter-spacing: 0.5px; border: 1px solid #333;">
+                                    ⭐ <?= htmlspecialchars($nombreAliado) ?>
+                                </div>
+                            <?php elseif (!empty($pasaje['OPERADOR_TRAMO']) && strtoupper($pasaje['OPERADOR_TRAMO']) !== 'PROPIO' && strtoupper($pasaje['OPERADOR_TRAMO']) !== 'GENERAL'): ?>
+                                <div style="font-size: 8px; font-weight: bold; background: #000; color: #fff; padding: 1.5px 4px; border-radius: 2px; margin-top: 2px; letter-spacing: 0.5px;">
+                                    <?= htmlspecialchars(strtoupper($pasaje['OPERADOR_TRAMO'])) ?>
+                                </div>
+                            <?php endif; ?>
+                            
+                            <!-- CÓDIGO DE CONTROL PROPIO DE SURAMÉRICA -->
+                            <div class="barcode">||||||||||</div>
+                            <div style="font-size: 8.5px; letter-spacing: 0.3px; font-weight: bold;">
+                                *EQP-<?= str_pad($pasaje['ID_PASAJE'], 6, '0', STR_PAD_LEFT) ?>-<?= $numPieza ?>/<?= $totalPiezas ?>*
+                            </div>
+                            
+                            <div style="margin-top: 4px; background: #000; color: #fff; padding: 1.5px 6px; border-radius: 3px; font-weight: 900; font-size: 10px; letter-spacing: 0.5px;">
+                                PIEZA <?= $numPieza ?> DE <?= $totalPiezas ?>
+                            </div>
 
-                    <!-- CONTROL BOLETO INTERNO SURAMÉRICA -->
-                    <div style="margin-top: 12px; border-top: 2px solid #000; padding-top: 6px; width: 100%;">
-                        <span class="label">N° BOLETO:</span><br>
-                        <span class="bold" style="font-size: 18px;">#<?= str_pad($pasaje['ID_FACTURA'], 6, '0', STR_PAD_LEFT) ?></span>
-                    </div>
+                            <!-- CONTROL BOLETO INTERNO SURAMÉRICA -->
+                            <div style="margin-top: 4px; border-top: 1.5px solid #000; padding-top: 2px; width: 100%;">
+                                <span class="label">N° BOLETO:</span><br>
+                                <span class="bold" style="font-size: 14px;">#<?= str_pad($pasaje['ID_FACTURA'], 6, '0', STR_PAD_LEFT) ?></span>
+                            </div>
 
-                    <!-- BOLETO DEL SOCIO EXTERNO (SI FUE INGRESADO) -->
-                    <div class="partner-box-left" style="margin-top: 6px; background: #fff8e1; border: 1.5px dashed #f57f17; border-radius: 4px; padding: 4px 2px; width: 100%; <?= empty($codigoSocio) ? 'display: none;' : '' ?>">
-                        <span style="font-size: 8px; color: #b71c1c; font-weight: bold; display: block; text-transform: uppercase;">BOLETO <?= htmlspecialchars($nombreAliado ?: 'SOCIO') ?>:</span>
-                        <span class="partner-code-text" style="font-size: 14px; font-weight: 900; color: #b71c1c; font-family: monospace; letter-spacing: 0.5px;"><?= htmlspecialchars($codigoSocio ?: 'S/C') ?></span>
-                    </div>
-                </div>
-                
-                <div class="section-middle">
-                    <!-- ENCABEZADO DE EMPRESA ALIADA SI APLICA O SI HAY CÓDIGO -->
-                    <div class="partner-box-mid" style="background: #fff8e1; border: 1px solid #ffe082; border-left: 4px solid #f57f17; padding: 4px 8px; border-radius: 4px; margin-bottom: 6px; display: <?= empty($codigoSocio) && !$esAliado ? 'none' : 'flex' ?>; justify-content: space-between; align-items: center;">
-                        <div>
-                            <span style="font-size: 8.5px; text-transform: uppercase; color: #856404; font-weight: bold; display: block; line-height: 1.1;">EMPRESA ALIADA / SOCIO</span>
-                            <strong style="font-size: 12px; color: #000;">⭐ <?= htmlspecialchars($nombreAliado ?: 'PANAMERICANA') ?></strong>
-                        </div>
-                        <div style="text-align: right;">
-                            <span style="font-size: 8.5px; text-transform: uppercase; color: #856404; font-weight: bold; display: block; line-height: 1.1;">BOLETO SOCIO</span>
-                            <strong class="partner-code-text" style="font-size: 14px; color: #b71c1c; font-family: monospace; letter-spacing: 0.5px;"><?= htmlspecialchars($codigoSocio ?: 'S/C') ?></strong>
-                        </div>
-                    </div>
-
-                    <div class="info-row">
-                        <div class="info-col">
-                            <span class="label">PASAJERO PROPIETARIO</span>
-                            <span class="bold"><?= htmlspecialchars($pasaje['CLI_NOMBRE'].' '.$pasaje['CLI_APELLIDO']) ?></span>
-                        </div>
-                    </div>
-                    <div class="info-row" style="margin-top: 4px;">
-                        <div class="info-col">
-                            <span class="label">DOCUMENTO DE IDENTIDAD</span>
-                            <span class="bold"><?= htmlspecialchars($pasaje['ID_CLIENTE']) ?></span>
-                        </div>
-                        <div class="info-col" style="text-align: right;">
-                            <span class="label">BUS (PLACA)</span>
-                            <span class="bold"><?= htmlspecialchars($pasaje['BUS_PLACA'] ?? 'S/A') ?></span>
-                        </div>
-                    </div>
-                    <div class="info-row" style="margin-top: 4px;">
-                        <div class="info-col">
-                            <span class="label">FECHA DE SALIDA DEL VIAJE</span>
-                            <span class="bold"><?= htmlspecialchars($pasaje['FECHA_VIAJE'] ?? 'ABIERTA') ?></span>
-                        </div>
-                    </div>
-                    
-                    <div style="border-top: 2px dashed #ccc; margin: 8px 0;"></div>
-                    
-                    <!-- DATOS ESPECÍFICOS DE ESTA PIEZA -->
-                    <div class="info-row" style="margin-bottom: 4px;">
-                        <div class="info-col">
-                            <span class="label">PIEZA (<?= $numPieza ?>/<?= $totalPiezas ?>)</span>
-                            <span class="bold" style="font-size: 16px; color: #0b2b56;">
-                                <?= $tipoPz ?>
-                            </span>
-                        </div>
-                        <div class="info-col" style="text-align: right;">
-                            <span class="label">PESO DE ESTA PIEZA</span>
-                            <span class="bold" style="font-size: 19px; color: #000;"><?= $pesoPz ?> KG</span>
-                        </div>
-                    </div>
-
-                    <?php if($descPz !== ''): ?>
-                        <div class="info-row" style="margin-top: 2px; margin-bottom: 4px;">
-                            <div class="info-col">
-                                <span class="label">DESCRIPCIÓN / CONTENIDO</span>
-                                <span style="font-size: 11px; font-weight: bold;"><?= $descPz ?></span>
+                            <!-- BOLETO DEL SOCIO EXTERNO (SI FUE INGRESADO) -->
+                            <div class="partner-box-left" style="margin-top: 3px; background: #fff8e1; border: 1px dashed #f57f17; border-radius: 3px; padding: 1.5px; width: 100%; <?= empty($codigoSocio) ? 'display: none;' : '' ?>">
+                                <span style="font-size: 7px; color: #b71c1c; font-weight: bold; display: block; text-transform: uppercase;">BOLETO <?= htmlspecialchars($nombreAliado ?: 'SOCIO') ?>:</span>
+                                <span class="partner-code-text" style="font-size: 11.5px; font-weight: 900; color: #b71c1c; font-family: monospace; letter-spacing: 0.5px;"><?= htmlspecialchars($codigoSocio ?: 'S/C') ?></span>
                             </div>
                         </div>
-                    <?php endif; ?>
+                        
+                        <div class="section-middle">
+                            <!-- ENCABEZADO DE EMPRESA ALIADA SI APLICA O SI HAY CÓDIGO -->
+                            <div class="partner-box-mid" style="background: #fff8e1; border: 1px solid #ffe082; border-left: 3px solid #f57f17; padding: 1.5px 5px; border-radius: 3px; margin-bottom: 3px; display: <?= empty($codigoSocio) && !$esAliado ? 'none' : 'flex' ?>; justify-content: space-between; align-items: center;">
+                                <div>
+                                    <span style="font-size: 7.5px; text-transform: uppercase; color: #856404; font-weight: bold; display: block; line-height: 1;">EMPRESA ALIADA / SOCIO</span>
+                                    <strong style="font-size: 10px; color: #000;">⭐ <?= htmlspecialchars($nombreAliado ?: 'PANAMERICANA') ?></strong>
+                                </div>
+                                <div style="text-align: right;">
+                                    <span style="font-size: 7.5px; text-transform: uppercase; color: #856404; font-weight: bold; display: block; line-height: 1;">BOLETO SOCIO</span>
+                                    <strong class="partner-code-text" style="font-size: 11.5px; color: #b71c1c; font-family: monospace; letter-spacing: 0.5px;"><?= htmlspecialchars($codigoSocio ?: 'S/C') ?></strong>
+                                </div>
+                            </div>
 
-                    <div style="margin-top: 5px; font-size: 10px; color: #444; background: #f1f3f5; padding: 3px 6px; border-radius: 4px; display: flex; justify-content: space-between;">
-                        <span>Bodega: <strong><?= number_format($pesoBodegaTotal, 1) ?> Kg (<?= $totalPiezas ?> pz)</strong></span>
-                        <span>Mano: <strong>10.0 Kg</strong></span>
-                        <span>Total: <strong><?= number_format($pesoTotalGlobal, 1) ?> Kg</strong></span>
-                    </div>
-                </div>
-                
-                <div class="section-right">
-                    <!-- CÓDIGO BOLETO SOCIO EN TALÓN DERECHO SI FUE INGRESADO -->
-                    <div class="partner-box-right" style="background: #000; color: #fff; padding: 3px 6px; border-radius: 4px; font-size: 12px; font-weight: 900; letter-spacing: 0.5px; margin-bottom: 6px; text-transform: uppercase; width: 95%; text-align: center; border: 1px solid #222; <?= empty($codigoSocio) ? 'display: none;' : '' ?>">
-                        <span style="font-size: 8px; display: block; color: #ffeb3b; font-weight: bold; line-height: 1;">BOLETO <?= htmlspecialchars($nombreAliado ?: 'SOCIO') ?></span>
-                        <span class="partner-code-text"><?= htmlspecialchars($codigoSocio ?: 'S/C') ?></span>
-                    </div>
+                            <div class="info-row">
+                                <div class="info-col">
+                                    <span class="label">PASAJERO PROPIETARIO</span>
+                                    <span class="bold"><?= htmlspecialchars($pasaje['CLI_NOMBRE'].' '.$pasaje['CLI_APELLIDO']) ?></span>
+                                </div>
+                            </div>
+                            <div class="info-row" style="margin-top: 2px;">
+                                <div class="info-col">
+                                    <span class="label">DOCUMENTO DE IDENTIDAD</span>
+                                    <span class="bold"><?= htmlspecialchars($pasaje['ID_CLIENTE']) ?></span>
+                                </div>
+                                <div class="info-col" style="text-align: right;">
+                                    <span class="label">BUS (PLACA)</span>
+                                    <span class="bold"><?= htmlspecialchars($pasaje['BUS_PLACA'] ?? 'S/A') ?></span>
+                                </div>
+                            </div>
+                            <div class="info-row" style="margin-top: 2px;">
+                                <div class="info-col">
+                                    <span class="label">FECHA DE SALIDA DEL VIAJE</span>
+                                    <span class="bold" style="font-size: 11.5px;"><?= htmlspecialchars($pasaje['FECHA_VIAJE'] ?? 'ABIERTA') ?></span>
+                                </div>
+                            </div>
+                            
+                            <div style="border-top: 1.5px dashed #ccc; margin: 3px 0;"></div>
+                            
+                            <!-- DATOS ESPECÍFICOS DE ESTA PIEZA -->
+                            <div class="info-row" style="margin-bottom: 2px;">
+                                <div class="info-col">
+                                    <span class="label">PIEZA (<?= $numPieza ?>/<?= $totalPiezas ?>)</span>
+                                    <span class="bold" style="font-size: 13px; color: #0b2b56;">
+                                        <?= $tipoPz ?>
+                                    </span>
+                                </div>
+                                <div class="info-col" style="text-align: right;">
+                                    <span class="label">PESO DE ESTA PIEZA</span>
+                                    <span class="bold" style="font-size: 15px; color: #000;"><?= $pesoPz ?> KG</span>
+                                </div>
+                            </div>
 
-                    <span class="label">DESTINO TRAMO</span>
-                    <div class="dest-huge"><?= htmlspecialchars($pasaje['DESTINO_TRAMO'] ?? $pasaje['RUT_DESTINO'] ?? 'S/D') ?></div>
-                    <?php if (!empty($pasaje['DESTINO_TRAMO']) && $pasaje['DESTINO_TRAMO'] !== $pasaje['RUT_DESTINO']): ?>
-                        <div style="font-size: 10.5px; font-weight: bold; color: #333; margin-top: 4px; background: #eee; padding: 2px; border-radius: 2px;">
-                            FINAL: <?= htmlspecialchars($pasaje['RUT_DESTINO']) ?>
+                            <?php if($descPz !== ''): ?>
+                                <div class="info-row" style="margin-top: 1px; margin-bottom: 2px;">
+                                    <div class="info-col">
+                                        <span class="label">DESCRIPCIÓN / CONTENIDO</span>
+                                        <span style="font-size: 9.5px; font-weight: bold;"><?= $descPz ?></span>
+                                    </div>
+                                </div>
+                            <?php endif; ?>
+
+                            <div style="margin-top: 2px; font-size: 8.5px; color: #444; background: #f1f3f5; padding: 1.5px 4px; border-radius: 3px; display: flex; justify-content: space-between;">
+                                <span>Bodega: <strong><?= number_format($pesoBodegaTotal, 1) ?> Kg (<?= $totalPiezas ?> pz)</strong></span>
+                                <span>Mano: <strong>10.0 Kg</strong></span>
+                                <span>Total: <strong><?= number_format($pesoTotalGlobal, 1) ?> Kg</strong></span>
+                            </div>
                         </div>
-                    <?php endif; ?>
-                    <span class="label" style="margin-top: 8px;">ASIENTO ASIGNADO</span>
-                    <div class="asiento-box"><?= htmlspecialchars($pasaje['PAX_ASIENTO'] ?? 'S/A') ?></div>
+                        
+                        <div class="section-right">
+                            <!-- CÓDIGO BOLETO SOCIO EN TALÓN DERECHO SI FUE INGRESADO -->
+                            <div class="partner-box-right" style="background: #000; color: #fff; padding: 1.5px 3px; border-radius: 3px; font-size: 10px; font-weight: 900; letter-spacing: 0.5px; margin-bottom: 2px; text-transform: uppercase; width: 95%; text-align: center; border: 1px solid #222; <?= empty($codigoSocio) ? 'display: none;' : '' ?>">
+                                <span style="font-size: 7px; display: block; color: #ffeb3b; font-weight: bold; line-height: 1;">BOLETO <?= htmlspecialchars($nombreAliado ?: 'SOCIO') ?></span>
+                                <span class="partner-code-text"><?= htmlspecialchars($codigoSocio ?: 'S/C') ?></span>
+                            </div>
+
+                            <span class="label">DESTINO TRAMO</span>
+                            <div class="dest-huge"><?= htmlspecialchars($pasaje['DESTINO_TRAMO'] ?? $pasaje['RUT_DESTINO'] ?? 'S/D') ?></div>
+                            <?php if (!empty($pasaje['DESTINO_TRAMO']) && $pasaje['DESTINO_TRAMO'] !== $pasaje['RUT_DESTINO']): ?>
+                                <div style="font-size: 8.5px; font-weight: bold; color: #333; margin-top: 1px; background: #eee; padding: 1px 3px; border-radius: 2px;">
+                                    FINAL: <?= htmlspecialchars($pasaje['RUT_DESTINO']) ?>
+                                </div>
+                            <?php endif; ?>
+                            <span class="label" style="margin-top: 3px;">ASIENTO ASIGNADO</span>
+                            <div class="asiento-box"><?= htmlspecialchars($pasaje['PAX_ASIENTO'] ?? 'S/A') ?></div>
+                        </div>
+                    </div>
+
+                    <!-- SOLAPA INFERIOR PARA ENGRAPAR AL ASA -->
+                    <div class="blank-space blank-space-end">
+                        <div style="font-size: 11px; margin-bottom: 2px;">📎</div>
+                        <div>EXTREMO SUJECIÓN</div>
+                        <div style="font-size: 6.5px; color: #888; margin-top: 2px; font-weight: normal;">UNIR CON GRAPA/CINTA</div>
+                    </div>
+                    
                 </div>
             </div>
-
-            <!-- 5 CM EXTRA AL FINAL -->
-            <div class="blank-space">.</div>
-            
-        </div>
+        <?php endforeach; ?>
     </div>
 <?php endforeach; ?>
     

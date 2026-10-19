@@ -1,4 +1,12 @@
-/* Etiqueta de Equipaje - Suramerica 2030 */
+/* Etiqueta de Equipaje - Suramerica 2030 (Formato Hoja A4 Normal - Hasta 4 etiquetas por hoja) */
+:root {
+    /* 4 etiquetas de ~184px entran en 1 hoja A4 (210mm ancho = ~794px) */
+    --tag-width: 184px;       /* Ancho fino (~4.9 cm) para que quepan hasta 4 por hoja A4 */
+    --tag-length: 1020px;     /* Largo total calibrado (~27 cm) para no desbordar el alto de la hoja A4 */
+    --flap-size: 110px;       /* Área de solapas para doblar/engrapar al asa */
+    --content-length: 800px;  /* 110px + 800px + 110px = 1020px */
+}
+
 * { 
     margin: 0; 
     padding: 0; 
@@ -7,7 +15,7 @@
 }
 
 body { 
-    background-color: #555; 
+    background-color: #3f474e; 
     display: flex; 
     flex-direction: column;
     align-items: center;
@@ -15,41 +23,92 @@ body {
     padding: 20px; 
 }
 
-.print-wrapper { 
-    width: 280px; 
-    height: 1180px; 
-    background: white; 
-    position: relative; 
-    overflow: hidden; 
-    box-shadow: 0 0 10px rgba(0,0,0,0.5); 
+/* Representación visual de la hoja A4 en pantalla (alineada a la izquierda para reciclaje de papel) */
+.a4-sheet {
+    width: 794px;
+    min-height: 1050px;
+    background: #ffffff;
+    box-shadow: 0 6px 20px rgba(0,0,0,0.35);
+    border-radius: 4px;
+    padding: 8px 12px;
+    display: flex;
+    flex-direction: row;
+    justify-content: flex-start;
+    align-items: flex-start;
+    gap: 2px;
+    position: relative;
     page-break-after: always;
     break-after: page;
 }
 
+.a4-sheet:last-child {
+    page-break-after: auto;
+    break-after: auto;
+}
+
+/* Contenedor vertical individual de cada etiqueta */
+.print-wrapper { 
+    width: var(--tag-width); 
+    height: var(--tag-length); 
+    background: white; 
+    position: relative; 
+    overflow: hidden; 
+    border: 1px dashed #777;
+    flex-shrink: 0;
+}
+
+/* Línea de guía visual de corte */
+.cut-indicator {
+    position: absolute;
+    right: 2px;
+    top: 50%;
+    transform: translateY(-50%) rotate(90deg);
+    font-size: 8px;
+    color: #999;
+    letter-spacing: 1px;
+    pointer-events: none;
+    text-transform: uppercase;
+    font-weight: bold;
+}
+
+/* Rotación interna para mantener formato de cinta de equipaje en vertical */
 .tag-rotated { 
-    width: 1180px; 
-    height: 280px; 
+    width: var(--tag-length); 
+    height: var(--tag-width); 
     transform: rotate(90deg); 
     transform-origin: left top; 
-    margin-left: 280px; 
+    margin-left: var(--tag-width); 
     display: flex; 
     flex-direction: row; 
     background-color: white;
 }
 
-/* Bloques de 5cm (aprox 190px) con el "Punto Fantasma" para engañar a la impresora */
+/* Solapas de sujeción (inicio y fin) para doblar y engrapar o pegar al asa */
 .blank-space {
-    width: 190px;
+    width: var(--flap-size);
     display: flex;
-    align-items: flex-end;
-    justify-content: flex-end;
-    color: #cccccc; 
-    font-size: 4px;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    color: #666; 
+    font-size: 7.5px;
+    font-weight: bold;
+    letter-spacing: 0.3px;
+    background-color: #fcfcfc;
+    border-right: 1px dashed #ccc;
+    text-align: center;
+    user-select: none;
+    padding: 4px;
 }
 
-/* Contenedor central protegido de 800px */
+.blank-space-end {
+    border-right: none;
+    border-left: 1px dashed #ccc;
+}
+
+/* Contenedor central de información */
 .tag-content {
-    width: 800px;
+    width: var(--content-length);
     display: flex;
     flex-direction: row;
 }
@@ -57,7 +116,7 @@ body {
 .section-left { 
     width: 25%; 
     border-right: 2px dashed #000; 
-    padding: 15px; 
+    padding: 6px 8px; 
     display: flex; 
     flex-direction: column; 
     justify-content: center; 
@@ -67,7 +126,7 @@ body {
 
 .section-middle { 
     width: 45%; 
-    padding: 15px 25px; 
+    padding: 6px 12px; 
     display: flex; 
     flex-direction: column; 
     justify-content: center; 
@@ -76,7 +135,7 @@ body {
 .section-right { 
     width: 30%; 
     border-left: 2px dashed #000; 
-    padding: 15px; 
+    padding: 6px 8px; 
     display: flex; 
     flex-direction: column; 
     justify-content: center; 
@@ -85,15 +144,15 @@ body {
     background-color: #f8f9fa; 
 }
 
-.logo-text { font-size: 18px; font-weight: 900; letter-spacing: 1px; }
-.sub-logo { font-size: 11px; margin-bottom: 10px; color: #333; }
-.barcode { font-family: 'Courier New', Courier, monospace; font-size: 32px; letter-spacing: -2px; font-weight: bold; margin: 10px 0; }
-.info-row { display: flex; justify-content: space-between; margin-bottom: 8px; font-size: 12px; }
+.logo-text { font-size: 14.5px; font-weight: 900; letter-spacing: 0.6px; line-height: 1.1; color: #000; }
+.sub-logo { font-size: 8.5px; margin-bottom: 2px; color: #333; font-weight: bold; }
+.barcode { font-family: 'Courier New', Courier, monospace; font-size: 19px; letter-spacing: -1.5px; font-weight: bold; margin: 2px 0; }
+.info-row { display: flex; justify-content: space-between; margin-bottom: 3px; font-size: 10.5px; }
 .info-col { display: flex; flex-direction: column; }
-.bold { font-weight: bold; font-size: 15px; text-transform: uppercase; }
-.label { font-size: 10px; color: #555; }
-.dest-huge { font-size: 45px; font-weight: 900; line-height: 0.9; margin: 10px 0; text-transform: uppercase; color: #000; letter-spacing: -1px; word-wrap: break-word;}
-.asiento-box { border: 3px solid #000; padding: 5px 20px; font-size: 30px; font-weight: bold; border-radius: 8px; margin-top: 5px; }
+.bold { font-weight: bold; font-size: 12.5px; text-transform: uppercase; color: #000; }
+.label { font-size: 8px; color: #555; font-weight: bold; text-transform: uppercase; letter-spacing: 0.2px; }
+.dest-huge { font-size: 29px; font-weight: 900; line-height: 0.95; margin: 2px 0; text-transform: uppercase; color: #000; letter-spacing: -0.5px; word-wrap: break-word; }
+.asiento-box { border: 2px solid #000; padding: 2px 10px; font-size: 19px; font-weight: bold; border-radius: 5px; margin-top: 2px; }
 
 .controls { 
     position: fixed; 
@@ -106,31 +165,63 @@ body {
 }
 
 .btn-float { 
-    padding: 15px; 
+    padding: 13px 18px; 
     border: none; 
     border-radius: 50px; 
     cursor: pointer; 
     font-weight: bold; 
-    box-shadow: 0 4px 6px rgba(0,0,0,0.3); 
+    box-shadow: 0 4px 10px rgba(0,0,0,0.3); 
     color: white; 
-    font-size: 14px;
+    font-size: 13px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
 }
 
 .btn-print { background: #0b2b56; } 
 .btn-close { background: #dc3545; }
 
+@page {
+    size: A4 portrait;
+    margin: 6mm 6mm;
+}
+
 @media print {
-    body { background-color: white; padding: 0; display: block; margin: 0; }
-    .print-wrapper { 
-        box-shadow: none; 
-        border: none; 
-        margin: 0; 
-        page-break-after: always !important; 
-        break-after: page !important; 
+    html, body { 
+        background-color: white !important; 
+        padding: 0 !important; 
+        margin: 0 !important; 
+        display: block !important; 
+        width: 100% !important;
     }
-    .print-wrapper:last-child {
+    .a4-sheet {
+        box-shadow: none !important;
+        border: none !important;
+        border-radius: 0 !important;
+        padding: 0 !important;
+        margin: 0 !important;
+        width: 100% !important;
+        min-height: auto !important;
+        display: flex !important;
+        flex-direction: row !important;
+        justify-content: flex-start !important;
+        align-items: flex-start !important;
+        gap: 0 !important;
+        page-break-after: always !important;
+        break-after: page !important;
+    }
+    .a4-sheet:last-child {
         page-break-after: auto !important;
         break-after: auto !important;
     }
+    .print-wrapper { 
+        box-shadow: none !important; 
+        border: 1px dashed #777 !important; 
+        margin: 0 !important; 
+        page-break-after: auto !important; 
+        break-after: auto !important; 
+    }
     .controls, .no-print { display: none !important; }
 }
+
+
