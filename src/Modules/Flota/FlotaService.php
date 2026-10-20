@@ -99,9 +99,19 @@ class FlotaService {
             $modalidad = \Platform\Helpers\ModalidadHelper::resolverModalidadAutomatica($idOperador, $tipoViaje, $tramos, $operadorNombre);
         }
 
-        // Si es conexión sin operador explícito, asignar según modalidad
-        if ($tipoViaje === 'CONEXION' && empty($datos['id_operador'])) {
-            $idOperador = ($modalidad === 'PANAMERICANA') ? 2 : 1;
+        // Si es conexión, el operador principal de cabecera debe reflejar los tramos o Suramérica 2030 como consolidador
+        if ($tipoViaje === 'CONEXION') {
+            $tramosOpIds = array_unique(array_filter(array_column($tramos, 'id_operador')));
+            if (in_array(2, $tramosOpIds) || $modalidad === 'PANAMERICANA') {
+                $idOperador = 2;
+                $operadorNombre = 'Panamericana';
+            } elseif (count($tramosOpIds) === 1) {
+                $idOperador = reset($tramosOpIds);
+                $operadorNombre = '';
+            } else {
+                $idOperador = 1;
+                $operadorNombre = 'Suramérica 2030 (Flota Propia)';
+            }
         }
 
         $operador = !empty($operadorNombre) ? $operadorNombre : ($idOperador == 2 ? 'Panamericana' : 'Suramérica 2030');

@@ -257,17 +257,57 @@
                             foreach($diasArr as $d) { if(isset($mapaDias[$d])) $diasTexto[] = $mapaDias[$d]; }
                             $strDias = empty($diasTexto) ? 'Sin definir' : implode(', ', $diasTexto);
                             $esActivo = ($r['ESTADO'] ?? 'ACTIVO') === 'ACTIVO';
+
+                            $mod = $r['MODALIDAD'] ?? 'ESTANDAR';
+                            $esConexion = ($r['TIPO_VIAJE'] ?? '') === 'CONEXION';
+                            $operadorDirecto = !empty($r['OPERADOR_NOMBRE']) ? $r['OPERADOR_NOMBRE'] : 'Suramérica 2030 (Flota Propia)';
+                            $numTramos = count($r['TRAMOS_DETALLE'] ?? []);
+                            $admiteSp = isset($r['ADMITE_SOBREPESO']) ? intval($r['ADMITE_SOBREPESO']) : 1;
+
+                            // Identificar operadores de los tramos si es conexión
+                            $opsTramos = [];
+                            if ($esConexion && !empty($r['TRAMOS_DETALLE'])) {
+                                foreach ($r['TRAMOS_DETALLE'] as $tr) {
+                                    $opItem = trim($tr['OPERADOR_TRAMO_NOMBRE'] ?? $tr['operador'] ?? $tr['OPERADOR'] ?? '');
+                                    if (!empty($opItem) && !in_array($opItem, $opsTramos)) {
+                                        $opsTramos[] = $opItem;
+                                    }
+                                }
+                            }
+
+                            if ($esConexion && !empty($opsTramos)) {
+                                if (count($opsTramos) === 1) {
+                                    $operadorMostrar = $opsTramos[0];
+                                    $tituloOperador = "Operador del Servicio: " . $operadorMostrar;
+                                } else {
+                                    $todosLocales = true;
+                                    foreach ($opsTramos as $opT) {
+                                        if (stripos($opT, 'LOCAL') === false && stripos($opT, 'EMPRESA') === false) {
+                                            $todosLocales = false;
+                                        }
+                                    }
+                                    if ($todosLocales) {
+                                        $operadorMostrar = "Empresas Locales";
+                                    } else {
+                                        $operadorMostrar = implode(' / ', $opsTramos);
+                                    }
+                                    $tituloOperador = "Operadores en Conexión: " . implode(' + ', $opsTramos);
+                                }
+                            } else {
+                                $operadorMostrar = $operadorDirecto;
+                                $tituloOperador = "Operador Principal: " . $operadorMostrar;
+                            }
                         ?>
                             <tr class="fila-ruta <?= $esActivo ? '' : 'table-secondary opacity-75' ?>" 
                                 data-corredor="<?= $r['ID_CORREDOR'] ?? '' ?>" 
                                 data-origen="<?= htmlspecialchars(mb_strtolower(trim($r['RUT_ORIGEN']))) ?>" 
                                 data-destino="<?= htmlspecialchars(mb_strtolower(trim($r['RUT_DESTINO']))) ?>" 
-                                data-operador="<?= htmlspecialchars(mb_strtolower(!empty($r['OPERADOR_NOMBRE']) ? trim($r['OPERADOR_NOMBRE']) : 'suramérica 2030')) ?>" 
+                                data-operador="<?= htmlspecialchars(mb_strtolower(trim($operadorMostrar))) ?>" 
                                 data-id-operador="<?= $r['ID_OPERADOR'] ?? '' ?>"
                                 data-modalidad="<?= htmlspecialchars(mb_strtolower(trim($r['MODALIDAD'] ?? 'estandar'))) ?>" 
                                 data-tipo-viaje="<?= htmlspecialchars(mb_strtolower($r['TIPO_VIAJE'] ?? 'directo')) ?>" 
                                 data-estado="<?= htmlspecialchars(mb_strtolower($r['ESTADO'] ?? 'activo')) ?>" 
-                                data-search="<?= strtolower(htmlspecialchars($r['RUT_ORIGEN'] . ' ' . $r['RUT_DESTINO'] . ' ' . ($r['NOMBRE_CORREDOR'] ?? '') . ' #' . $r['ID_RUTA'] . ' ' . ($r['OPERADOR_NOMBRE'] ?? '') . ' ' . ($r['MODALIDAD'] ?? ''))) ?>">
+                                data-search="<?= strtolower(htmlspecialchars($r['RUT_ORIGEN'] . ' ' . $r['RUT_DESTINO'] . ' ' . ($r['NOMBRE_CORREDOR'] ?? '') . ' #' . $r['ID_RUTA'] . ' ' . $operadorMostrar . ' ' . implode(' ', $opsTramos) . ' ' . ($r['MODALIDAD'] ?? ''))) ?>">
                                 <td><span class="badge bg-secondary">#<?= $r['ID_RUTA'] ?></span></td>
                                 <td>
                                     <div class="fw-bold text-dark fs-6"><?= htmlspecialchars($r['RUT_ORIGEN']) ?> ➔ <?= htmlspecialchars($r['RUT_DESTINO']) ?></div>
@@ -279,18 +319,11 @@
                                         </div>
                                     <?php endif; ?>
                                 </td>
-                                <td data-search="<?= strtolower(htmlspecialchars((!empty($r['OPERADOR_NOMBRE']) ? $r['OPERADOR_NOMBRE'] : '') . ' ' . ($r['MODALIDAD'] ?? '') . ' ' . ($r['TIPO_VIAJE'] ?? ''))) ?>">
-                                    <?php 
-                                        $mod = $r['MODALIDAD'] ?? 'ESTANDAR';
-                                        $esConexion = ($r['TIPO_VIAJE'] ?? '') === 'CONEXION';
-                                        $operadorDirecto = !empty($r['OPERADOR_NOMBRE']) ? $r['OPERADOR_NOMBRE'] : 'Suramérica 2030 (Flota Propia)';
-                                        $numTramos = count($r['TRAMOS_DETALLE'] ?? []);
-                                        $admiteSp = isset($r['ADMITE_SOBREPESO']) ? intval($r['ADMITE_SOBREPESO']) : 1;
-                                    ?>
+                                <td data-search="<?= strtolower(htmlspecialchars($operadorMostrar . ' ' . implode(' ', $opsTramos) . ' ' . ($r['MODALIDAD'] ?? '') . ' ' . ($r['TIPO_VIAJE'] ?? ''))) ?>">
                                     <div class="d-flex flex-column gap-1">
                                         <div class="d-flex align-items-center gap-1 flex-wrap">
-                                            <?= \Platform\Helpers\ModalidadHelper::renderBadge($mod, $numTramos, $operadorDirecto) ?>
-                                            <span class="badge bg-light text-dark border text-truncate" style="max-width: 175px;" title="Operador Principal: <?= htmlspecialchars($operadorDirecto) ?>">🏢 <?= htmlspecialchars($operadorDirecto) ?></span>
+                                            <?= \Platform\Helpers\ModalidadHelper::renderBadge($mod, $numTramos, $operadorMostrar) ?>
+                                            <span class="badge bg-light text-dark border text-truncate" style="max-width: 175px;" title="<?= htmlspecialchars($tituloOperador) ?>">🏢 <?= htmlspecialchars($operadorMostrar) ?></span>
                                         </div>
                                         <?php if(!$esConexion): ?>
                                             <?php if($admiteSp): ?>
@@ -494,10 +527,10 @@
                                         <div class="row g-2 align-items-center">
                                             <div class="col-md-6">
                                                 <label class="form-label small text-dark mb-0 fw-bold">🏢 Operador de la Ruta Directa</label>
-                                                <select name="id_operador" id="edit_id_operador_<?= $r['ID_RUTA'] ?>" class="form-select form-select-sm fw-bold border-primary text-primary" onchange="const nom = this.options[this.selectedIndex].getAttribute('data-nombre'); const hid = this.form.querySelector('input[name=operador]'); if(hid) hid.value = nom; condicionarModalidadPorOperador(this.value, '<?= $r['ID_RUTA'] ?>');">
+                                                <select name="id_operador" id="edit_id_operador_<?= $r['ID_RUTA'] ?>" class="form-select form-select-sm fw-bold border-primary text-primary" <?= ($r['TIPO_VIAJE'] ?? 'DIRECTO') === 'CONEXION' ? 'disabled' : '' ?> onchange="const nom = this.options[this.selectedIndex].getAttribute('data-nombre'); const hid = this.form.querySelector('input[name=operador]'); if(hid) hid.value = nom; condicionarModalidadPorOperador(this.value, '<?= $r['ID_RUTA'] ?>');">
                                                      <?= $generarOpcionesOperadores($r['ID_OPERADOR'] ?? 1) ?>
                                                  </select>
-                                                 <input type="hidden" name="operador" value="<?= htmlspecialchars(!empty($r['OPERADOR_NOMBRE']) ? $r['OPERADOR_NOMBRE'] : 'Suramérica 2030 (Flota Propia)') ?>">
+                                                 <input type="hidden" name="operador" value="<?= htmlspecialchars(!empty($r['OPERADOR_NOMBRE']) ? $r['OPERADOR_NOMBRE'] : 'Suramérica 2030 (Flota Propia)') ?>" <?= ($r['TIPO_VIAJE'] ?? 'DIRECTO') === 'CONEXION' ? 'disabled' : '' ?>>
                                                 <small class="text-muted" style="font-size:11px;">Empresa o socio responsable de la operación directa.</small>
                                             </div>
                                             <div class="col-md-6">

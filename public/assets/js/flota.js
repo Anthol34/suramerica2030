@@ -99,7 +99,10 @@ function toggleTramos(valor, divId) {
     if (valor === 'CONEXION') {
         div.classList.remove('d-none');
         div.querySelectorAll('input, select, textarea').forEach(el => el.disabled = false);
-        if (divDirecto) divDirecto.classList.add('d-none');
+        if (divDirecto) {
+            divDirecto.classList.add('d-none');
+            divDirecto.querySelectorAll('input, select').forEach(el => el.disabled = true);
+        }
         if (badgeAuto) badgeAuto.classList.remove('d-none');
         if (hintUtil) hintUtil.textContent = '⚡ Calculado automáticamente de la suma de tramos.';
         if (listaContainer && listaContainer.querySelectorAll('.tramo-card').length === 0) {
@@ -108,7 +111,10 @@ function toggleTramos(valor, divId) {
     } else {
         div.classList.add('d-none');
         div.querySelectorAll('input, select, textarea').forEach(el => el.disabled = true);
-        if (divDirecto) divDirecto.classList.remove('d-none');
+        if (divDirecto) {
+            divDirecto.classList.remove('d-none');
+            divDirecto.querySelectorAll('input, select').forEach(el => el.disabled = false);
+        }
         if (badgeAuto) badgeAuto.classList.add('d-none');
         if (hintUtil) hintUtil.textContent = 'Retención directa de agencia (% o $).';
     }
