@@ -145,6 +145,37 @@ class FlotaController {
         $this->verificarPermiso();
         if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             $resultado = $this->service->procesarActualizarTarifaRapida($_POST);
+            
+            $esAjax = (!empty($_SERVER['HTTP_X_REQUESTED_WITH']) && strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) === 'xmlhttprequest') 
+                      || (isset($_SERVER['HTTP_ACCEPT']) && strpos($_SERVER['HTTP_ACCEPT'], 'application/json') !== false)
+                      || !empty($_POST['ajax']);
+
+            if ($esAjax) {
+                header('Content-Type: application/json; charset=utf-8');
+                if ($resultado === true) {
+                    $idRuta = intval($_POST['id_ruta'] ?? 0);
+                    $rutaActualizada = null;
+                    $todas = $this->repository->obtenerRutas();
+                    foreach ($todas as $r) {
+                        if (intval($r['ID_RUTA']) === $idRuta) {
+                            $rutaActualizada = $r;
+                            break;
+                        }
+                    }
+                    echo json_encode([
+                        'status' => 'success',
+                        'mensaje' => 'Tarifa de la ruta #' . $idRuta . ' actualizada correctamente.',
+                        'ruta' => $rutaActualizada
+                    ]);
+                } else {
+                    echo json_encode([
+                        'status' => 'error',
+                        'mensaje' => is_string($resultado) ? $resultado : 'Error al guardar la tarifa.'
+                    ]);
+                }
+                exit();
+            }
+
             $this->redireccionar('rutas', $resultado, 'success_edit');
         }
     }
@@ -162,6 +193,37 @@ class FlotaController {
         $this->verificarPermiso();
         if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             $resultado = $this->service->procesarEditarRuta($_POST);
+
+            $esAjax = (!empty($_SERVER['HTTP_X_REQUESTED_WITH']) && strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) === 'xmlhttprequest') 
+                      || (isset($_SERVER['HTTP_ACCEPT']) && strpos($_SERVER['HTTP_ACCEPT'], 'application/json') !== false)
+                      || !empty($_POST['ajax']);
+
+            if ($esAjax) {
+                header('Content-Type: application/json; charset=utf-8');
+                if ($resultado === true) {
+                    $idRuta = intval($_POST['id_ruta'] ?? 0);
+                    $rutaActualizada = null;
+                    $todas = $this->repository->obtenerRutas();
+                    foreach ($todas as $r) {
+                        if (intval($r['ID_RUTA']) === $idRuta) {
+                            $rutaActualizada = $r;
+                            break;
+                        }
+                    }
+                    echo json_encode([
+                        'status' => 'success',
+                        'mensaje' => 'Configuración de la ruta #' . $idRuta . ' actualizada correctamente.',
+                        'ruta' => $rutaActualizada
+                    ]);
+                } else {
+                    echo json_encode([
+                        'status' => 'error',
+                        'mensaje' => is_string($resultado) ? $resultado : 'Error al actualizar la ruta.'
+                    ]);
+                }
+                exit();
+            }
+
             $this->redireccionar('rutas', $resultado, 'success_edit');
         }
     }

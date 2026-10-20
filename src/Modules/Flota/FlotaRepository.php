@@ -586,7 +586,7 @@ class FlotaRepository {
             $stmtUpdateRuta = $this->db->prepare("UPDATE RUTA SET ID_CORREDOR = ?, TIPO_VIAJE = ?, DIAS_SALIDA = ?, RUT_SAHORA = ? WHERE ID_RUTA = ?");
 
             $stmtDeleteTramos = $this->db->prepare("DELETE FROM RUTA_TRAMO WHERE ID_RUTA = ?");
-            $stmtInsertTramo = $this->db->prepare("INSERT INTO RUTA_TRAMO (ID_RUTA, ORDEN, ORIGEN_TRAMO, DESTINO_TRAMO) VALUES (?, ?, ?, ?)");
+            $stmtInsertTramo = $this->db->prepare("INSERT INTO RUTA_TRAMO (ID_RUTA, ORDEN, ORIGEN_TRAMO, DESTINO_TRAMO, ID_OPERADOR, OPERADOR, PVP_TRAMO, COSTO_OPERADOR, UTILIDAD_AGENCIA) VALUES (?, ?, ?, ?, 1, 'EXPRESOS SURAMERICA 2030', 0.00, 0.00, 0.00)");
 
             $creadas = 0;
             $actualizadas = 0;
@@ -597,61 +597,65 @@ class FlotaRepository {
                     $pDest = $paradas[$j];
                     $origen = $pOrig['CIUDAD'];
                     $destino = $pDest['CIUDAD'];
+
+                    // Evitar rutas con mismo origen y destino (ej: Manta -> Manta)
+                    if (mb_strtoupper(trim($origen)) === mb_strtoupper(trim($destino))) {
+                        continue;
+                    }
+
                     $clave = mb_strtoupper(trim($origen)) . '||' . mb_strtoupper(trim($destino));
 
-                    // Resolver modalidad y tramos
+                    // Si la ruta ya existe, RESPETAR ÍNTEGRAMENTE sus tramos, operadores, precios y finanzas
+                    if (isset($rutasExistentes[$clave])) {
+                        $actualizadas++;
+                        continue;
+                    }
+
+                    // Resolver modalidad y tramos sugeridos solo para rutas NUEVAS
                     $infoViaje = $this->resolverTramosViaje($idCorredor, $origen, $destino);
                     $tipoViaje = $infoViaje['tipo_viaje'] ?? 'DIRECTO';
                     $tramos = $infoViaje['tramos'] ?? [];
 
-                    if (isset($rutasExistentes[$clave])) {
-                        // Ya existe: actualizar vinculación y tramos
-                        $idRuta = $rutasExistentes[$clave]['ID_RUTA'];
-                        $stmtUpdateRuta->execute([$idCorredor, $tipoViaje, $corredor['DIAS_SALIDA'], $corredor['HORA_SALIDA'], $idRuta]);
-                        $actualizadas++;
+                    // Calcular precio sugerido por países/distancia simétricamente
+                    $distanciaParadas = $j - $i;
+                    if (($pOrig['PAIS'] === 'ECUADOR' && $pDest['PAIS'] === 'VENEZUELA') || ($pOrig['PAIS'] === 'VENEZUELA' && $pDest['PAIS'] === 'ECUADOR')) {
+                        $precioPasajeSugerido = 190.00;
+                        $precioEncomiendaSugerido = 7.00;
+                    } elseif (($pOrig['PAIS'] === 'ECUADOR' && $pDest['PAIS'] === 'COLOMBIA') || ($pOrig['PAIS'] === 'COLOMBIA' && $pDest['PAIS'] === 'ECUADOR')) {
+                        $precioPasajeSugerido = 120.00;
+                        $precioEncomiendaSugerido = 5.00;
+                    } elseif (($pOrig['PAIS'] === 'COLOMBIA' && $pDest['PAIS'] === 'VENEZUELA') || ($pOrig['PAIS'] === 'VENEZUELA' && $pDest['PAIS'] === 'COLOMBIA')) {
+                        $precioPasajeSugerido = 60.00;
+                        $precioEncomiendaSugerido = 5.00;
                     } else {
-                        // Calcular precio sugerido por países/distancia simétricamente
-                        $distanciaParadas = $j - $i;
-                        if (($pOrig['PAIS'] === 'ECUADOR' && $pDest['PAIS'] === 'VENEZUELA') || ($pOrig['PAIS'] === 'VENEZUELA' && $pDest['PAIS'] === 'ECUADOR')) {
-                            $precioPasajeSugerido = 190.00;
-                            $precioEncomiendaSugerido = 7.00;
-                        } elseif (($pOrig['PAIS'] === 'ECUADOR' && $pDest['PAIS'] === 'COLOMBIA') || ($pOrig['PAIS'] === 'COLOMBIA' && $pDest['PAIS'] === 'ECUADOR')) {
-                            $precioPasajeSugerido = 120.00;
-                            $precioEncomiendaSugerido = 5.00;
-                        } elseif (($pOrig['PAIS'] === 'COLOMBIA' && $pDest['PAIS'] === 'VENEZUELA') || ($pOrig['PAIS'] === 'VENEZUELA' && $pDest['PAIS'] === 'COLOMBIA')) {
-                            $precioPasajeSugerido = 60.00;
-                            $precioEncomiendaSugerido = 5.00;
-                        } else {
-                            // Nacional
-                            $precioPasajeSugerido = max(10.00, $distanciaParadas * 12.00);
-                            $precioEncomiendaSugerido = 2.00;
-                        }
-
-                        $stmtInsertRuta->execute([
-                            $idCorredor,
-                            $origen,
-                            $destino,
-                            $tipoViaje,
-                            $corredor['DIAS_SALIDA'],
-                            $corredor['HORA_SALIDA'],
-                            $precioPasajeSugerido,
-                            $precioEncomiendaSugerido,
-                            $corredor['PRECIO_SOBRE'],
-                            $corredor['PRECIO_VOLUMEN'],
-                            $corredor['LIMITE_EQUIPAJE_KG'],
-                            $corredor['PRECIO_SOBREPESO_KG'],
-                            $corredor['COMISION_VALOR'],
-                            $corredor['TIPO_UTILIDAD'],
-                            $corredor['UTILIDAD_PASAJE'],
-                            $corredor['UTILIDAD_ENCOMIENDA'],
-                            $corredor['UTILIDAD_VALORES']
-                        ]);
-                        $idRuta = $this->db->lastInsertId();
-                        $creadas++;
+                        // Nacional
+                        $precioPasajeSugerido = max(10.00, $distanciaParadas * 12.00);
+                        $precioEncomiendaSugerido = 2.00;
                     }
 
-                    // Sincronizar RUTA_TRAMO
-                    $stmtDeleteTramos->execute([$idRuta]);
+                    $stmtInsertRuta->execute([
+                        $idCorredor,
+                        $origen,
+                        $destino,
+                        $tipoViaje,
+                        $corredor['DIAS_SALIDA'],
+                        $corredor['HORA_SALIDA'],
+                        $precioPasajeSugerido,
+                        $precioEncomiendaSugerido,
+                        $corredor['PRECIO_SOBRE'],
+                        $corredor['PRECIO_VOLUMEN'],
+                        $corredor['LIMITE_EQUIPAJE_KG'],
+                        $corredor['PRECIO_SOBREPESO_KG'],
+                        $corredor['COMISION_VALOR'],
+                        $corredor['TIPO_UTILIDAD'],
+                        $corredor['UTILIDAD_PASAJE'],
+                        $corredor['UTILIDAD_ENCOMIENDA'],
+                        $corredor['UTILIDAD_VALORES']
+                    ]);
+                    $idRuta = $this->db->lastInsertId();
+                    $creadas++;
+
+                    // Sincronizar RUTA_TRAMO inicial ÚNICAMENTE para las rutas NUEVAS creadas
                     if ($tipoViaje === 'CONEXION' && !empty($tramos)) {
                         foreach ($tramos as $tr) {
                             $stmtInsertTramo->execute([$idRuta, $tr['orden'], $tr['origen'], $tr['destino']]);

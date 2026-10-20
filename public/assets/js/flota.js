@@ -798,3 +798,355 @@ function condicionarModalidadAutomatica(rutaId) {
         condicionarModalidadPorTramos(rutaId);
     }
 }
+
+// ============================================================
+// ACTUALIZACIÓN ASÍNCRONA (AJAX) DE RUTAS Y TARIFAS SIN RECARGA
+// ============================================================
+
+function escapeHtml(str) {
+    if (str === null || str === undefined) return '';
+    return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+}
+
+function renderBadgeModalidad(modalidad, numTramos, operadorMostrar) {
+    const modUpper = (modalidad || '').toUpperCase().trim();
+    if (modUpper === 'PANAMERICANA') {
+        return '<span class="badge bg-primary text-white"><i class="fas fa-star me-1"></i>Vía Panamericana</span>';
+    }
+    if (modUpper === 'CONEXION_TRAMOS' || modUpper === 'CONEXIÓN MULTITRAMO' || modUpper === 'CONEXION MULTITRAMO') {
+        const txt = numTramos > 0 ? `🔀 ${numTramos} Tramos` : '🔀 Conexión Tramos';
+        return `<span class="badge bg-secondary text-white">${escapeHtml(txt)}</span>`;
+    }
+    if (modUpper === 'ESTANDAR') {
+        return '<span class="badge bg-success text-white">➡️ Directo</span>';
+    }
+    return `<span class="badge bg-info text-dark border">${escapeHtml(modalidad)}</span>`;
+}
+
+function mostrarToastFlota(mensaje, tipo = 'success') {
+    const toastEl = document.getElementById('toastFlotaAjax');
+    if (!toastEl) return;
+    
+    const toastMsg = document.getElementById('toastFlotaAjaxMsg');
+    const toastIcon = document.getElementById('toastFlotaAjaxIcon');
+    
+    if (toastMsg) toastMsg.textContent = mensaje;
+    if (toastIcon) {
+        toastIcon.textContent = (tipo === 'success') ? '✅' : (tipo === 'warning' ? '⚠️' : '❌');
+    }
+    
+    toastEl.classList.remove('bg-success', 'bg-danger', 'bg-warning', 'bg-primary');
+    if (tipo === 'success') {
+        toastEl.classList.add('bg-success');
+    } else if (tipo === 'warning') {
+        toastEl.classList.add('bg-warning', 'text-dark');
+    } else {
+        toastEl.classList.add('bg-danger');
+    }
+    
+    if (window.bootstrap && bootstrap.Toast) {
+        const toast = bootstrap.Toast.getOrCreateInstance(toastEl, { delay: 4000 });
+        toast.show();
+    }
+}
+
+function actualizarKpisRutasEnDOM() {
+    const filas = document.querySelectorAll('#tablaRutas tbody tr.fila-ruta');
+    let directas = 0;
+    let conex = 0;
+    let activas = 0;
+
+    filas.forEach(f => {
+        const tipo = (f.getAttribute('data-tipo-viaje') || '').toLowerCase();
+        const est = (f.getAttribute('data-estado') || '').toLowerCase();
+        if (tipo === 'directo') directas++;
+        if (tipo === 'conexion') conex++;
+        if (est === 'activo') activas++;
+    });
+
+    const spanTotal = document.getElementById('kpiTotalRutasCat');
+    const spanDir = document.getElementById('kpiRutasDirectas');
+    const spanCon = document.getElementById('kpiRutasConexion');
+    const spanAct = document.getElementById('kpiRutasActivas');
+
+    if (spanTotal) spanTotal.textContent = filas.length;
+    if (spanDir) spanDir.textContent = directas;
+    if (spanCon) spanCon.textContent = conex;
+    if (spanAct) spanAct.textContent = activas;
+}
+
+function actualizarFilaRutaEnDOM(ruta) {
+    if (!ruta || !ruta.ID_RUTA) return;
+    const idRuta = ruta.ID_RUTA;
+    const fila = document.getElementById('fila_ruta_' + idRuta);
+    if (!fila) return;
+
+    const origen = ruta.RUT_ORIGEN || '';
+    const destino = ruta.RUT_DESTINO || '';
+    const idCorredor = ruta.ID_CORREDOR || '';
+    const nombreCorredor = ruta.NOMBRE_CORREDOR || '';
+    const mod = ruta.MODALIDAD || 'ESTANDAR';
+    const tipoViaje = (ruta.TIPO_VIAJE || 'DIRECTO').toUpperCase();
+    const idOperador = ruta.ID_OPERADOR || '';
+    const operadorDirecto = ruta.OPERADOR_NOMBRE ? ruta.OPERADOR_NOMBRE : 'Suramérica 2030 (Flota Propia)';
+    const tramos = Array.isArray(ruta.TRAMOS_DETALLE) ? ruta.TRAMOS_DETALLE : [];
+    const numTramos = tramos.length;
+    const admiteSp = parseInt(ruta.ADMITE_SOBREPESO !== undefined ? ruta.ADMITE_SOBREPESO : 1, 10);
+    const precioPasaje = parseFloat(ruta.PRECIO_PASAJE || 0);
+    const precioEncomienda = parseFloat(ruta.PRECIO_ENCOMIENDA_KG || 0);
+    const tipoUtilidad = (ruta.TIPO_UTILIDAD || 'PORCENTAJE').toUpperCase();
+    const utilidadPasaje = parseFloat(ruta.UTILIDAD_PASAJE || 0);
+    const estado = (ruta.ESTADO || 'ACTIVO').toUpperCase();
+    const esActivo = (estado === 'ACTIVO');
+    const diasSalida = ruta.DIAS_SALIDA || '';
+    const horaSalida = ruta.RUT_SAHORA || '00:00';
+
+    // Determinar operador mostrado
+    let opsTramos = [];
+    const esConexion = (tipoViaje === 'CONEXION');
+    if (esConexion && tramos.length > 0) {
+        tramos.forEach(tr => {
+            const opItem = (tr.OPERADOR_TRAMO_NOMBRE || tr.operador || tr.OPERADOR || '').trim();
+            if (opItem && !opsTramos.includes(opItem)) {
+                opsTramos.push(opItem);
+            }
+        });
+    }
+
+    let operadorMostrar = operadorDirecto;
+    let tituloOperador = "Operador Principal: " + operadorMostrar;
+    if (esConexion && opsTramos.length > 0) {
+        if (opsTramos.length === 1) {
+            operadorMostrar = opsTramos[0];
+            tituloOperador = "Operador del Servicio: " + operadorMostrar;
+        } else {
+            let todosLocales = true;
+            opsTramos.forEach(opT => {
+                const low = opT.toLowerCase();
+                if (!low.includes('local') && !low.includes('empresa')) {
+                    todosLocales = false;
+                }
+            });
+            if (todosLocales) {
+                operadorMostrar = "Empresas Locales";
+            } else {
+                operadorMostrar = opsTramos.join(' / ');
+            }
+            tituloOperador = "Operadores en Conexión: " + opsTramos.join(' + ');
+        }
+    }
+
+    // Actualizar atributos de datos de la fila para filtros y búsqueda
+    fila.setAttribute('data-corredor', idCorredor);
+    fila.setAttribute('data-origen', origen.toLowerCase().trim());
+    fila.setAttribute('data-destino', destino.toLowerCase().trim());
+    fila.setAttribute('data-operador', operadorMostrar.toLowerCase().trim());
+    fila.setAttribute('data-id-operador', idOperador);
+    fila.setAttribute('data-modalidad', mod.toLowerCase().trim());
+    fila.setAttribute('data-tipo-viaje', tipoViaje.toLowerCase().trim());
+    fila.setAttribute('data-estado', estado.toLowerCase().trim());
+    fila.setAttribute('data-search', `${origen} ${destino} ${nombreCorredor} #${idRuta} ${operadorMostrar} ${opsTramos.join(' ')} ${mod}`.toLowerCase());
+
+    // Actualizar clase de fila activa o inactiva
+    if (esActivo) {
+        fila.classList.remove('table-secondary', 'opacity-75');
+    } else {
+        fila.classList.add('table-secondary', 'opacity-75');
+    }
+
+    // Columna 1: Trayecto y Corredor
+    const colTrayecto = fila.querySelector('.col-ruta-trayecto');
+    if (colTrayecto) {
+        let htmlTrayecto = `<div class="fw-bold text-dark fs-6">${escapeHtml(origen)} ➔ ${escapeHtml(destino)}</div>`;
+        if (nombreCorredor) {
+            htmlTrayecto += `<div class="mt-1"><span class="badge bg-light text-primary border" style="font-size: 0.75rem; font-weight: 500;">🛤️ ${escapeHtml(nombreCorredor)}</span></div>`;
+        }
+        colTrayecto.innerHTML = htmlTrayecto;
+    }
+
+    // Columna 2: Operador y Modalidad
+    const colOperador = fila.querySelector('.col-ruta-operador');
+    if (colOperador) {
+        colOperador.setAttribute('data-search', `${operadorMostrar} ${opsTramos.join(' ')} ${mod} ${tipoViaje}`.toLowerCase());
+        let htmlOp = `
+            <div class="d-flex flex-column gap-1">
+                <div class="d-flex align-items-center gap-1 flex-wrap">
+                    ${renderBadgeModalidad(mod, numTramos, operadorMostrar)}
+                    <span class="badge bg-light text-dark border text-truncate" style="max-width: 175px;" title="${escapeHtml(tituloOperador)}">🏢 ${escapeHtml(operadorMostrar)}</span>
+                </div>
+        `;
+        if (!esConexion) {
+            if (admiteSp) {
+                htmlOp += `<span class="badge bg-success-subtle text-success border border-success-subtle" title="Sobrepeso amparado y cobrado en Ecuador" style="font-size: 0.70rem; width: fit-content;">🧳 Sobrepeso: SÍ</span>`;
+            } else {
+                htmlOp += `<span class="badge bg-warning-subtle text-dark border border-warning-subtle" title="Sin cobro de sobrepeso en oficina" style="font-size: 0.70rem; width: fit-content;">⚠️ Sobrepeso: NO</span>`;
+            }
+        }
+        htmlOp += `</div>`;
+        if (tramos && tramos.length > 0) {
+            htmlOp += `<div class="mt-1 small" style="font-size: 0.72rem; line-height: 1.15;">`;
+            tramos.forEach((trItem, trIdx) => {
+                const origT = trItem.ORIGEN_TRAMO || trItem.origen || '';
+                const destT = trItem.DESTINO_TRAMO || trItem.destino || '';
+                const opT = trItem.OPERADOR_TRAMO_NOMBRE || trItem.operador || '';
+                const spT = trItem.ADMITE_SOBREPESO ? '<span title="Sobrepeso amparado en Ecuador (' + escapeHtml(opT) + ')" class="text-success fw-bold">🧳</span>' : '';
+                htmlOp += `<div class="text-secondary text-truncate" style="max-width: 175px;" title="${escapeHtml(origT)} ➔ ${escapeHtml(destT)} (${escapeHtml(opT)})">
+                    ${trIdx + 1}. ${escapeHtml(origT)}➔${escapeHtml(destT)} ${spT}
+                </div>`;
+            });
+            htmlOp += `</div>`;
+        }
+        colOperador.innerHTML = htmlOp;
+    }
+
+    // Columna 3: Horarios y Días
+    const colHorarios = fila.querySelector('.col-ruta-horarios');
+    if (colHorarios) {
+        const mapaDias = {'1':'Lun', '2':'Mar', '3':'Mié', '4':'Jue', '5':'Vie', '6':'Sáb', '7':'Dom'};
+        const diasArr = diasSalida ? diasSalida.split(',') : [];
+        const diasTexto = diasArr.map(d => mapaDias[d.trim()] || d.trim()).filter(Boolean);
+        const strDias = diasTexto.length ? diasTexto.join(', ') : 'Sin definir';
+        colHorarios.innerHTML = `
+            <small class="d-block text-muted">${escapeHtml(strDias)}</small>
+            <small class="text-primary fw-bold">⏰ ${escapeHtml(horaSalida)}</small>
+        `;
+    }
+
+    // Columna 4: Tarifa Pasaje
+    const colPasaje = fila.querySelector('.col-ruta-tarifa-pasaje');
+    if (colPasaje) {
+        const txtUtil = (tipoUtilidad === 'FIJO') 
+            ? '$' + utilidadPasaje.toFixed(2) 
+            : utilidadPasaje.toFixed(0) + '%';
+        colPasaje.innerHTML = `
+            <span class="fs-6 fw-bold text-dark">$ ${precioPasaje.toFixed(2)}</span>
+            <small class="text-success d-block fw-bold" style="font-size: 0.72rem;" title="Retención de Utilidad de la Agencia">
+                💼 ${txtUtil} util.
+            </small>
+        `;
+    }
+
+    // Columna 5: Tarifa Encomienda
+    const colEncomienda = fila.querySelector('.col-ruta-tarifa-encomienda');
+    if (colEncomienda) {
+        colEncomienda.innerHTML = `<span class="fs-6 fw-bold text-dark">$ ${precioEncomienda.toFixed(2)}</span>`;
+    }
+
+    // Columna 6: Estado
+    const colEstado = fila.querySelector('.col-ruta-estado');
+    if (colEstado) {
+        colEstado.innerHTML = esActivo 
+            ? '<span class="badge bg-success">Activo</span>' 
+            : '<span class="badge bg-secondary">Inactivo</span>';
+    }
+
+    // Sincronizar inputs en ambos modales para que no queden desactualizados
+    const modalTarifa = document.getElementById('modalTarifaRapida' + idRuta);
+    if (modalTarifa) {
+        const inpP = modalTarifa.querySelector('input[name="precio_pasaje"]');
+        const inpE = modalTarifa.querySelector('input[name="precio_encomienda"]');
+        const selEst = modalTarifa.querySelector('select[name="estado"]');
+        const titleH6 = modalTarifa.querySelector('.modal-title');
+        if (inpP) inpP.value = precioPasaje.toFixed(2);
+        if (inpE) inpE.value = precioEncomienda.toFixed(2);
+        if (selEst) selEst.value = estado;
+        if (titleH6) titleH6.textContent = `Tarifas: ${origen} ➔ ${destino}`;
+    }
+
+    const modalEdit = document.getElementById('modalEditarRuta' + idRuta);
+    if (modalEdit) {
+        const inpP = modalEdit.querySelector('input[name="precio_pasaje"]');
+        const inpE = modalEdit.querySelector('input[name="precio_encomienda"]');
+        const selEst = modalEdit.querySelector('select[name="estado"]');
+        const titleH5 = modalEdit.querySelector('.modal-title');
+        if (inpP) inpP.value = precioPasaje.toFixed(2);
+        if (inpE) inpE.value = precioEncomienda.toFixed(2);
+        if (selEst) selEst.value = estado;
+        if (titleH5) titleH5.textContent = `⚙️ Configuración de Ruta #${idRuta}: ${origen} ➔ ${destino}`;
+    }
+
+    // Efecto de pulso / highlight verde en la fila modificada
+    fila.classList.remove('fila-ruta-destacada');
+    void fila.offsetWidth; // Forzar reflujo de renderizado del navegador
+    fila.classList.add('fila-ruta-destacada');
+    setTimeout(() => {
+        fila.classList.remove('fila-ruta-destacada');
+    }, 3000);
+}
+
+// Delegación global para el envío asíncrono de edición de rutas y tarifas
+document.addEventListener('submit', function(e) {
+    const form = e.target;
+    if (!form) return;
+    if (!form.classList.contains('form-tarifa-rapida-ajax') && !form.classList.contains('form-editar-ruta-ajax')) {
+        return;
+    }
+
+    e.preventDefault();
+
+    const btnSubmit = form.querySelector('button[type="submit"]');
+    const originalText = btnSubmit ? btnSubmit.innerHTML : '';
+    if (btnSubmit) {
+        btnSubmit.disabled = true;
+        btnSubmit.innerHTML = `<span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span> Guardando...`;
+    }
+
+    const formData = new FormData(form);
+    formData.append('ajax', '1');
+
+    fetch(form.action, {
+        method: 'POST',
+        body: formData,
+        headers: {
+            'X-Requested-With': 'XMLHttpRequest'
+        }
+    })
+    .then(res => {
+        if (!res.ok) throw new Error('Error de servidor HTTP (' + res.status + ')');
+        return res.json();
+    })
+    .then(data => {
+        if (btnSubmit) {
+            btnSubmit.disabled = false;
+            btnSubmit.innerHTML = originalText;
+        }
+
+        if (data.status === 'success') {
+            // Cerrar el modal correspondiente
+            const modalEl = form.closest('.modal');
+            if (modalEl && window.bootstrap && bootstrap.Modal) {
+                const modalInstance = bootstrap.Modal.getInstance(modalEl) || bootstrap.Modal.getOrCreateInstance(modalEl);
+                if (modalInstance) {
+                    modalInstance.hide();
+                }
+            }
+
+            // Actualizar fila en el DOM
+            if (data.ruta) {
+                actualizarFilaRutaEnDOM(data.ruta);
+                actualizarKpisRutasEnDOM();
+                // Re-filtrar sin perder lo que el usuario escribió o seleccionó
+                if (typeof aplicarFiltrosYPaginarRutas === 'function') {
+                    aplicarFiltrosYPaginarRutas(paginaActualRutas);
+                }
+            }
+
+            mostrarToastFlota(data.mensaje || 'Cambios guardados con éxito.', 'success');
+        } else {
+            mostrarToastFlota(data.mensaje || 'Error al guardar cambios.', 'danger');
+        }
+    })
+    .catch(err => {
+        console.error('Error AJAX en guardado de ruta:', err);
+        if (btnSubmit) {
+            btnSubmit.disabled = false;
+            btnSubmit.innerHTML = originalText;
+        }
+        mostrarToastFlota('Ocurrió un error al procesar el guardado: ' + err.message, 'danger');
+    });
+});

@@ -6,6 +6,19 @@ $vJs = @filemtime(__DIR__ . '/../../../../public/assets/js/flota.js') ?: time();
 ?>
 <link rel="stylesheet" href="/suramerica2030/public/assets/css/flota.css?v=<?= $vCss ?>">
 
+<!-- TOAST FLOTANTE PARA RESPUESTAS AJAX SIN RECARGA -->
+<div class="toast-container position-fixed top-0 end-0 p-3" style="z-index: 1099;">
+    <div id="toastFlotaAjax" class="toast align-items-center text-white bg-success border-0 shadow-lg" role="alert" aria-live="assertive" aria-atomic="true">
+        <div class="d-flex">
+            <div class="toast-body d-flex align-items-center gap-2 fs-6">
+                <span id="toastFlotaAjaxIcon">✅</span>
+                <span id="toastFlotaAjaxMsg">Cambios guardados correctamente.</span>
+            </div>
+            <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Cerrar"></button>
+        </div>
+    </div>
+</div>
+
 <div class="d-flex justify-content-between align-items-center mb-3">
     <div>
         <h3 class="text-primary mb-0 fw-bold">Gestión de Corredores y Flota</h3>

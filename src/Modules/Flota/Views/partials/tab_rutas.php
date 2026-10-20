@@ -86,21 +86,21 @@
             <div class="col-6 col-md-3">
                 <div class="card border shadow-sm h-100 p-2 tarjeta-filtro-rapido-ruta text-center" data-filtro-kpi="directo" style="cursor: pointer; transition: all 0.2s;" title="Clic para filtrar rutas directas">
                     <small class="text-success fw-bold text-uppercase d-block" style="font-size: 10px;">➡️ Rutas Directas</small>
-                    <span class="fs-4 fw-bold text-success"><?= $rutasDirectas ?></span>
+                    <span class="fs-4 fw-bold text-success" id="kpiRutasDirectas"><?= $rutasDirectas ?></span>
                     <small class="text-muted d-block" style="font-size: 11px;">Operación directa</small>
                 </div>
             </div>
             <div class="col-6 col-md-3">
                 <div class="card border shadow-sm h-100 p-2 tarjeta-filtro-rapido-ruta text-center" data-filtro-kpi="conexion" style="cursor: pointer; transition: all 0.2s;" title="Clic para filtrar rutas con conexiones">
                     <small class="text-primary fw-bold text-uppercase d-block" style="font-size: 10px;">🔄 Con Conexión</small>
-                    <span class="fs-4 fw-bold text-primary"><?= $rutasConexion ?></span>
+                    <span class="fs-4 fw-bold text-primary" id="kpiRutasConexion"><?= $rutasConexion ?></span>
                     <small class="text-muted d-block" style="font-size: 11px;">Multitramo / Transbordos</small>
                 </div>
             </div>
             <div class="col-6 col-md-3">
                 <div class="card border shadow-sm h-100 p-2 tarjeta-filtro-rapido-ruta text-center" data-filtro-kpi="activas" style="cursor: pointer; transition: all 0.2s;" title="Clic para filtrar rutas activas en taquilla">
                     <small class="text-info text-dark fw-bold text-uppercase d-block" style="font-size: 10px;">Activas en Venta</small>
-                    <span class="fs-4 fw-bold text-info text-dark"><?= $rutasActivas ?></span>
+                    <span class="fs-4 fw-bold text-info text-dark" id="kpiRutasActivas"><?= $rutasActivas ?></span>
                     <small class="text-muted d-block" style="font-size: 11px;">Disponibles para venta</small>
                 </div>
             </div>
@@ -299,6 +299,7 @@
                             }
                         ?>
                             <tr class="fila-ruta <?= $esActivo ? '' : 'table-secondary opacity-75' ?>" 
+                                id="fila_ruta_<?= $r['ID_RUTA'] ?>"
                                 data-corredor="<?= $r['ID_CORREDOR'] ?? '' ?>" 
                                 data-origen="<?= htmlspecialchars(mb_strtolower(trim($r['RUT_ORIGEN']))) ?>" 
                                 data-destino="<?= htmlspecialchars(mb_strtolower(trim($r['RUT_DESTINO']))) ?>" 
@@ -309,7 +310,7 @@
                                 data-estado="<?= htmlspecialchars(mb_strtolower($r['ESTADO'] ?? 'activo')) ?>" 
                                 data-search="<?= strtolower(htmlspecialchars($r['RUT_ORIGEN'] . ' ' . $r['RUT_DESTINO'] . ' ' . ($r['NOMBRE_CORREDOR'] ?? '') . ' #' . $r['ID_RUTA'] . ' ' . $operadorMostrar . ' ' . implode(' ', $opsTramos) . ' ' . ($r['MODALIDAD'] ?? ''))) ?>">
                                 <td><span class="badge bg-secondary">#<?= $r['ID_RUTA'] ?></span></td>
-                                <td>
+                                <td class="col-ruta-trayecto">
                                     <div class="fw-bold text-dark fs-6"><?= htmlspecialchars($r['RUT_ORIGEN']) ?> ➔ <?= htmlspecialchars($r['RUT_DESTINO']) ?></div>
                                     <?php if(!empty($r['NOMBRE_CORREDOR'])): ?>
                                         <div class="mt-1">
@@ -319,7 +320,7 @@
                                         </div>
                                     <?php endif; ?>
                                 </td>
-                                <td data-search="<?= strtolower(htmlspecialchars($operadorMostrar . ' ' . implode(' ', $opsTramos) . ' ' . ($r['MODALIDAD'] ?? '') . ' ' . ($r['TIPO_VIAJE'] ?? ''))) ?>">
+                                <td class="col-ruta-operador" data-search="<?= strtolower(htmlspecialchars($operadorMostrar . ' ' . implode(' ', $opsTramos) . ' ' . ($r['MODALIDAD'] ?? '') . ' ' . ($r['TIPO_VIAJE'] ?? ''))) ?>">
                                     <div class="d-flex flex-column gap-1">
                                         <div class="d-flex align-items-center gap-1 flex-wrap">
                                             <?= \Platform\Helpers\ModalidadHelper::renderBadge($mod, $numTramos, $operadorMostrar) ?>
@@ -346,20 +347,20 @@
                                         </div>
                                     <?php endif; ?>
                                 </td>
-                                <td>
+                                <td class="col-ruta-horarios">
                                     <small class="d-block text-muted"><?= htmlspecialchars($strDias) ?></small>
                                     <small class="text-primary fw-bold">⏰ <?= $r['RUT_SAHORA'] ?></small>
                                 </td>
-                                <td class="text-end">
+                                <td class="col-ruta-tarifa-pasaje text-end">
                                     <span class="fs-6 fw-bold text-dark">$ <?= number_format($r['PRECIO_PASAJE'], 2) ?></span>
                                     <small class="text-success d-block fw-bold" style="font-size: 0.72rem;" title="Retención de Utilidad de la Agencia">
                                         💼 <?= ($r['TIPO_UTILIDAD'] ?? 'PORCENTAJE') === 'FIJO' ? '$' . number_format($r['UTILIDAD_PASAJE'] ?? 0, 2) : number_format($r['UTILIDAD_PASAJE'] ?? 100, 0) . '%' ?> util.
                                     </small>
                                 </td>
-                                <td class="text-end">
+                                <td class="col-ruta-tarifa-encomienda text-end">
                                     <span class="fs-6 fw-bold text-dark">$ <?= number_format($r['PRECIO_ENCOMIENDA_KG'], 2) ?></span>
                                 </td>
-                                <td class="text-center">
+                                <td class="col-ruta-estado text-center">
                                     <?php if($esActivo): ?>
                                         <span class="badge bg-success">Activo</span>
                                     <?php else: ?>
@@ -425,7 +426,7 @@
                             <h6 class="modal-title fw-bold">Tarifas: <?= htmlspecialchars($r['RUT_ORIGEN']) ?> ➔ <?= htmlspecialchars($r['RUT_DESTINO']) ?></h6>
                             <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
                         </div>
-                        <form action="/suramerica2030/flota/guardarTarifaRapida" method="POST">
+                        <form class="form-tarifa-rapida-ajax" action="/suramerica2030/flota/guardarTarifaRapida" method="POST">
                             <div class="modal-body">
                                 <input type="hidden" name="id_ruta" value="<?= $r['ID_RUTA'] ?>">
                                 
@@ -456,7 +457,7 @@
             <!-- MODAL CONFIGURACION AVANZADA RUTA -->
             <div class="modal fade text-start" id="modalEditarRuta<?= $r['ID_RUTA'] ?>" tabindex="-1">
                 <div class="modal-dialog modal-xl modal-dialog-scrollable">
-                    <form class="modal-content" action="/suramerica2030/flota/editarRuta" method="POST" id="form_edit_ruta_<?= $r['ID_RUTA'] ?>">
+                    <form class="modal-content form-editar-ruta-ajax" action="/suramerica2030/flota/editarRuta" method="POST" id="form_edit_ruta_<?= $r['ID_RUTA'] ?>">
                         <div class="modal-header bg-primary text-white">
                             <h5 class="modal-title">
                                 ⚙️ Configuración de Ruta #<?= $r['ID_RUTA'] ?>: <?= htmlspecialchars($r['RUT_ORIGEN']) ?> ➔ <?= htmlspecialchars($r['RUT_DESTINO']) ?>

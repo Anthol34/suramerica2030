@@ -20,4 +20,12 @@
     overflow-y: auto !important;
     -webkit-overflow-scrolling: touch;
 }
-</style>
+@keyframes highlightRowSuccess {
+    0% { background-color: #d1e7dd !important; }
+    70% { background-color: #d1e7dd !important; }
+    100% { background-color: transparent; }
+}
+
+.fila-ruta-destacada {
+    animation: highlightRowSuccess 2.5s ease-out forwards;
+}
