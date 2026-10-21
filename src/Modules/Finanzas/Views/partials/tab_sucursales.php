@@ -12,7 +12,7 @@
                 </thead>
                 <tbody>
                     <?php foreach($sucursales as $s): ?>
-                        <tr>
+                        <tr id="fila_sucursal_finanzas_<?= $s['ID_SUCURSAL'] ?>">
                             <td class="fw-bold fs-6">📍 <?= htmlspecialchars($s['CIUDAD'] . ' - ' . $s['PAIS']) ?></td>
                             <td class="text-center fw-bold text-warning" style="background:#fff3cd;"><?= htmlspecialchars($s['COMISION_EMPLEADO_PCT'] ?? '0.00') ?> %</td>
                             <td class="text-center fw-bold text-danger" style="background:#f8d7da;">$ <?= number_format($s['GASTO_FIJO_DIARIO'] ?? 0, 2) ?> / día</td>
@@ -25,7 +25,7 @@
                             <div class="modal-dialog modal-sm">
                                 <div class="modal-content">
                                     <div class="modal-header bg-dark text-white"><h5 class="modal-title fs-6">Configurar: <?= htmlspecialchars($s['CIUDAD']) ?></h5><button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button></div>
-                                    <form action="/suramerica2030/finanzas/guardarSucursal" method="POST">
+                                    <form action="/suramerica2030/finanzas/guardarSucursal" method="POST" data-live="true" data-live-highlight="#fila_sucursal_finanzas_<?= $s['ID_SUCURSAL'] ?>">
                                         <div class="modal-body">
                                             <input type="hidden" name="id_sucursal" value="<?= $s['ID_SUCURSAL'] ?>">
                                             <div class="mb-3">

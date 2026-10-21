@@ -99,19 +99,25 @@ class UsuariosController {
     public function guardarConfigCorreo() {
         $this->verificarPermisoUsuarios();
         if ($_SERVER['REQUEST_METHOD'] == 'POST') {
-            $this->service->procesarGuardarEmailConfig($_POST);
-            header("Location: /suramerica2030/usuarios?tab=email&status=success_email_cfg");
-            exit();
+            $resultado = $this->service->procesarGuardarEmailConfig($_POST);
+            \Platform\Helpers\LiveResponse::respond($resultado ?? true, 'email', 'success_email_cfg', 'Servidor SMTP actualizado. Los PDF ahora se enviarán desde esta cuenta.', [], '/suramerica2030/usuarios');
         }
     }
 
     private function redireccionar($tab, $resultado, $successToken) {
-        if ($resultado === true) {
-            header("Location: /suramerica2030/usuarios?tab=$tab&status=$successToken");
-        } else {
-            header("Location: /suramerica2030/usuarios?tab=$tab&status=error&msg=" . urlencode($resultado));
-        }
-        exit();
+        $mensajes = [
+            'success' => 'Usuario registrado exitosamente.',
+            'success_edit' => 'Información de usuario actualizada correctamente.',
+            'success_status' => 'Estado de usuario modificado con éxito.',
+            'success_rol' => 'Nuevo rol creado exitosamente.',
+            'success_permisos' => 'Permisos del rol actualizados correctamente.',
+            'success_sucursal' => 'Nueva sucursal registrada con éxito.',
+            'success_edit_sucursal' => 'Información de la sucursal actualizada.',
+            'success_delete_sucursal' => 'Sucursal eliminada correctamente.',
+            'success_email_cfg' => 'Servidor SMTP actualizado con éxito.'
+        ];
+        $msg = $mensajes[$successToken] ?? 'Operación realizada correctamente.';
+        \Platform\Helpers\LiveResponse::respond($resultado, $tab, $successToken, $msg, [], '/suramerica2030/usuarios');
     }
 }
 ?>

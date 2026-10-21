@@ -30,9 +30,15 @@ class CajaController {
         if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             $res = $this->service->registrarMovimientoManual($_POST, $_SESSION['user_id'] ?? 1, $_SESSION['sucursal_id'] ?? 1);
             $f = $_POST['fecha_actual'] ?? date('Y-m-d');
-            if ($res['status'] === 'success') header("Location: /suramerica2030/caja?fecha={$f}&status=success");
-            else header("Location: /suramerica2030/caja?fecha={$f}&status=error&msg=" . urlencode($res['mensaje']));
-            exit();
+            $esExito = ($res['status'] === 'success');
+            \Platform\Helpers\LiveResponse::respond(
+                $esExito ? true : ($res['mensaje'] ?? 'Error al registrar movimiento'),
+                '',
+                'success',
+                'Movimiento registrado en caja correctamente.',
+                ['fecha' => $f, 'datos' => $res],
+                "/suramerica2030/caja?fecha={$f}"
+            );
         }
     }
 
@@ -47,12 +53,15 @@ class CajaController {
             $redirectTo = $_POST['redirect_to'] ?? 'caja';
 
             $res = $this->service->abrirCaja($_POST, $_SESSION['user_id'] ?? 1, $sucursal_id);
-            if ($res['status'] === 'success_apertura') {
-                header("Location: /suramerica2030/caja/{$redirectTo}?fecha={$f}&sucursal={$sucursal_id}&status=success_apertura");
-            } else {
-                header("Location: /suramerica2030/caja/{$redirectTo}?fecha={$f}&sucursal={$sucursal_id}&status=error&msg=" . urlencode($res['mensaje'] ?? 'Error al abrir la caja'));
-            }
-            exit();
+            $esExito = ($res['status'] === 'success_apertura');
+            \Platform\Helpers\LiveResponse::respond(
+                $esExito ? true : ($res['mensaje'] ?? 'Error al abrir la caja'),
+                '',
+                'success_apertura',
+                'Caja abierta correctamente.',
+                ['fecha' => $f, 'sucursal' => $sucursal_id],
+                "/suramerica2030/caja/{$redirectTo}?fecha={$f}&sucursal={$sucursal_id}"
+            );
         }
     }
 
@@ -69,17 +78,26 @@ class CajaController {
             // CANDADO: Bloqueo de cierre si hay egresos pendientes de aprobación
             $pendientes = $this->service->contarEgresosPendientes($sucursal_id, $f);
             if ($pendientes > 0) {
-                header("Location: /suramerica2030/caja/{$redirectTo}?fecha={$f}&sucursal={$sucursal_id}&status=error&msg=" . urlencode("No se puede cerrar la caja: Existen {$pendientes} egreso(s) pendiente(s) de aprobación por supervisor. Deben ser aprobados o rechazados antes del corte."));
-                exit();
+                \Platform\Helpers\LiveResponse::respond(
+                    "No se puede cerrar la caja: Existen {$pendientes} egreso(s) pendiente(s) de aprobación por supervisor. Deben ser aprobados o rechazados antes del corte.",
+                    '',
+                    'error',
+                    '',
+                    [],
+                    "/suramerica2030/caja/{$redirectTo}?fecha={$f}&sucursal={$sucursal_id}"
+                );
             }
 
             $res = $this->service->cerrarCaja($_POST, $_SESSION['user_id'] ?? 1, $sucursal_id);
-            if ($res['status'] === 'success_cierre') {
-                header("Location: /suramerica2030/caja/{$redirectTo}?fecha={$f}&sucursal={$sucursal_id}&status=success_cierre");
-            } else {
-                header("Location: /suramerica2030/caja/{$redirectTo}?fecha={$f}&sucursal={$sucursal_id}&status=error&msg=" . urlencode($res['mensaje'] ?? 'Error al procesar el cierre'));
-            }
-            exit();
+            $esExito = ($res['status'] === 'success_cierre');
+            \Platform\Helpers\LiveResponse::respond(
+                $esExito ? true : ($res['mensaje'] ?? 'Error al procesar el cierre'),
+                '',
+                'success_cierre',
+                'Corte de caja cerrado con éxito.',
+                ['fecha' => $f, 'sucursal' => $sucursal_id],
+                "/suramerica2030/caja/{$redirectTo}?fecha={$f}&sucursal={$sucursal_id}"
+            );
         }
     }
 
@@ -94,12 +112,9 @@ class CajaController {
             ? "/suramerica2030/caja/movimientos" 
             : "/suramerica2030/caja?fecha={$f}&sucursal={$sucursal_id}";
 
-        $delim = (strpos($baseRedirect, '?') !== false) ? '&' : '?';
-
         // Candado de Seguridad: Solo el Administrador (rol_id == 1) puede reasignar fechas
         if (!isset($_SESSION['rol_id']) || intval($_SESSION['rol_id']) !== 1) {
-            header("Location: {$baseRedirect}{$delim}status=error&msg=" . urlencode("Acceso Denegado: Únicamente el Administrador general tiene autorización para reasignar fechas de transacciones en caja."));
-            exit();
+            \Platform\Helpers\LiveResponse::respond(['status' => 'error', 'mensaje' => 'Acceso Denegado: Únicamente el Administrador general tiene autorización para reasignar fechas de transacciones en caja.'], null, 'success', '', [], $baseRedirect);
         }
 
         if ($_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -108,24 +123,21 @@ class CajaController {
             $usuarioId = $_SESSION['user_id'] ?? 1;
 
             if (empty($movimientosIds)) {
-                header("Location: {$baseRedirect}{$delim}status=error&msg=" . urlencode("Debes seleccionar al menos una transacción para mover de fecha."));
-                exit();
+                \Platform\Helpers\LiveResponse::respond(['status' => 'error', 'mensaje' => 'Debes seleccionar al menos una transacción para mover de fecha.'], null, 'success', '', [], $baseRedirect);
             }
 
             if (empty($nuevaFecha)) {
-                header("Location: {$baseRedirect}{$delim}status=error&msg=" . urlencode("Debes indicar la fecha de destino."));
-                exit();
+                \Platform\Helpers\LiveResponse::respond(['status' => 'error', 'mensaje' => 'Debes indicar la fecha de destino.'], null, 'success', '', [], $baseRedirect);
             }
 
             $res = $this->service->moverFechaMovimientos($movimientosIds, $nuevaFecha, $usuarioId);
 
             if ($res['status'] === 'success') {
                 $count = $res['count'];
-                header("Location: {$baseRedirect}{$delim}status=success_mover&count={$count}&nueva_fecha=" . urlencode($nuevaFecha));
+                \Platform\Helpers\LiveResponse::respond(true, null, 'success_mover', "Se trasladaron exitosamente {$count} movimiento(s) a la fecha {$nuevaFecha}.", ['count' => $count, 'nueva_fecha' => $nuevaFecha], $baseRedirect);
             } else {
-                header("Location: {$baseRedirect}{$delim}status=error&msg=" . urlencode($res['mensaje']));
+                \Platform\Helpers\LiveResponse::respond(['status' => 'error', 'mensaje' => $res['mensaje']], null, 'success', '', [], $baseRedirect);
             }
-            exit();
         }
     }
 
@@ -191,8 +203,7 @@ class CajaController {
     public function procesar_aprobacion() {
         $this->verificarPermiso();
         if (!in_array($_SESSION['rol_id'], [1, 2])) {
-            header("Location: /suramerica2030/caja/aprobaciones?subtab=egresos&status=error&msg=No+tienes+permisos+de+supervisor");
-            exit();
+            \Platform\Helpers\LiveResponse::respond("No tienes permisos de supervisor", 'subtab=egresos', 'error', '', [], '/suramerica2030/caja/aprobaciones');
         }
 
         if ($_SERVER['REQUEST_METHOD'] == 'POST') {
@@ -201,21 +212,22 @@ class CajaController {
             $motivo = $_POST['motivo_rechazo'] ?? null;
 
             $res = $this->service->actualizarEstadoAprobacion($id, $accion, $motivo);
-
-            if (is_array($res) && isset($res['status']) && $res['status'] === 'error') {
-                header("Location: /suramerica2030/caja/aprobaciones?subtab=egresos&status=error&msg=" . urlencode($res['mensaje']));
-            } else {
-                header("Location: /suramerica2030/caja/aprobaciones?subtab=egresos&status=success");
-            }
-            exit();
+            $esError = (is_array($res) && isset($res['status']) && $res['status'] === 'error');
+            \Platform\Helpers\LiveResponse::respond(
+                $esError ? ($res['mensaje'] ?? 'Error') : true,
+                'subtab=egresos',
+                $esError ? 'error' : 'success',
+                ($accion === 'APROBAR') ? "Egreso #{$id} aprobado correctamente." : "Egreso #{$id} rechazado.",
+                ['id_movimiento' => $id, 'accion' => $accion],
+                '/suramerica2030/caja/aprobaciones'
+            );
         }
     }
 
     public function procesar_solicitud_anulacion() {
         $this->verificarPermiso();
         if (!in_array($_SESSION['rol_id'], [1, 2]) && empty($_SESSION['p_anular'])) {
-            header("Location: /suramerica2030/caja/aprobaciones?subtab=solicitudes&status=error&msg=" . urlencode("No tienes permisos de supervisor para resolver anulaciones."));
-            exit();
+            \Platform\Helpers\LiveResponse::respond("No tienes permisos de supervisor para resolver anulaciones.", 'subtab=solicitudes', 'error', '', [], '/suramerica2030/caja/aprobaciones');
         }
 
         if ($_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -225,25 +237,29 @@ class CajaController {
 
             if ($accion === 'APROBAR') {
                 $res = $pasajesRepo->aprobarSolicitudAnulacionBD($idSolicitud, $_SESSION['user_id'], $_SESSION['sucursal_id']);
-                if ($res === true) {
-                    header("Location: /suramerica2030/caja/aprobaciones?subtab=solicitudes&status=success&msg=" . urlencode("Solicitud #$idSolicitud aprobada correctamente. Venta devuelta y egreso registrado en caja."));
-                } else {
-                    header("Location: /suramerica2030/caja/aprobaciones?subtab=solicitudes&status=error&msg=" . urlencode($res));
-                }
+                \Platform\Helpers\LiveResponse::respond(
+                    $res,
+                    'subtab=solicitudes',
+                    'success',
+                    "Solicitud #$idSolicitud aprobada correctamente. Venta devuelta y egreso registrado en caja.",
+                    ['id_solicitud' => $idSolicitud, 'accion' => 'APROBAR'],
+                    '/suramerica2030/caja/aprobaciones'
+                );
             } elseif ($accion === 'RECHAZAR') {
                 $motivo = trim($_POST['motivo_rechazo'] ?? '');
                 if (empty($motivo)) {
-                    header("Location: /suramerica2030/caja/aprobaciones?subtab=solicitudes&status=error&msg=" . urlencode("Debe indicar el motivo de denegación."));
-                    exit();
+                    \Platform\Helpers\LiveResponse::respond("Debe indicar el motivo de denegación.", 'subtab=solicitudes', 'error', '', [], '/suramerica2030/caja/aprobaciones');
                 }
                 $res = $pasajesRepo->denegarSolicitudAnulacionBD($idSolicitud, $_SESSION['user_id'], $motivo);
-                if ($res === true) {
-                    header("Location: /suramerica2030/caja/aprobaciones?subtab=solicitudes&status=success&msg=" . urlencode("Solicitud #$idSolicitud denegada. La venta se mantiene activa."));
-                } else {
-                    header("Location: /suramerica2030/caja/aprobaciones?subtab=solicitudes&status=error&msg=" . urlencode($res));
-                }
+                \Platform\Helpers\LiveResponse::respond(
+                    $res,
+                    'subtab=solicitudes',
+                    'success',
+                    "Solicitud #$idSolicitud denegada. La venta se mantiene activa.",
+                    ['id_solicitud' => $idSolicitud, 'accion' => 'RECHAZAR'],
+                    '/suramerica2030/caja/aprobaciones'
+                );
             }
-            exit();
         }
     }
 
@@ -302,8 +318,7 @@ class CajaController {
     public function ajustar_cierre() {
         $this->verificarPermiso();
         if (!in_array($_SESSION['rol_id'], [1, 2])) {
-            header("Location: /suramerica2030/caja/historial_cierres?status=error&msg=No+tienes+permisos");
-            exit();
+            \Platform\Helpers\LiveResponse::respond(['status' => 'error', 'mensaje' => 'No tienes permisos'], null, 'success', '', [], '/suramerica2030/caja/historial_cierres');
         }
 
         if ($_SERVER['REQUEST_METHOD'] == 'POST') {
@@ -312,8 +327,7 @@ class CajaController {
 
             $this->service->actualizarDepositoCierre($id, $deposito);
 
-            header("Location: /suramerica2030/caja/historial_cierres?status=success_ajuste");
-            exit();
+            \Platform\Helpers\LiveResponse::respond(true, null, 'success_ajuste', 'Ajuste de depósito guardado correctamente.', ['id_cierre' => $id], '/suramerica2030/caja/historial_cierres');
         }
     }
 
@@ -346,26 +360,23 @@ class CajaController {
             $usuario_id = $_SESSION['user_id'] ?? 1;
 
             if ($id_cierre <= 0 || $monto <= 0 || empty($num_documento)) {
-                header("Location: /suramerica2030/caja/depositos?status=error&msg=Datos+incompletos.+Monto+y+número+de+documento+son+obligatorios");
-                exit();
+                \Platform\Helpers\LiveResponse::respond(['status' => 'error', 'mensaje' => 'Datos incompletos. Monto y número de documento son obligatorios.'], null, 'success', '', [], '/suramerica2030/caja/depositos');
             }
 
             $res = $this->service->registrarDepositoDetalle($id_cierre, $usuario_id, $banco, $num_documento, $monto, $observaciones);
 
             if ($res['status'] === 'success') {
-                header("Location: /suramerica2030/caja/depositos?status=success_deposito");
+                \Platform\Helpers\LiveResponse::respond(true, null, 'success_deposito', 'Depósito registrado exitosamente.', ['id_cierre' => $id_cierre], '/suramerica2030/caja/depositos');
             } else {
-                header("Location: /suramerica2030/caja/depositos?status=error&msg=" . urlencode($res['mensaje'] ?? 'Error al registrar el depósito'));
+                \Platform\Helpers\LiveResponse::respond(['status' => 'error', 'mensaje' => $res['mensaje'] ?? 'Error al registrar el depósito'], null, 'success', '', [], '/suramerica2030/caja/depositos');
             }
-            exit();
         }
     }
 
     public function procesar_deposito() {
         $this->verificarPermiso();
         if (!in_array($_SESSION['rol_id'], [1, 2])) {
-            header("Location: /suramerica2030/caja/depositos?status=error&msg=Permiso+denegado");
-            exit();
+            \Platform\Helpers\LiveResponse::respond(['status' => 'error', 'mensaje' => 'Permiso denegado'], null, 'success', '', [], '/suramerica2030/caja/depositos');
         }
 
         if ($_SERVER['REQUEST_METHOD'] == 'POST') {
@@ -375,8 +386,7 @@ class CajaController {
 
             $this->service->procesarDepositoBancario($id_cierre, $nro_documento, $fecha_aprobacion);
 
-            header("Location: /suramerica2030/caja/depositos?status=success_aprobado");
-            exit();
+            \Platform\Helpers\LiveResponse::respond(true, null, 'success_aprobado', 'Depósito bancario verificado y aprobado con éxito.', ['id_cierre' => $id_cierre], '/suramerica2030/caja/depositos');
         }
     }
 
@@ -406,8 +416,7 @@ class CajaController {
             
             $this->service->registrarEgresoPendiente($id_usuario, $id_sucursal, $tipo_egreso, $concepto, $monto);
 
-            header("Location: /suramerica2030/caja/movimientos?status=success_egreso");
-            exit();
+            \Platform\Helpers\LiveResponse::respond(true, null, 'success_egreso', 'Egreso registrado y enviado para aprobación.', [], '/suramerica2030/caja/movimientos');
         }
     }
 

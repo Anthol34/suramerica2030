@@ -45,11 +45,10 @@ class FinanzasController {
 
     private function redireccionar($tab, $resultado) {
         if ($resultado === true) {
-            header("Location: /suramerica2030/finanzas?tab=$tab&status=success");
+            \Platform\Helpers\LiveResponse::respond(true, $tab, 'success', 'Configuración de sucursal actualizada exitosamente.', [], '/suramerica2030/finanzas');
         } else {
-            header("Location: /suramerica2030/finanzas?tab=$tab&status=error&msg=" . urlencode($resultado));
+            \Platform\Helpers\LiveResponse::respond(is_array($resultado) ? $resultado : ['status' => 'error', 'mensaje' => $resultado], $tab, 'success', '', [], '/suramerica2030/finanzas');
         }
-        exit();
     }
 }
 ?>

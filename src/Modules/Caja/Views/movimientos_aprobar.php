@@ -160,7 +160,7 @@
                     <tr><td colspan="10" class="text-center py-4 text-muted">No se encontraron solicitudes de anulación en este criterio.</td></tr>
                 <?php else: ?>
                     <?php foreach($solicitudes as $s): ?>
-                        <tr>
+                        <tr id="fila_sol_<?= $s['ID_SOLICITUD'] ?>">
                             <td class="text-center fw-bold text-primary">#<?= $s['ID_SOLICITUD'] ?></td>
                             <td class="text-center">
                                 <?php if($s['TIPO_VENTA'] === 'PASAJE'): ?>
@@ -214,7 +214,7 @@
                                     <?php if(isset($_SESSION['rol_id']) && in_array($_SESSION['rol_id'], [1, 2])): ?>
                                         <div class="d-flex gap-1 justify-content-center">
                                             <!-- APROBAR -->
-                                            <form action="/suramerica2030/caja/procesar_solicitud_anulacion" method="POST" style="display:inline;">
+                                            <form action="/suramerica2030/caja/procesar_solicitud_anulacion" method="POST" style="display:inline;" data-live="true" data-live-highlight="#fila_sol_<?= $s['ID_SOLICITUD'] ?>">
                                                 <input type="hidden" name="id_solicitud" value="<?= $s['ID_SOLICITUD'] ?>">
                                                 <input type="hidden" name="accion" value="APROBAR">
                                                 <button type="submit" class="btn btn-sm btn-success fw-bold" title="Aprobar Anulación" onclick="return confirm('¿Confirmas que deseas APROBAR la anulación #<?= $s['ID_SOLICITUD'] ?>? Se anulará la venta y se registrará un egreso de $<?= number_format($s['MONTO_DEVOLVER'], 2) ?> en la caja de <?= htmlspecialchars($s['SUCURSAL_VENTA_NOMBRE'] ?? $s['SUCURSAL_SOLICITA'] ?? 'la sucursal') ?>.');">
@@ -236,7 +236,7 @@
                                                         <h6 class="modal-title fs-6">Denegar Solicitud #<?= $s['ID_SOLICITUD'] ?></h6>
                                                         <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
                                                     </div>
-                                                    <form action="/suramerica2030/caja/procesar_solicitud_anulacion" method="POST">
+                                                    <form action="/suramerica2030/caja/procesar_solicitud_anulacion" method="POST" data-live="true" data-live-highlight="#fila_sol_<?= $s['ID_SOLICITUD'] ?>">
                                                         <div class="modal-body p-3">
                                                             <input type="hidden" name="id_solicitud" value="<?= $s['ID_SOLICITUD'] ?>">
                                                             <input type="hidden" name="accion" value="RECHAZAR">
@@ -336,7 +336,7 @@
                     <tr><td colspan="11" class="text-center text-muted py-3">No hay movimientos en este rango.</td></tr>
                 <?php else: ?>
                     <?php foreach($movimientos_pendientes as $mov): ?>
-                        <tr>
+                        <tr id="fila_egreso_<?= $mov['ID_MOVIMIENTO'] ?>">
                             <td class="text-primary fw-bold"><?= htmlspecialchars($mov['CODIGO_MOVIMIENTO']) ?></td>
                             <td><?= date('Y-m-d H:i', strtotime($mov['FECHA_HORA'])) ?></td>
                             <td><?= htmlspecialchars($mov['SUCURSAL_NOMBRE']) ?></td>
@@ -360,7 +360,7 @@
                                     <span class="badge bg-secondary" title="La caja de esta sucursal y fecha ya fue auditada por Tesorería. Inmutable.">🔒 Caja Auditada</span>
                                 <?php elseif(isset($_SESSION['rol_id']) && in_array($_SESSION['rol_id'], [1, 2]) && $mov['ESTADO_APROBACION'] == 'POR_APROBAR'): ?>
                                     <div class="btn-group">
-                                        <form action="/suramerica2030/caja/procesar_aprobacion" method="POST" style="display:inline;">
+                                        <form action="/suramerica2030/caja/procesar_aprobacion" method="POST" style="display:inline;" data-live="true" data-live-highlight="#fila_egreso_<?= $mov['ID_MOVIMIENTO'] ?>">
                                             <input type="hidden" name="id_movimiento" value="<?= $mov['ID_MOVIMIENTO'] ?>">
                                             <input type="hidden" name="accion" value="APROBAR">
                                             <button type="submit" class="btn btn-sm btn-outline-success" title="Aprobar">✔️</button>
@@ -376,7 +376,7 @@
                                                     <h6 class="modal-title fs-6">Rechazar Movimiento</h6>
                                                     <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
                                                 </div>
-                                                <form action="/suramerica2030/caja/procesar_aprobacion" method="POST">
+                                                <form action="/suramerica2030/caja/procesar_aprobacion" method="POST" data-live="true" data-live-highlight="#fila_egreso_<?= $mov['ID_MOVIMIENTO'] ?>">
                                                     <div class="modal-body">
                                                         <input type="hidden" name="id_movimiento" value="<?= $mov['ID_MOVIMIENTO'] ?>">
                                                         <input type="hidden" name="accion" value="RECHAZAR">

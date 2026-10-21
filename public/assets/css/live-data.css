@@ -1,0 +1,206 @@
+/**
+ * SURAMERICA 2030 - LIVE DATA & ASYNC NOTIFICATION ENGINE
+ * Estilos modernos para notificaciones tipo Toast, microanimaciones de datos en vivo y resaltado reactivo.
+ */
+
+/* Contenedor flotante de Toasts Globales */
+#liveDataToastContainer {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    z-index: 10999;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    pointer-events: none;
+    max-width: 420px;
+    width: calc(100vw - 32px);
+}
+
+/* Tarjeta individual de Toast */
+.live-toast {
+    pointer-events: auto;
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    padding: 14px 18px;
+    border-radius: 12px;
+    background: #ffffff;
+    color: #1e293b;
+    box-shadow: 0 10px 30px -5px rgba(15, 23, 42, 0.18), 0 4px 6px -2px rgba(15, 23, 42, 0.05);
+    border: 1px solid rgba(226, 232, 240, 0.9);
+    position: relative;
+    overflow: hidden;
+    transform-origin: top right;
+    animation: liveToastIn 0.32s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    transition: all 0.25s ease;
+}
+
+.live-toast.live-toast-hiding {
+    animation: liveToastOut 0.28s cubic-bezier(0.7, 0, 0.84, 0) forwards;
+}
+
+/* Variantes de Color de Toast */
+.live-toast-success {
+    border-left: 5px solid #10b981;
+}
+.live-toast-success .live-toast-icon-wrap {
+    background: #d1fae5;
+    color: #059669;
+}
+
+.live-toast-danger,
+.live-toast-error {
+    border-left: 5px solid #ef4444;
+}
+.live-toast-danger .live-toast-icon-wrap,
+.live-toast-error .live-toast-icon-wrap {
+    background: #fee2e2;
+    color: #dc2626;
+}
+
+.live-toast-warning {
+    border-left: 5px solid #f59e0b;
+}
+.live-toast-warning .live-toast-icon-wrap {
+    background: #fef3c7;
+    color: #d97706;
+}
+
+.live-toast-info {
+    border-left: 5px solid #0284c7;
+}
+.live-toast-info .live-toast-icon-wrap {
+    background: #e0f2fe;
+    color: #0284c7;
+}
+
+/* Elementos internos del Toast */
+.live-toast-icon-wrap {
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.05rem;
+    font-weight: bold;
+    flex-shrink: 0;
+}
+
+.live-toast-content {
+    flex-grow: 1;
+    min-width: 0;
+}
+
+.live-toast-title {
+    font-size: 0.85rem;
+    font-weight: 700;
+    margin-bottom: 2px;
+    line-height: 1.25;
+    color: #0f172a;
+}
+
+.live-toast-message {
+    font-size: 0.82rem;
+    color: #475569;
+    line-height: 1.35;
+    word-break: break-word;
+}
+
+.live-toast-close {
+    background: transparent;
+    border: none;
+    color: #94a3b8;
+    font-size: 1.1rem;
+    line-height: 1;
+    padding: 0;
+    cursor: pointer;
+    transition: color 0.15s ease;
+    margin-left: 4px;
+}
+.live-toast-close:hover {
+    color: #334155;
+}
+
+/* Barra de progreso de auto-cierre */
+.live-toast-progress {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    height: 3px;
+    background: rgba(16, 185, 129, 0.4);
+    width: 100%;
+    transform-origin: left;
+    animation: liveProgress linear forwards;
+}
+.live-toast-danger .live-toast-progress { background: rgba(239, 68, 68, 0.4); }
+.live-toast-warning .live-toast-progress { background: rgba(245, 158, 11, 0.4); }
+.live-toast-info .live-toast-progress { background: rgba(2, 132, 199, 0.4); }
+
+/* Animaciones de Entrada y Salida */
+@keyframes liveToastIn {
+    0% {
+        opacity: 0;
+        transform: translateY(-16px) scale(0.95);
+    }
+    100% {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+}
+
+@keyframes liveToastOut {
+    0% {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+    100% {
+        opacity: 0;
+        transform: translateY(-12px) scale(0.92);
+    }
+}
+
+@keyframes liveProgress {
+    from { transform: scaleX(1); }
+    to { transform: scaleX(0); }
+}
+
+/* Efecto de Pulso y Resaltado en Filas / Tarjetas Modificadas en Vivo */
+@keyframes liveHighlightGreen {
+    0% {
+        background-color: rgba(34, 197, 94, 0.35) !important;
+        box-shadow: inset 0 0 0 2px #22c55e;
+    }
+    40% {
+        background-color: rgba(34, 197, 94, 0.22) !important;
+    }
+    100% {
+        background-color: transparent;
+        box-shadow: none;
+    }
+}
+
+.live-data-highlight,
+.live-highlight,
+.fila-ruta-destacada {
+    animation: liveHighlightGreen 2.8s ease-out forwards !important;
+}
+
+/* Animación de carga para contenedores con actualización reactiva */
+.live-container-loading {
+    position: relative;
+    pointer-events: none;
+    opacity: 0.65;
+    transition: opacity 0.2s ease;
+}
+
+.live-container-loading::after {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(255, 255, 255, 0.45);
+    z-index: 10;
+    backdrop-filter: blur(1px);
+    border-radius: inherit;
+}

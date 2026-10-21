@@ -69,8 +69,7 @@ class PasajesController {
         if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             $permiso = (isset($_SESSION['rol_id']) && $_SESSION['rol_id'] == 1) || (isset($_SESSION['p_anular']) && $_SESSION['p_anular'] == 1);
             if (!$permiso) {
-                header("Location: /suramerica2030/pasajes?status=error&msg=" . urlencode("No tienes permisos para anular sobrepeso."));
-                exit();
+                \Platform\Helpers\LiveResponse::respond(['status' => 'error', 'mensaje' => 'No tienes permisos para anular sobrepeso.'], null, 'success', '', [], '/suramerica2030/pasajes');
             }
             $idPasaje = intval($_POST['id_pasaje'] ?? 0);
             $idSobrepeso = intval($_POST['id_sobrepeso'] ?? 0);
@@ -80,11 +79,10 @@ class PasajesController {
             $redirectTab = !empty($_POST['redirect_tab']) ? $_POST['redirect_tab'] : 'activos';
             
             if ($res === true) {
-                header("Location: /suramerica2030/pasajes?tab=" . urlencode($redirectTab) . "&status=success&msg=" . urlencode("Sobrepeso anulado exitosamente y reembolsado en caja."));
+                \Platform\Helpers\LiveResponse::respond(true, $redirectTab, 'success', "Sobrepeso anulado exitosamente y reembolsado en caja.", ['id_pasaje' => $idPasaje, 'id_sobrepeso' => $idSobrepeso], '/suramerica2030/pasajes');
             } else {
-                header("Location: /suramerica2030/pasajes?tab=" . urlencode($redirectTab) . "&status=error&msg=" . urlencode($res));
+                \Platform\Helpers\LiveResponse::respond(['status' => 'error', 'mensaje' => $res], $redirectTab, 'success', '', [], '/suramerica2030/pasajes');
             }
-            exit();
         }
     }
 
@@ -105,7 +103,7 @@ class PasajesController {
             $permiso = (isset($_SESSION['rol_id']) && $_SESSION['rol_id'] == 1) ? 1 : ($_SESSION['p_anular'] ?? 0);
             $res = $this->service->procesarDevolucion($_POST, $_SESSION['user_id'], $_SESSION['sucursal_id'], $permiso);
             if ($res['status'] === 'success') {
-                header("Location: /suramerica2030/pasajes?status=success&msg=" . urlencode("Venta anulada y procesada exitosamente.")); exit();
+                \Platform\Helpers\LiveResponse::respond(true, null, 'success', "Venta anulada y procesada exitosamente.", ['id_pasaje' => $_POST['id_pasaje'] ?? null], '/suramerica2030/pasajes');
             } else {
                 $this->redireccionar($res['mensaje']);
             }
@@ -116,11 +114,10 @@ class PasajesController {
         if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             $res = $this->service->procesarSolicitudAnulacion($_POST, $_SESSION['user_id'], $_SESSION['sucursal_id']);
             if ($res['status'] === 'success') {
-                header("Location: /suramerica2030/pasajes?status=success&msg=" . urlencode($res['mensaje']));
+                \Platform\Helpers\LiveResponse::respond(true, null, 'success', $res['mensaje'], [], '/suramerica2030/pasajes');
             } else {
-                header("Location: /suramerica2030/pasajes?status=error&msg=" . urlencode($res['mensaje']));
+                \Platform\Helpers\LiveResponse::respond(['status' => 'error', 'mensaje' => $res['mensaje']], null, 'success', '', [], '/suramerica2030/pasajes');
             }
-            exit();
         }
     }
 
@@ -130,11 +127,10 @@ class PasajesController {
             $res = $this->service->procesarAprobacionSolicitud($_POST['id_solicitud'] ?? 0, $_SESSION['user_id'], $_SESSION['sucursal_id'], $permiso);
             $tabRedirect = !empty($_POST['redirect_tab']) ? $_POST['redirect_tab'] : 'solicitudes';
             if ($res['status'] === 'success') {
-                header("Location: /suramerica2030/pasajes?tab=" . urlencode($tabRedirect) . "&status=success&msg=" . urlencode($res['mensaje']));
+                \Platform\Helpers\LiveResponse::respond(true, $tabRedirect, 'success', $res['mensaje'], ['id_solicitud' => $_POST['id_solicitud'] ?? 0], '/suramerica2030/pasajes');
             } else {
-                header("Location: /suramerica2030/pasajes?tab=" . urlencode($tabRedirect) . "&status=error&msg=" . urlencode($res['mensaje']));
+                \Platform\Helpers\LiveResponse::respond(['status' => 'error', 'mensaje' => $res['mensaje']], $tabRedirect, 'success', '', [], '/suramerica2030/pasajes');
             }
-            exit();
         }
     }
 
@@ -144,11 +140,10 @@ class PasajesController {
             $res = $this->service->procesarDenegacionSolicitud($_POST['id_solicitud'] ?? 0, $_POST['motivo_rechazo'] ?? '', $_SESSION['user_id'], $permiso);
             $tabRedirect = !empty($_POST['redirect_tab']) ? $_POST['redirect_tab'] : 'solicitudes';
             if ($res['status'] === 'success') {
-                header("Location: /suramerica2030/pasajes?tab=" . urlencode($tabRedirect) . "&status=success&msg=" . urlencode($res['mensaje']));
+                \Platform\Helpers\LiveResponse::respond(true, $tabRedirect, 'success', $res['mensaje'], ['id_solicitud' => $_POST['id_solicitud'] ?? 0], '/suramerica2030/pasajes');
             } else {
-                header("Location: /suramerica2030/pasajes?tab=" . urlencode($tabRedirect) . "&status=error&msg=" . urlencode($res['mensaje']));
+                \Platform\Helpers\LiveResponse::respond(['status' => 'error', 'mensaje' => $res['mensaje']], $tabRedirect, 'success', '', [], '/suramerica2030/pasajes');
             }
-            exit();
         }
     }
 
@@ -213,10 +208,12 @@ class PasajesController {
         exit();
     }
 
-    private function redireccionar($resultado) {
-        if ($resultado === true) header("Location: /suramerica2030/pasajes?status=success");
-        else header("Location: /suramerica2030/pasajes?status=error&msg=" . urlencode($resultado));
-        exit();
+    private function redireccionar($resultado, $tab = null, $extra = []) {
+        if ($resultado === true) {
+            \Platform\Helpers\LiveResponse::respond(true, $tab, 'success', 'Operación procesada correctamente.', $extra, '/suramerica2030/pasajes');
+        } else {
+            \Platform\Helpers\LiveResponse::respond(is_array($resultado) ? $resultado : ['status' => 'error', 'mensaje' => $resultado], $tab, 'success', '', $extra, '/suramerica2030/pasajes');
+        }
     }
 }
 ?>

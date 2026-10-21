@@ -47,7 +47,7 @@
                                         $labelTipo = '⭐ Empresa Aliada';
                                     }
                                 ?>
-                                    <tr>
+                                    <tr id="fila_operador_<?= $op['ID_OPERADOR'] ?>">
                                         <td class="fw-bold text-muted">#<?= $op['ID_OPERADOR'] ?></td>
                                         <td>
                                             <div class="fw-bold text-dark fs-6"><?= htmlspecialchars($op['NOMBRE_COMERCIAL']) ?></div>
@@ -117,7 +117,7 @@
                 <div class="card shadow-sm border-0 border-top border-primary border-3">
                     <div class="card-header bg-white"><h6 class="mb-0 text-primary fw-bold">🚌 Registrar Unidad (Bus)</h6></div>
                     <div class="card-body">
-                        <form action="/suramerica2030/flota/guardarBus" method="POST">
+                        <form action="/suramerica2030/flota/guardarBus" method="POST" data-live="true" data-live-refresh="#tab-buses" data-live-reset="true">
                             <label class="form-label small text-muted mb-1 fw-bold">🏢 Operador Propietario / Socio</label>
                             <select name="id_operador" class="form-select form-select-sm fw-bold border-primary mb-3">
                                 <?= $generarOpcionesOperadores(1) ?>
@@ -161,7 +161,8 @@
                         </thead>
                         <tbody>
                             <?php foreach($buses as $b): ?>
-                                <tr>
+                                <tr id="fila_bus_<?= $b['ID_BUS'] ?>">
+
                                     <td>
                                         <strong><?= htmlspecialchars($b['BUS_MARCA']) ?></strong><br>
                                         <small class="text-muted"><?= htmlspecialchars($b['BUS_MODELO']) ?> (<?= $b['BUS_ASIENTOS'] ?> Asientos)</small>
@@ -202,7 +203,7 @@
         <!-- ======================================================== -->
         <div class="modal fade text-start" id="modalCrearOperador" tabindex="-1">
             <div class="modal-dialog modal-lg">
-                <form class="modal-content" action="/suramerica2030/flota/guardarOperador" method="POST">
+                <form class="modal-content" action="/suramerica2030/flota/guardarOperador" method="POST" data-live="true" data-live-refresh="#tab-buses" data-live-reset="true">
                     <div class="modal-header bg-primary text-white">
                         <h5 class="modal-title">🏢 Registrar Nuevo Operador / Socio</h5>
                         <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
@@ -213,6 +214,7 @@
                                 <label class="form-label small fw-bold">Nombre Comercial *</label>
                                 <input type="text" name="nombre_comercial" class="form-control form-control-sm fw-bold text-primary" required placeholder="Ej: Panamericana de Transportes, Rutas Andinas">
                             </div>
+
                             <div class="col-md-6">
                                 <label class="form-label small fw-bold">Razón Social</label>
                                 <input type="text" name="razon_social" class="form-control form-control-sm" placeholder="Ej: Transportes Panamericana Cía. Ltda.">
@@ -301,7 +303,7 @@
             <!-- MODAL EDITAR OPERADOR -->
             <div class="modal fade text-start" id="modalEditarOperador<?= $op['ID_OPERADOR'] ?>" tabindex="-1">
                 <div class="modal-dialog modal-lg">
-                    <form class="modal-content" action="/suramerica2030/flota/editarOperador" method="POST">
+                    <form class="modal-content" action="/suramerica2030/flota/editarOperador" method="POST" data-live="true" data-live-refresh="#tab-buses" data-live-row="#fila_operador_<?= $op['ID_OPERADOR'] ?>">
                         <div class="modal-header bg-primary text-white">
                             <h5 class="modal-title">✏️ Editar Operador #<?= $op['ID_OPERADOR'] ?>: <?= htmlspecialchars($op['NOMBRE_COMERCIAL']) ?></h5>
                             <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
@@ -399,7 +401,7 @@
             <?php if($op['ID_OPERADOR'] > 1): ?>
                 <div class="modal fade text-start" id="modalEliminarOperador<?= $op['ID_OPERADOR'] ?>" tabindex="-1">
                     <div class="modal-dialog modal-sm">
-                        <form class="modal-content" action="/suramerica2030/flota/eliminarOperador" method="POST">
+                        <form class="modal-content" action="/suramerica2030/flota/eliminarOperador" method="POST" data-live="true" data-live-refresh="#tab-buses">
                             <div class="modal-header bg-danger text-white">
                                 <h6 class="modal-title">Eliminar Operador</h6>
                                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
@@ -433,7 +435,7 @@
                             <h5 class="modal-title fs-6">Eliminar Unidad #<?= $b['ID_BUS'] ?></h5>
                             <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
                         </div>
-                        <form action="/suramerica2030/flota/eliminarBus" method="POST">
+                        <form action="/suramerica2030/flota/eliminarBus" method="POST" data-live="true" data-live-refresh="#tab-buses">
                             <div class="modal-body text-center">
                                 <input type="hidden" name="id_bus" value="<?= $b['ID_BUS'] ?>">
                                 <p class="mb-2">¿Confirmas eliminar este bus?</p>
@@ -460,7 +462,7 @@
                             <h5 class="modal-title">Editar Unidad #<?= $b['ID_BUS'] ?></h5>
                             <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
                         </div>
-                        <form action="/suramerica2030/flota/editarBus" method="POST">
+                        <form action="/suramerica2030/flota/editarBus" method="POST" data-live="true" data-live-refresh="#tab-buses" data-live-row="#fila_bus_<?= $b['ID_BUS'] ?>">
                             <div class="modal-body">
                                 <input type="hidden" name="id_bus" value="<?= $b['ID_BUS'] ?>">
                                 
@@ -468,6 +470,7 @@
                                 <select name="id_operador" class="form-select form-select-sm fw-bold border-primary mb-3">
                                     <?= $generarOpcionesOperadores($b['ID_OPERADOR'] ?? 1) ?>
                                 </select>
+
 
                                 <h6 class="text-secondary border-bottom pb-1">Datos del Bus</h6>
                                 <div class="row mb-2">

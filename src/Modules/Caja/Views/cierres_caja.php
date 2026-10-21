@@ -604,7 +604,7 @@ $esAdmin = $esAdmin ?? (isset($_SESSION['rol_id']) && $_SESSION['rol_id'] == 1);
                             </div>
                             <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Cerrar"></button>
                         </div>
-                        <form action="/suramerica2030/caja/cerrar" method="POST" id="formCierreCaja">
+                        <form action="/suramerica2030/caja/cerrar" method="POST" id="formCierreCaja" data-live="true">
                             <div class="modal-body p-4">
                                 <input type="hidden" name="fecha_cierre" value="<?= htmlspecialchars($fecha_consulta) ?>">
                                 <input type="hidden" name="sucursal_id" value="<?= htmlspecialchars($sucursal_id) ?>">
@@ -774,7 +774,7 @@ $esAdmin = $esAdmin ?? (isset($_SESSION['rol_id']) && $_SESSION['rol_id'] == 1);
                             <h5 class="modal-title fw-bold" id="modalAbrirCajaCierresLabel">🟢 Apertura Formal de Caja / Turno</h5>
                             <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Cerrar"></button>
                         </div>
-                        <form action="/suramerica2030/caja/abrir" method="POST">
+                        <form action="/suramerica2030/caja/abrir" method="POST" data-live="true">
                             <input type="hidden" name="fecha_apertura" value="<?= htmlspecialchars($fecha_consulta) ?>">
                             <input type="hidden" name="sucursal_id" value="<?= htmlspecialchars($sucursal_id) ?>">
                             <input type="hidden" name="redirect_to" value="historial_cierres">
@@ -951,7 +951,7 @@ $esAdmin = $esAdmin ?? (isset($_SESSION['rol_id']) && $_SESSION['rol_id'] == 1);
                                 $valExigible = floatval($cierre['VALOR_A_DEPOSITAR_CALC'] ?? $cierre['VALOR_A_DEPOSITAR'] ?? ($cierre['SALDO_FINAL'] - ($cierre['COMISION_EMPLEADOS'] ?? 0)));
                                 $valPendiente = floatval($cierre['V_POR_DEPOSITAR'] ?? max(0, $valExigible - floatval($cierre['DEPOSITO'] ?? 0)));
                             ?>
-                            <tr>
+                            <tr id="fila_cierre_<?= $cierre['ID_CIERRE'] ?>">
                                 <td class="text-primary fw-bold text-center">
                                     <?= htmlspecialchars($cierre['CODIGO_CIERRE'] ?? '#'.$cierre['ID_CIERRE']) ?>
                                 </td>
@@ -1003,7 +1003,7 @@ $esAdmin = $esAdmin ?? (isset($_SESSION['rol_id']) && $_SESSION['rol_id'] == 1);
                                                     <h6 class="modal-title fs-6">Ajustar Cierre #<?= $cierre['ID_CIERRE'] ?></h6>
                                                     <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
                                                 </div>
-                                                <form action="/suramerica2030/caja/ajustar_cierre" method="POST">
+                                                <form action="/suramerica2030/caja/ajustar_cierre" method="POST" data-live="true" data-live-highlight="#fila_cierre_<?= $cierre['ID_CIERRE'] ?>">
                                                     <div class="modal-body">
                                                         <input type="hidden" name="id_cierre" value="<?= $cierre['ID_CIERRE'] ?>">
                                                         <div class="mb-2">

@@ -141,19 +141,19 @@
                                             <td class="text-center">
                                                 <?php if($p['TIPO_PARADA'] !== 'CABECERA' && $p['TIPO_PARADA'] !== 'TERMINAL'): ?>
                                                     <div class="btn-group btn-group-sm">
-                                                        <form action="/suramerica2030/flota/moverParada" method="POST" class="d-inline">
+                                                        <form action="/suramerica2030/flota/moverParada" method="POST" class="d-inline" data-live="true" data-live-refresh="#tab-corredor">
                                                             <input type="hidden" name="id_parada" value="<?= $p['ID_CORREDOR_PARADA'] ?>">
                                                             <input type="hidden" name="direccion" value="subir">
                                                             <input type="hidden" name="id_corredor_retorno" value="<?= $corredorActivo['ID_CORREDOR'] ?>">
                                                             <button type="submit" class="btn btn-sm btn-outline-secondary py-0 px-2" title="Subir parada" <?= ($p['ORDEN'] <= 2) ? 'disabled' : '' ?>>▲</button>
                                                         </form>
-                                                        <form action="/suramerica2030/flota/moverParada" method="POST" class="d-inline">
+                                                        <form action="/suramerica2030/flota/moverParada" method="POST" class="d-inline" data-live="true" data-live-refresh="#tab-corredor">
                                                             <input type="hidden" name="id_parada" value="<?= $p['ID_CORREDOR_PARADA'] ?>">
                                                             <input type="hidden" name="direccion" value="bajar">
                                                             <input type="hidden" name="id_corredor_retorno" value="<?= $corredorActivo['ID_CORREDOR'] ?>">
                                                             <button type="submit" class="btn btn-sm btn-outline-secondary py-0 px-2" title="Bajar parada" <?= ($p['ORDEN'] >= count($paradas) - 1) ? 'disabled' : '' ?>>▼</button>
                                                         </form>
-                                                        <form action="/suramerica2030/flota/eliminarParada" method="POST" class="d-inline" onsubmit="return confirm('¿Seguro que deseas quitar la parada de <?= htmlspecialchars($p['CIUDAD']) ?>?');">
+                                                        <form action="/suramerica2030/flota/eliminarParada" method="POST" class="d-inline" onsubmit="return confirm('¿Seguro que deseas quitar la parada de <?= htmlspecialchars($p['CIUDAD']) ?>?');" data-live="true" data-live-refresh="#tab-corredor">
                                                             <input type="hidden" name="id_parada" value="<?= $p['ID_CORREDOR_PARADA'] ?>">
                                                             <input type="hidden" name="id_corredor_retorno" value="<?= $corredorActivo['ID_CORREDOR'] ?>">
                                                             <button type="submit" class="btn btn-sm btn-outline-danger py-0 px-2" title="Eliminar parada">✕</button>
@@ -189,10 +189,10 @@
                                         <?= htmlspecialchars($top['ORIGEN_TRAMO']) ?> ➔ <?= htmlspecialchars($top['DESTINO_TRAMO']) ?>
                                     </div>
 
-                                    <form action="/suramerica2030/flota/guardarBusTramo" method="POST" class="d-flex gap-2">
+                                    <form action="/suramerica2030/flota/guardarBusTramo" method="POST" class="d-flex gap-2" data-live="true" data-live-refresh="#tab-corredor">
                                         <input type="hidden" name="id_tramo" value="<?= $top['ID_CORREDOR_TRAMO'] ?>">
                                         <input type="hidden" name="id_corredor" value="<?= $corredorActivo['ID_CORREDOR'] ?>">
-                                        <select name="id_bus" class="form-select form-select-sm" onchange="this.form.submit()">
+                                        <select name="id_bus" class="form-select form-select-sm" onchange="this.form.requestSubmit ? this.form.requestSubmit() : this.form.submit()">
                                             <option value="">-- Sin unidad asignada --</option>
                                             <?php foreach($buses as $bus): ?>
                                                 <option value="<?= $bus['ID_BUS'] ?>" <?= ($top['ID_BUS_DEFAULT'] == $bus['ID_BUS']) ? 'selected' : '' ?>>
@@ -220,7 +220,7 @@
                             <h5 class="modal-title fw-bold">Políticas y Parámetros del Corredor</h5>
                             <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
                         </div>
-                        <form action="/suramerica2030/flota/guardarCorredor" method="POST">
+                        <form action="/suramerica2030/flota/guardarCorredor" method="POST" data-live="true" data-live-refresh="#tab-corredor">
                             <div class="modal-body">
                                 <input type="hidden" name="id_corredor" value="<?= $corredorActivo['ID_CORREDOR'] ?>">
                                 
@@ -309,7 +309,7 @@
                             <h5 class="modal-title fw-bold">+ Añadir Escala al Corredor</h5>
                             <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
                         </div>
-                        <form action="/suramerica2030/flota/guardarParada" method="POST">
+                        <form action="/suramerica2030/flota/guardarParada" method="POST" data-live="true" data-live-refresh="#tab-corredor" data-live-reset="true">
                             <div class="modal-body">
                                 <input type="hidden" name="id_corredor" value="<?= $corredorActivo['ID_CORREDOR'] ?>">
                                 

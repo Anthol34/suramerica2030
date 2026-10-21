@@ -51,7 +51,7 @@
                 </thead>
                 <tbody>
                     <?php foreach($usuarios as $u): ?>
-                        <tr class="<?= $u['ESTADO'] == 0 ? 'table-secondary opacity-75' : '' ?>">
+                        <tr id="fila_usuario_<?= $u['ID_USUARIO'] ?>" class="<?= $u['ESTADO'] == 0 ? 'table-secondary opacity-75' : '' ?>">
                             <td><span class="badge bg-secondary">#<?= $u['ID_USUARIO'] ?></span></td>
                             <td>
                                 <strong class="text-dark"><?= htmlspecialchars($u['NOMBRE']) ?></strong><br>
@@ -66,7 +66,7 @@
                             <td class="text-center">
                                 <div class="btn-group">
                                     <button class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#modalEditarUsuario<?= $u['ID_USUARIO'] ?>">✏️ Editar</button>
-                                    <form action="/suramerica2030/usuarios/estado" method="POST" style="display:inline;">
+                                    <form action="/suramerica2030/usuarios/estado" method="POST" style="display:inline;" data-live="true" data-live-refresh="#usuarios" data-live-row="#fila_usuario_<?= $u['ID_USUARIO'] ?>">
                                         <input type="hidden" name="id_usuario" value="<?= $u['ID_USUARIO'] ?>">
                                         <input type="hidden" name="nuevo_estado" value="<?= $u['ESTADO'] == 1 ? 0 : 1 ?>">
                                         <?php if($u['ESTADO'] == 1): ?>
@@ -85,7 +85,7 @@
                                                 <h5 class="modal-title">Editar Usuario #<?= $u['ID_USUARIO'] ?></h5>
                                                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
                                             </div>
-                                            <form action="/suramerica2030/usuarios/editar" method="POST">
+                                            <form action="/suramerica2030/usuarios/editar" method="POST" data-live="true" data-live-refresh="#usuarios" data-live-row="#fila_usuario_<?= $u['ID_USUARIO'] ?>">
                                                 <div class="modal-body">
                                                     <input type="hidden" name="id_usuario" value="<?= $u['ID_USUARIO'] ?>">
                                                     <div class="mb-3">
@@ -97,6 +97,7 @@
                                                             <label>Usuario (Para Login)</label>
                                                             <input type="text" name="username" id="edit_user_<?= $u['ID_USUARIO'] ?>" class="form-control fw-bold text-primary" value="<?= htmlspecialchars($u['USUARIO']) ?>" required>
                                                         </div>
+
                                                         <div class="col-6">
                                                             <label>Correo (Contacto)</label>
                                                             <input type="email" name="email" class="form-control" value="<?= htmlspecialchars($u['EMAIL']) ?>" required>
@@ -166,7 +167,7 @@
                 </thead>
                 <tbody>
                     <?php foreach($roles as $rol): ?>
-                        <tr>
+                        <tr id="fila_rol_<?= $rol['ID_ROL'] ?>">
                             <td class="fw-bold fs-5 text-primary"><?= htmlspecialchars($rol['NOMBRE_ROL']) ?></td>
                             <td class="text-center"><?= $rol['P_VENTA'] ? '✅' : '❌' ?></td>
                             <td class="text-center"><?= $rol['P_CAJA'] ? '✅' : '❌' ?></td>
@@ -193,7 +194,7 @@
                                         <h5 class="modal-title fw-bold">Privilegios: <?= htmlspecialchars($rol['NOMBRE_ROL']) ?></h5>
                                         <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                                     </div>
-                                    <form action="/suramerica2030/usuarios/guardarPermisos" method="POST">
+                                    <form action="/suramerica2030/usuarios/guardarPermisos" method="POST" data-live="true" data-live-refresh="#roles" data-live-row="#fila_rol_<?= $rol['ID_ROL'] ?>">
                                         <div class="modal-body">
                                             <input type="hidden" name="id_rol" value="<?= $rol['ID_ROL'] ?>">
                                             
@@ -269,7 +270,7 @@
                 </thead>
                 <tbody>
                     <?php foreach($sucursales as $suc): ?>
-                        <tr>
+                        <tr id="fila_sucursal_<?= $suc['ID_SUCURSAL'] ?>">
                             <td><span class="badge bg-secondary">#<?= $suc['ID_SUCURSAL'] ?></span></td>
                             <td class="fw-bold"><?= htmlspecialchars($suc['PAIS']) ?></td>
                             <td class="text-primary fw-bold"><?= htmlspecialchars($suc['CIUDAD']) ?></td>
@@ -290,7 +291,7 @@
                                                 <h5 class="modal-title">Editar Sucursal</h5>
                                                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
                                             </div>
-                                            <form action="/suramerica2030/usuarios/editarSucursal" method="POST">
+                                            <form action="/suramerica2030/usuarios/editarSucursal" method="POST" data-live="true" data-live-refresh="#sucursales" data-live-row="#fila_sucursal_<?= $suc['ID_SUCURSAL'] ?>">
                                                 <div class="modal-body">
                                                     <input type="hidden" name="id_sucursal" value="<?= $suc['ID_SUCURSAL'] ?>">
                                                     <div class="mb-2">
@@ -330,7 +331,7 @@
                                                 <h5 class="modal-title fs-6">Eliminar Sucursal</h5>
                                                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
                                             </div>
-                                            <form action="/suramerica2030/usuarios/eliminarSucursal" method="POST">
+                                            <form action="/suramerica2030/usuarios/eliminarSucursal" method="POST" data-live="true" data-live-refresh="#sucursales">
                                                 <div class="modal-body text-center">
                                                     <input type="hidden" name="id_sucursal" value="<?= $suc['ID_SUCURSAL'] ?>">
                                                     <p class="mb-0">¿Eliminar la sucursal de <strong><?= htmlspecialchars($suc['CIUDAD']) ?></strong>?</p>
@@ -346,6 +347,7 @@
                             </td>
                         </tr>
                     <?php endforeach; ?>
+
                 </tbody>
             </table>
         </div>
@@ -364,7 +366,7 @@
                             <strong>Aviso de Seguridad:</strong> Este es el correo desde el cual el sistema despachará los PDFs. 
                             Si usas Outlook o Gmail Empresarial, asegúrate de utilizar una <strong>"Contraseña de Aplicación"</strong> generada en los ajustes de seguridad de tu cuenta de correo, no tu contraseña habitual.
                         </div>
-                        <form action="/suramerica2030/usuarios/guardarConfigCorreo" method="POST">
+                        <form action="/suramerica2030/usuarios/guardarConfigCorreo" method="POST" data-live="true">
                             
                             <div class="row mb-3">
                                 <div class="col-md-6">
@@ -414,7 +416,7 @@
                 <h5 class="modal-title">Registrar Nuevo Usuario</h5>
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
             </div>
-            <form action="/suramerica2030/usuarios/guardar" method="POST">
+            <form action="/suramerica2030/usuarios/guardar" method="POST" data-live="true" data-live-refresh="#usuarios" data-live-reset="true">
                 <div class="modal-body">
                     <div class="mb-3">
                         <label>Nombre del Personal</label>
@@ -472,7 +474,7 @@
                 <h5 class="modal-title">Crear Nuevo Rol</h5>
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
             </div>
-            <form action="/suramerica2030/usuarios/guardarRol" method="POST">
+            <form action="/suramerica2030/usuarios/guardarRol" method="POST" data-live="true" data-live-refresh="#roles" data-live-reset="true">
                 <div class="modal-body">
                     <div class="mb-3">
                         <label class="fw-bold">Nombre del Perfil/Rol</label>
@@ -530,7 +532,7 @@
                 <h5 class="modal-title">Registrar Sucursal</h5>
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
             </div>
-            <form action="/suramerica2030/usuarios/guardarSucursal" method="POST">
+            <form action="/suramerica2030/usuarios/guardarSucursal" method="POST" data-live="true" data-live-refresh="#sucursales" data-live-reset="true">
                 <div class="modal-body">
                     <div class="mb-2">
                         <label>País</label>
@@ -553,6 +555,7 @@
                     <button type="submit" class="btn btn-dark w-100 fw-bold">Crear Sucursal</button>
                 </div>
             </form>
+
         </div>
     </div>
 </div>

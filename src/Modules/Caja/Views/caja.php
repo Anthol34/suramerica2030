@@ -132,7 +132,7 @@ $esAdmin = (isset($_SESSION['rol_id']) && intval($_SESSION['rol_id']) === 1);
                         <?php elseif($cierreDia): ?>
                             <div class="alert alert-danger text-center p-3 mb-0"><strong>Caja Cerrada</strong><br><small>No se permiten más registros para esta fecha.</small></div>
                         <?php else: ?>
-                            <form action="/suramerica2030/caja/guardar" method="POST">
+                            <form action="/suramerica2030/caja/guardar" method="POST" data-live="true" data-live-refresh="#tabMovimientos">
                                 <input type="hidden" name="fecha_actual" value="<?= htmlspecialchars($fecha_consulta) ?>">
                                 <div class="mb-2"><label>Tipo de Movimiento</label><select name="tipo_movimiento" class="form-select" required><option value="INGRESO">Ingreso (Otros Ingresos)</option><option value="EGRESO">Egreso (Pago Luz, Viáticos)</option></select></div>
                                 <div class="mb-2"><label>Método</label><select name="metodo_pago" class="form-select" required><option value="EFECTIVO">Efectivo</option><option value="TRANSFERENCIA">Transferencia</option></select></div>
@@ -227,7 +227,7 @@ $esAdmin = (isset($_SESSION['rol_id']) && intval($_SESSION['rol_id']) === 1);
                                     <tr><td colspan="<?= $colspanEmpty ?>" class="text-center text-muted py-4">No hay movimientos registrados en esta fecha.</td></tr>
                                 <?php else: ?>
                                     <?php foreach($movimientos as $mov): ?>
-                                        <tr>
+                                        <tr id="fila_mov_<?= $mov['ID_MOVIMIENTO'] ?>">
                                             <?php if($esAdmin): ?>
                                                 <td class="text-center">
                                                     <?php if($cierreDia): ?>
@@ -314,7 +314,7 @@ $esAdmin = (isset($_SESSION['rol_id']) && intval($_SESSION['rol_id']) === 1);
                 </h6>
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Cerrar"></button>
             </div>
-            <form action="/suramerica2030/caja/moverfecha" method="POST" id="formMoverFecha" onsubmit="return validarFormMoverFecha()">
+            <form action="/suramerica2030/caja/moverfecha" method="POST" id="formMoverFecha" data-live="true" data-live-refresh="#tabMovimientos" onsubmit="return validarFormMoverFecha()">
                 <input type="hidden" name="fecha_actual" value="<?= htmlspecialchars($fecha_consulta) ?>">
                 <input type="hidden" name="sucursal_actual" value="<?= htmlspecialchars($sucursal_id) ?>">
                 <div id="hiddenMovimientosContainer"></div>
@@ -370,7 +370,7 @@ window.CAJA_CONFIG = { fechaConsulta: <?= json_encode($fecha_consulta) ?> };
                 <h5 class="modal-title fw-bold" id="modalAbrirCajaLabel">🟢 Apertura Formal de Caja / Turno</h5>
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Cerrar"></button>
             </div>
-            <form action="/suramerica2030/caja/abrir" method="POST">
+            <form action="/suramerica2030/caja/abrir" method="POST" data-live="true" data-live-refresh="body">
                 <input type="hidden" name="fecha_apertura" value="<?= htmlspecialchars($fecha_consulta) ?>">
                 <input type="hidden" name="sucursal_id" value="<?= htmlspecialchars($sucursal_id) ?>">
                 <input type="hidden" name="redirect_to" value="index">

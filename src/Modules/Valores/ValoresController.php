@@ -38,10 +38,13 @@ class ValoresController {
 
     public function entregar() {
         if ($_SERVER['REQUEST_METHOD'] == 'POST') {
-            $res = $this->repository->entregarValorBD($_POST['id_valor'], $_POST['id_factura'], $_POST['monto_entregar'], $_SESSION['user_id'], $_SESSION['sucursal_id']);
-            if ($res === true) header("Location: /suramerica2030/valores?status=success_entrega");
-            else $this->redireccionar($res);
-            exit();
+            $idValor = $_POST['id_valor'] ?? null;
+            $res = $this->repository->entregarValorBD($idValor, $_POST['id_factura'], $_POST['monto_entregar'], $_SESSION['user_id'], $_SESSION['sucursal_id']);
+            if ($res === true) {
+                \Platform\Helpers\LiveResponse::respond(true, null, 'success_entrega', 'Valor entregado exitosamente al destinatario.', ['id_valor' => $idValor], '/suramerica2030/valores');
+            } else {
+                $this->redireccionar($res);
+            }
         }
     }
 
@@ -49,22 +52,24 @@ class ValoresController {
         if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             $permiso = (isset($_SESSION['rol_id']) && $_SESSION['rol_id'] == 1) ? 1 : ($_SESSION['p_anular'] ?? 0);
             $res = $this->service->procesarAnulacion($_POST['id_factura'], $_SESSION['user_id'], $_SESSION['sucursal_id'], $permiso);
-            if ($res['status'] === 'success') header("Location: /suramerica2030/valores?status=success_delete");
-            else $this->redireccionar($res['mensaje']);
-            exit();
+            if ($res['status'] === 'success') {
+                \Platform\Helpers\LiveResponse::respond(true, null, 'success_delete', 'Envío de valor anulado exitosamente.', ['id_factura' => $_POST['id_factura']], '/suramerica2030/valores');
+            } else {
+                $this->redireccionar($res['mensaje']);
+            }
         }
     }
 
     public function solicitarAnulacion() {
         if ($_SERVER['REQUEST_METHOD'] == 'POST' && !empty($_POST['id_factura'])) {
+            $idFactura = (int)$_POST['id_factura'];
             $pasajesRepo = new \Modules\Pasajes\PasajesRepository();
-            $res = $pasajesRepo->solicitarAnulacionBD('VALOR', (int)$_POST['id_factura'], (int)$_POST['id_factura'], $_SESSION['user_id'], $_SESSION['sucursal_id'], floatval($_POST['monto_devolver'] ?? 0), $_POST['motivo'] ?? '');
+            $res = $pasajesRepo->solicitarAnulacionBD('VALOR', $idFactura, $idFactura, $_SESSION['user_id'], $_SESSION['sucursal_id'], floatval($_POST['monto_devolver'] ?? 0), $_POST['motivo'] ?? '');
             if ($res === true) {
-                header("Location: /suramerica2030/valores?status=success_solicitud");
+                \Platform\Helpers\LiveResponse::respond(true, null, 'success_solicitud', 'Solicitud de anulación enviada a Administración.', ['id_factura' => $idFactura], '/suramerica2030/valores');
             } else {
-                header("Location: /suramerica2030/valores?status=error&msg=" . urlencode($res));
+                \Platform\Helpers\LiveResponse::respond(['status' => 'error', 'mensaje' => $res], null, 'success', '', [], '/suramerica2030/valores');
             }
-            exit();
         }
     }
 
@@ -77,8 +82,7 @@ class ValoresController {
     }
 
     private function redireccionar($mensajeError) {
-        header("Location: /suramerica2030/valores?status=error&msg=" . urlencode($mensajeError));
-        exit();
+        \Platform\Helpers\LiveResponse::respond(['status' => 'error', 'mensaje' => $mensajeError], null, 'success', '', [], '/suramerica2030/valores');
     }
 }
 ?>

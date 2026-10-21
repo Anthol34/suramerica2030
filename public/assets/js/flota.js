@@ -829,6 +829,10 @@ function renderBadgeModalidad(modalidad, numTramos, operadorMostrar) {
 }
 
 function mostrarToastFlota(mensaje, tipo = 'success') {
+    if (window.LiveData && typeof LiveData.toast === 'function') {
+        LiveData.toast(mensaje, tipo);
+        return;
+    }
     const toastEl = document.getElementById('toastFlotaAjax');
     if (!toastEl) return;
     

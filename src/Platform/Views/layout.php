@@ -8,10 +8,16 @@
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <?php 
         $vLayoutCss = @filemtime(__DIR__ . '/../../../public/assets/css/layout.css') ?: time();
+        $vLiveDataCss = @filemtime(__DIR__ . '/../../../public/assets/css/live-data.css') ?: time();
     ?>
     <link rel="stylesheet" href="/suramerica2030/public/assets/css/layout.css?v=<?= $vLayoutCss ?>">
+    <link rel="stylesheet" href="/suramerica2030/public/assets/css/live-data.css?v=<?= $vLiveDataCss ?>">
 </head>
 <body class="bg-light position-relative">
+
+<!-- Contenedor Universal de Notificaciones Toast Reactivas (LiveData) -->
+<div id="liveDataToastContainer"></div>
+
 
 <!-- Notificación Global de Actualización de Perfil -->
 <?php if(isset($_GET['status']) && $_GET['status'] == 'success_perfil'): ?>
@@ -406,6 +412,10 @@ if (isset($titulo)) {
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<?php 
+    $vLiveDataJs = @filemtime(__DIR__ . '/../../../public/assets/js/live-data.js') ?: time();
+?>
+<script src="/suramerica2030/public/assets/js/live-data.js?v=<?= $vLiveDataJs ?>"></script>
 <script src="/suramerica2030/public/assets/js/html5-qrcode.min.js"></script>
 <!-- Script Global de Sanitización en Tiempo Real (Mayúsculas sin tilde, Ñ permitida) -->
 <?php 
@@ -413,6 +423,7 @@ if (isset($titulo)) {
     $vMobileJs = @filemtime(__DIR__ . '/../../../public/assets/js/mobile-nav.js') ?: time();
     $vValidacionesJs = @filemtime(__DIR__ . '/../../../public/assets/js/validaciones.js') ?: time();
 ?>
+
 <script src="/suramerica2030/public/assets/js/validaciones.js?v=<?= $vValidacionesJs ?>"></script>
 <script src="/suramerica2030/public/assets/js/sanitizar-inputs.js?v=<?= $vSanitizarJs ?>"></script>
 <!-- Script de Navegación Móvil (Menú Hamburguesa y Drawer Lateral) -->

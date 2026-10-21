@@ -94,7 +94,7 @@
                         $numPapeletas = !empty($deposito['detalles_depositos']) ? count($deposito['detalles_depositos']) : 0;
                         $estado = $deposito['DEPOSITO_ESTADO'] ?? 'PENDIENTE';
                     ?>
-                    <tr>
+                    <tr id="fila_deposito_<?= $deposito['ID_CIERRE'] ?>">
                         <td class="text-center fw-bold"><?= date('Y-m-d H:i', strtotime($deposito['FECHA_HORA'])) ?></td>
                         <td class="text-primary fw-bold text-center"><?= htmlspecialchars($deposito['CODIGO_CIERRE'] ?? '#'.$deposito['ID_CIERRE']) ?></td>
                         <td><?= htmlspecialchars($deposito['SUCURSAL_NOMBRE'] ?? 'Central') ?></td>
@@ -186,7 +186,7 @@
                                             <h6 class="modal-title fs-6">➕ Registrar Depósito Bancario</h6>
                                             <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
                                         </div>
-                                        <form action="/suramerica2030/caja/registrar_deposito" method="POST">
+                                        <form action="/suramerica2030/caja/registrar_deposito" method="POST" data-live="true" data-live-highlight="#fila_deposito_<?= $deposito['ID_CIERRE'] ?>">
                                             <input type="hidden" name="id_cierre" value="<?= $deposito['ID_CIERRE'] ?>">
                                             <div class="modal-body p-3">
                                                 <!-- Resumen del Cierre -->
@@ -322,7 +322,7 @@
                                             <h6 class="modal-title fs-6">✔️ Validar y Aprobar Depósito</h6>
                                             <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
                                         </div>
-                                        <form action="/suramerica2030/caja/procesar_deposito" method="POST">
+                                        <form action="/suramerica2030/caja/procesar_deposito" method="POST" data-live="true" data-live-highlight="#fila_deposito_<?= $deposito['ID_CIERRE'] ?>">
                                             <input type="hidden" name="id_cierre" value="<?= $deposito['ID_CIERRE'] ?>">
                                             <div class="modal-body p-3">
                                                 <div class="mb-2">

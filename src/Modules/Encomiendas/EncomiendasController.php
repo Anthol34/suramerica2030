@@ -59,18 +59,18 @@ class EncomiendasController {
         if (isset($_GET['id_encomienda']) && isset($_GET['estado'])) {
             $estado = $_GET['estado'];
             if ($estado == 'En Tránsito' && !$this->tienePermisoDespacho()) {
-                header("Location: /suramerica2030/encomiendas?status=error&msg=" . urlencode("Acceso denegado: Tu rol no tiene permisos para despachar encomiendas."));
-                exit();
+                \Platform\Helpers\LiveResponse::respond(['status' => 'error', 'mensaje' => 'Acceso denegado: Tu rol no tiene permisos para despachar encomiendas.'], null, 'success', '', [], '/suramerica2030/encomiendas');
             }
             if (($estado == 'Entregado' || $estado == 'En Oficina') && !$this->tienePermisoLlegada()) {
-                header("Location: /suramerica2030/encomiendas?status=error&msg=" . urlencode("Acceso denegado: Tu rol no tiene permisos para registrar llegada o entrega de encomiendas."));
-                exit();
+                \Platform\Helpers\LiveResponse::respond(['status' => 'error', 'mensaje' => 'Acceso denegado: Tu rol no tiene permisos para registrar llegada o entrega de encomiendas.'], null, 'success', '', [], '/suramerica2030/encomiendas');
             }
 
             $res = $this->repository->actualizarEstadoBD($_GET['id_encomienda'], $estado);
-            if ($res) header("Location: /suramerica2030/encomiendas?status=success");
-            else header("Location: /suramerica2030/encomiendas?status=error&msg=No_se_pudo_actualizar");
-            exit();
+            if ($res) {
+                \Platform\Helpers\LiveResponse::respond(true, null, 'success', "Estado actualizado a '{$estado}' correctamente.", ['id_encomienda' => $_GET['id_encomienda'], 'estado' => $estado], '/suramerica2030/encomiendas');
+            } else {
+                \Platform\Helpers\LiveResponse::respond(['status' => 'error', 'mensaje' => 'No se pudo actualizar el estado de la encomienda.'], null, 'success', '', [], '/suramerica2030/encomiendas');
+            }
         }
     }
 
@@ -118,26 +118,29 @@ class EncomiendasController {
     public function eliminar() {
         $permiso = (isset($_SESSION['rol_id']) && $_SESSION['rol_id'] == 1) || (isset($_SESSION['p_anular']) && $_SESSION['p_anular'] == 1);
         if (!$permiso) { 
-            header("Location: /suramerica2030/encomiendas?status=error&msg=No_tienes_permisos_para_anular"); exit(); 
+            \Platform\Helpers\LiveResponse::respond(['status' => 'error', 'mensaje' => 'No tienes permisos para anular.'], null, 'success', '', [], '/suramerica2030/encomiendas');
         }
         if ($_SERVER['REQUEST_METHOD'] == 'POST') {
-            $res = $this->repository->eliminarEncomiendaBD(intval($_POST['id_factura']), $_SESSION['user_id'], $_SESSION['sucursal_id']);
-            if ($res === true) header("Location: /suramerica2030/encomiendas?status=success_delete");
-            else header("Location: /suramerica2030/encomiendas?status=error&msg=" . urlencode($res));
-            exit();
+            $idFactura = intval($_POST['id_factura'] ?? 0);
+            $res = $this->repository->eliminarEncomiendaBD($idFactura, $_SESSION['user_id'], $_SESSION['sucursal_id']);
+            if ($res === true) {
+                \Platform\Helpers\LiveResponse::respond(true, null, 'success_delete', 'Encomienda anulada y eliminada correctamente.', ['id_factura' => $idFactura], '/suramerica2030/encomiendas');
+            } else {
+                \Platform\Helpers\LiveResponse::respond(['status' => 'error', 'mensaje' => $res], null, 'success', '', [], '/suramerica2030/encomiendas');
+            }
         }
     }
 
     public function solicitarAnulacion() {
         if ($_SERVER['REQUEST_METHOD'] == 'POST' && !empty($_POST['id_factura'])) {
+            $idFactura = (int)$_POST['id_factura'];
             $pasajesRepo = new \Modules\Pasajes\PasajesRepository();
-            $res = $pasajesRepo->solicitarAnulacionBD('ENCOMIENDA', (int)$_POST['id_factura'], (int)$_POST['id_factura'], $_SESSION['user_id'], $_SESSION['sucursal_id'], floatval($_POST['monto_devolver'] ?? 0), $_POST['motivo'] ?? '');
+            $res = $pasajesRepo->solicitarAnulacionBD('ENCOMIENDA', $idFactura, $idFactura, $_SESSION['user_id'], $_SESSION['sucursal_id'], floatval($_POST['monto_devolver'] ?? 0), $_POST['motivo'] ?? '');
             if ($res === true) {
-                header("Location: /suramerica2030/encomiendas?status=success&msg=" . urlencode("Solicitud de anulación enviada a Administración."));
+                \Platform\Helpers\LiveResponse::respond(true, null, 'success', 'Solicitud de anulación enviada a Administración.', ['id_factura' => $idFactura], '/suramerica2030/encomiendas');
             } else {
-                header("Location: /suramerica2030/encomiendas?status=error&msg=" . urlencode($res));
+                \Platform\Helpers\LiveResponse::respond(['status' => 'error', 'mensaje' => $res], null, 'success', '', [], '/suramerica2030/encomiendas');
             }
-            exit();
         }
     }
 
@@ -151,8 +154,7 @@ class EncomiendasController {
 
     public function unificarDespachos() {
         if (!$this->tienePermisoDespacho()) {
-            header("Location: /suramerica2030/encomiendas?tab=carga&status=error&msg=" . urlencode("Acceso denegado: Tu rol no tiene permisos para despachar encomiendas."));
-            exit();
+            \Platform\Helpers\LiveResponse::respond(['status' => 'error', 'mensaje' => 'Acceso denegado: Tu rol no tiene permisos para despachar encomiendas.'], 'carga', 'success', '', [], '/suramerica2030/encomiendas');
         }
 
         if ($_SERVER['REQUEST_METHOD'] == 'POST') {
@@ -161,22 +163,19 @@ class EncomiendasController {
             $fechaDestino = trim($_POST['fecha_destino_unificada'] ?? '');
 
             if (empty($despachos) || count($despachos) < 2) {
-                header("Location: /suramerica2030/encomiendas?tab=carga&status=error&msg=" . urlencode("Debes seleccionar al menos 2 despachos para integrarlos en uno solo."));
-                exit();
+                \Platform\Helpers\LiveResponse::respond(['status' => 'error', 'mensaje' => 'Debes seleccionar al menos 2 despachos para integrarlos en uno solo.'], 'carga', 'success', '', [], '/suramerica2030/encomiendas');
             }
 
             if ($rutaDestinoId <= 0 || empty($fechaDestino)) {
-                header("Location: /suramerica2030/encomiendas?tab=carga&status=error&msg=" . urlencode("Debes indicar la ruta y fecha de viaje para el despacho integrado."));
-                exit();
+                \Platform\Helpers\LiveResponse::respond(['status' => 'error', 'mensaje' => 'Debes indicar la ruta y fecha de viaje para el despacho integrado.'], 'carga', 'success', '', [], '/suramerica2030/encomiendas');
             }
 
             $res = $this->repository->unificarDespachosBD($despachos, $rutaDestinoId, $fechaDestino);
             if ($res === true) {
-                header("Location: /suramerica2030/encomiendas?tab=carga&status=success_unificar&fecha_d=" . urlencode($fechaDestino) . "&ruta_d=" . $rutaDestinoId);
+                \Platform\Helpers\LiveResponse::respond(true, 'carga', 'success_unificar', 'Despachos unificados exitosamente.', ['fecha_d' => $fechaDestino, 'ruta_d' => $rutaDestinoId], '/suramerica2030/encomiendas');
             } else {
-                header("Location: /suramerica2030/encomiendas?tab=carga&status=error&msg=" . urlencode("Error al unificar: " . $res));
+                \Platform\Helpers\LiveResponse::respond(['status' => 'error', 'mensaje' => 'Error al unificar: ' . $res], 'carga', 'success', '', [], '/suramerica2030/encomiendas');
             }
-            exit();
         }
     }
 

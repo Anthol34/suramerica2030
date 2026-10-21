@@ -53,11 +53,9 @@ class FlotaController {
         if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             $resultado = $this->service->procesarCrearCorredor($_POST);
             if (is_numeric($resultado)) {
-                header("Location: /suramerica2030/flota?tab=corredor&corredor_id={$resultado}&status=success");
-                exit();
+                \Platform\Helpers\LiveResponse::respond(true, "corredor&corredor_id={$resultado}", 'success', 'Nuevo corredor creado exitosamente.', ['id_corredor' => $resultado], '/suramerica2030/flota');
             } else {
-                header("Location: /suramerica2030/flota?tab=corredor&status=error&msg=" . urlencode($resultado));
-                exit();
+                \Platform\Helpers\LiveResponse::respond(is_string($resultado) ? $resultado : 'Error al crear corredor', 'corredor', 'error', '', [], '/suramerica2030/flota');
             }
         }
     }
@@ -75,25 +73,16 @@ class FlotaController {
         if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             $resultado = $this->service->procesarActualizarCorredor($_POST);
             $idCorredor = intval($_POST['id_corredor'] ?? 1);
-            if ($resultado === true) {
-                header("Location: /suramerica2030/flota?tab=corredor&corredor_id={$idCorredor}&status=success_edit");
-                exit();
-            } else {
-                header("Location: /suramerica2030/flota?tab=corredor&corredor_id={$idCorredor}&status=error&msg=" . urlencode($resultado));
-                exit();
-            }
+            \Platform\Helpers\LiveResponse::respond($resultado, "corredor&corredor_id={$idCorredor}", 'success_edit', 'Políticas del corredor actualizadas correctamente.', ['id_corredor' => $idCorredor], '/suramerica2030/flota');
         }
     }
 
     public function guardarParada() {
         $this->verificarPermiso();
         if ($_SERVER['REQUEST_METHOD'] == 'POST') {
-            $resultado = $this->service->procesarAgregarParada($_POST);
             $idCorredor = intval($_POST['id_corredor'] ?? 1);
-            $token = ($resultado === true) ? 'success' : 'error';
-            $extra = ($resultado === true) ? '' : '&msg=' . urlencode($resultado);
-            header("Location: /suramerica2030/flota?tab=corredor&corredor_id={$idCorredor}&status={$token}{$extra}");
-            exit();
+            $resultado = $this->service->procesarAgregarParada($_POST);
+            \Platform\Helpers\LiveResponse::respond($resultado, "corredor&corredor_id={$idCorredor}", 'success', 'Parada agregada al itinerario correctamente.', ['id_corredor' => $idCorredor], '/suramerica2030/flota');
         }
     }
 
@@ -102,10 +91,7 @@ class FlotaController {
         if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             $idCorredor = intval($_POST['id_corredor_retorno'] ?? 1);
             $resultado = $this->service->procesarEliminarParada($_POST);
-            $token = ($resultado === true) ? 'success_delete' : 'error';
-            $extra = ($resultado === true) ? '' : '&msg=' . urlencode($resultado);
-            header("Location: /suramerica2030/flota?tab=corredor&corredor_id={$idCorredor}&status={$token}{$extra}");
-            exit();
+            \Platform\Helpers\LiveResponse::respond($resultado, "corredor&corredor_id={$idCorredor}", 'success_delete', 'Parada eliminada del corredor.', ['id_corredor' => $idCorredor], '/suramerica2030/flota');
         }
     }
 
@@ -114,10 +100,7 @@ class FlotaController {
         if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             $idCorredor = intval($_POST['id_corredor_retorno'] ?? 1);
             $resultado = $this->service->procesarMoverParada($_POST);
-            $token = ($resultado === true) ? 'success_edit' : 'error';
-            $extra = ($resultado === true) ? '' : '&msg=' . urlencode($resultado);
-            header("Location: /suramerica2030/flota?tab=corredor&corredor_id={$idCorredor}&status={$token}{$extra}");
-            exit();
+            \Platform\Helpers\LiveResponse::respond($resultado, "corredor&corredor_id={$idCorredor}", 'success_edit', 'Orden de paradas actualizado.', ['id_corredor' => $idCorredor], '/suramerica2030/flota');
         }
     }
 
@@ -126,10 +109,7 @@ class FlotaController {
         if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             $idCorredor = intval($_POST['id_corredor'] ?? 1);
             $resultado = $this->service->procesarActualizarBusTramo($_POST);
-            $token = ($resultado === true) ? 'success_edit' : 'error';
-            $extra = ($resultado === true) ? '' : '&msg=' . urlencode($resultado);
-            header("Location: /suramerica2030/flota?tab=corredor&corredor_id={$idCorredor}&status={$token}{$extra}");
-            exit();
+            \Platform\Helpers\LiveResponse::respond($resultado, "corredor&corredor_id={$idCorredor}", 'success_edit', 'Bus y unidad operativa asignada al tramo.', ['id_corredor' => $idCorredor], '/suramerica2030/flota');
         }
     }
 
@@ -296,12 +276,15 @@ class FlotaController {
     }
     
     private function redireccionar($tab, $resultado, $successToken) {
-        if ($resultado === true) {
-            header("Location: /suramerica2030/flota?tab=$tab&status=$successToken");
-        } else {
-            header("Location: /suramerica2030/flota?tab=$tab&status=error&msg=" . urlencode($resultado));
-        }
-        exit();
+        $mensajes = [
+            'success' => 'Registro completado con éxito.',
+            'success_edit' => 'Cambios guardados correctamente.',
+            'success_delete' => 'Eliminado correctamente.',
+            'success_delete_bus' => 'Unidad (Bus) eliminada correctamente.',
+            'success_archived' => 'Ruta inactivada correctamente.'
+        ];
+        $msg = $mensajes[$successToken] ?? 'Operación realizada con éxito.';
+        \Platform\Helpers\LiveResponse::respond($resultado, $tab, $successToken, $msg, [], '/suramerica2030/flota');
     }
 }
 ?>
