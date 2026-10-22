@@ -22,9 +22,9 @@ class FlotaService {
         // Empaquetamos los días (ej: [1,3,5] -> "1,3,5")
         $diasSalida = isset($datos['dias']) ? implode(',', $datos['dias']) : '';
         
-        // Empaquetamos los tramos si es un viaje de conexión
+        // Empaquetamos los tramos para cualquier ruta (Directa de 1 tramo o Conexión de 2+ tramos)
         $tramos = [];
-        if (($datos['tipo_viaje'] ?? 'DIRECTO') === 'CONEXION' && isset($datos['tramo_origen'])) {
+        if (isset($datos['tramo_origen']) && is_array($datos['tramo_origen'])) {
             foreach ($datos['tramo_origen'] as $i => $origen) {
                 if (!empty($origen) && !empty($datos['tramo_destino'][$i])) {
                     $pvp = floatval($datos['tramo_pvp'][$i] ?? 0);
@@ -62,47 +62,63 @@ class FlotaService {
             }
         }
 
-        $tipoViaje = $datos['tipo_viaje'] ?? 'DIRECTO';
+        // Si no se enviaron tramos pero sí origen y destino, sintetizar el tramo único para viaje directo
+        if (empty($tramos) && !empty($datos['origen']) && !empty($datos['destino'])) {
+            $costoFallback = floatval($datos['costo_operador'] ?? $datos['costo_total_ruta'] ?? 0);
+            $pvpFallback = floatval($datos['precio_pasaje'] ?? 0);
+            $idOpFallback = !empty($datos['id_operador']) ? intval($datos['id_operador']) : 1;
+            $nomOpFallback = trim($datos['operador_nombre'] ?? $datos['operador'] ?? 'Suramérica 2030');
+            $admiteSpFallback = isset($datos['admite_sobrepeso']) ? intval($datos['admite_sobrepeso']) : 1;
+
+            $tramos[] = [
+                'id_operador' => $idOpFallback,
+                'origen' => trim($datos['origen']),
+                'destino' => trim($datos['destino']),
+                'operador' => $nomOpFallback,
+                'pvp' => $pvpFallback,
+                'costo' => $costoFallback,
+                'utilidad' => max(0, $pvpFallback - $costoFallback),
+                'admite_sobrepeso' => $admiteSpFallback,
+                'limite_equipaje' => floatval($datos['limite_equipaje'] ?? 35),
+                'precio_sobrepeso' => floatval($datos['precio_sobrepeso'] ?? 1),
+                'costo_sobrepeso' => 0,
+                'utilidad_sobrepeso' => floatval($datos['precio_sobrepeso'] ?? 1)
+            ];
+        }
+
+        $costoTotalRuta = array_sum(array_column($tramos, 'costo'));
+        if ($costoTotalRuta <= 0 && !empty($datos['costo_total_ruta'])) {
+            $costoTotalRuta = floatval($datos['costo_total_ruta']);
+        }
+
+        $tipoViaje = count($tramos) > 1 ? 'CONEXION' : 'DIRECTO';
         $precioPasaje = floatval($datos['precio_pasaje'] ?? 0);
         $tipoUtilidad = $datos['tipo_utilidad'] ?? 'PORCENTAJE';
         $utilidadPasaje = floatval($datos['utilidad_pasaje'] ?? 100);
 
-        // Si es ruta con conexión, el precio y la utilidad de pasajes se derivan estrictamente de los tramos
-        if ($tipoViaje === 'CONEXION' && !empty($tramos)) {
+        if (!empty($tramos)) {
             $sumaPvp = array_sum(array_column($tramos, 'pvp'));
             $sumaUtil = array_sum(array_column($tramos, 'utilidad'));
-            if ($sumaPvp > 0) {
+            if ($precioPasaje <= 0 && $sumaPvp > 0) {
                 $precioPasaje = $sumaPvp;
-                if ($tipoUtilidad === 'FIJO') {
-                    $utilidadPasaje = round($sumaUtil, 2);
-                } else {
-                    $utilidadPasaje = round(($sumaUtil / $sumaPvp) * 100, 2);
-                }
             }
-        } elseif ($precioPasaje <= 0 && !empty($tramos)) {
-            $sumaPvp = array_sum(array_column($tramos, 'pvp'));
-            if ($sumaPvp > 0) {
-                $precioPasaje = $sumaPvp;
+            if ($tipoUtilidad === 'FIJO') {
+                $utilidadPasaje = round($sumaUtil > 0 ? $sumaUtil : max(0, $precioPasaje - $costoTotalRuta), 2);
+            } else {
+                $utilidadPasaje = ($precioPasaje > 0) ? round((max(0, $precioPasaje - $costoTotalRuta) / $precioPasaje) * 100, 2) : 0;
             }
         }
 
         $idOperador = !empty($datos['id_operador']) ? intval($datos['id_operador']) : (!empty($datos['operador_id']) ? intval($datos['operador_id']) : 1);
         $operadorNombre = trim($datos['operador_nombre'] ?? $datos['operador'] ?? $datos['operador_directo'] ?? '');
 
-        // Resolver Modalidad: Respeta selección explícita/personalizada o resuelve automáticamente por reglas
-        $modalidadInput = trim($datos['modalidad'] ?? '');
-        if ($modalidadInput === 'OTRO' && !empty($datos['modalidad_personalizada'])) {
-            $modalidad = trim($datos['modalidad_personalizada']);
-        } elseif (!empty($modalidadInput) && $modalidadInput !== 'AUTO') {
-            $modalidad = $modalidadInput;
-        } else {
-            $modalidad = \Platform\Helpers\ModalidadHelper::resolverModalidadAutomatica($idOperador, $tipoViaje, $tramos, $operadorNombre);
-        }
-
-        // Si es conexión, el operador principal de cabecera debe reflejar los tramos o Suramérica 2030 como consolidador
-        if ($tipoViaje === 'CONEXION') {
+        // Si es 1 solo tramo, el operador de la ruta es el operador de dicho tramo
+        if (count($tramos) === 1) {
+            $idOperador = $tramos[0]['id_operador'];
+            $operadorNombre = $tramos[0]['operador'];
+        } elseif (count($tramos) > 1) {
             $tramosOpIds = array_unique(array_filter(array_column($tramos, 'id_operador')));
-            if (in_array(2, $tramosOpIds) || $modalidad === 'PANAMERICANA') {
+            if (in_array(2, $tramosOpIds)) {
                 $idOperador = 2;
                 $operadorNombre = 'Panamericana';
             } elseif (count($tramosOpIds) === 1) {
@@ -114,8 +130,18 @@ class FlotaService {
             }
         }
 
+        // Resolver Modalidad: Respeta selección explícita/personalizada o resuelve automáticamente por reglas
+        $modalidadInput = trim($datos['modalidad'] ?? '');
+        if ($modalidadInput === 'OTRO' && !empty($datos['modalidad_personalizada'])) {
+            $modalidad = trim($datos['modalidad_personalizada']);
+        } elseif (!empty($modalidadInput) && $modalidadInput !== 'AUTO') {
+            $modalidad = $modalidadInput;
+        } else {
+            $modalidad = \Platform\Helpers\ModalidadHelper::resolverModalidadAutomatica($idOperador, $tipoViaje, $tramos, $operadorNombre);
+        }
+
         $operador = !empty($operadorNombre) ? $operadorNombre : ($idOperador == 2 ? 'Panamericana' : 'Suramérica 2030');
-        $admiteSp = isset($datos['admite_sobrepeso']) ? intval($datos['admite_sobrepeso']) : 1;
+        $admiteSp = isset($datos['admite_sobrepeso']) ? intval($datos['admite_sobrepeso']) : (!empty($tramos[0]['admite_sobrepeso']) ? 1 : 0);
 
         return [
             'id_ruta' => $datos['id_ruta'] ?? null,
@@ -130,6 +156,7 @@ class FlotaService {
             'dias_salida' => $diasSalida,
             'hora_salida' => $datos['hora_salida'],
             'precio_pasaje' => $precioPasaje,
+            'costo_total_ruta' => $costoTotalRuta,
             'precio_encomienda' => floatval($datos['precio_encomienda'] ?? 0),
             'precio_sobre' => floatval($datos['precio_sobre'] ?? 5),
             'precio_volumen' => floatval($datos['precio_volumen'] ?? 0),

@@ -109,6 +109,31 @@ function alCambiarCabecerasRuta(rutaId) {
                 selDestTramo.value = dest;
             }
             actualizarTitulosTramos(container);
+
+            // Auto-completar costo y PVP del tramo si existe en catálogo de tramos
+            if (orig && dest && typeof TRAMOS_CATALOGO !== 'undefined' && Array.isArray(TRAMOS_CATALOGO)) {
+                const match = TRAMOS_CATALOGO.find(t => 
+                    (t.ORIGEN_TRAMO || '').toLowerCase().trim() === orig.toLowerCase().trim() &&
+                    (t.DESTINO_TRAMO || '').toLowerCase().trim() === dest.toLowerCase().trim()
+                );
+                if (match) {
+                    const inpCosto = card1.querySelector('.tramo-costo');
+                    const inpPvp = card1.querySelector('.tramo-pvp');
+                    const selOp = card1.querySelector('select[name="tramo_id_operador[]"]');
+                    const hidOp = card1.querySelector('input[name="tramo_operador[]"]');
+                    if (selOp && match.ID_OPERADOR) {
+                        selOp.value = match.ID_OPERADOR;
+                        if (hidOp) hidOp.value = match.OPERADOR_NOMBRE || selOp.options[selOp.selectedIndex]?.text || '';
+                    }
+                    if (inpCosto && (!parseFloat(inpCosto.value) || parseFloat(inpCosto.value) === 0)) {
+                        inpCosto.value = parseFloat(match.COSTO_OPERADOR || 0).toFixed(2);
+                    }
+                    if (inpPvp && (!parseFloat(inpPvp.value) || parseFloat(inpPvp.value) === 0)) {
+                        inpPvp.value = parseFloat(match.PVP_SUGERIDO || 0).toFixed(2);
+                    }
+                    recalcularFinanzasTramo(inpPvp || inpCosto, rutaId);
+                }
+            }
         }
     }
 }
@@ -123,28 +148,29 @@ function toggleTramos(valor, divId) {
     const listaContainerId = rutaId ? 'lista_tramos_edit_' + rutaId : 'lista_tramos_nuevos';
     const listaContainer = document.getElementById(listaContainerId);
 
+    // UNIFICADO: Los tramos SIEMPRE están visibles y activos para rutas directas (1 tramo) y con conexiones (2+ tramos)
+    div.classList.remove('d-none');
+    div.querySelectorAll('input, select, textarea').forEach(el => el.disabled = false);
+
+    if (divDirecto) {
+        divDirecto.style.display = 'none';
+        divDirecto.querySelectorAll('input, select').forEach(el => el.disabled = false);
+    }
+
+    if (badgeAuto) badgeAuto.classList.remove('d-none');
+
     if (valor === 'CONEXION') {
-        div.classList.remove('d-none');
-        div.querySelectorAll('input, select, textarea').forEach(el => el.disabled = false);
-        if (divDirecto) {
-            divDirecto.classList.add('d-none');
-            divDirecto.querySelectorAll('input, select').forEach(el => el.disabled = true);
-        }
-        if (badgeAuto) badgeAuto.classList.remove('d-none');
         if (hintUtil) hintUtil.textContent = '⚡ Calculado automáticamente de la suma de tramos.';
         if (listaContainer && listaContainer.querySelectorAll('.tramo-card').length === 0) {
             addTramo(listaContainerId, rutaId);
         }
     } else {
-        div.classList.add('d-none');
-        div.querySelectorAll('input, select, textarea').forEach(el => el.disabled = true);
-        if (divDirecto) {
-            divDirecto.classList.remove('d-none');
-            divDirecto.querySelectorAll('input, select').forEach(el => el.disabled = false);
+        if (hintUtil) hintUtil.textContent = '⚡ Costo de liquidación al operador del tramo.';
+        if (listaContainer && listaContainer.querySelectorAll('.tramo-card').length === 0) {
+            addTramo(listaContainerId, rutaId);
         }
-        if (badgeAuto) badgeAuto.classList.add('d-none');
-        if (hintUtil) hintUtil.textContent = 'Retención directa de agencia (% o $).';
     }
+    recalcularTotalesRuta(rutaId);
 }
 
 function actualizarTitulosTramos(container) {
@@ -262,6 +288,14 @@ function addTramo(containerId, rutaId = '') {
 function eliminarTramoCard(btn, rutaId) {
     const card = btn.closest('.tramo-card');
     const container = card ? card.parentElement : null;
+    if (container && container.querySelectorAll('.tramo-card').length <= 1) {
+        if (typeof mostrarToastFlota === 'function') {
+            mostrarToastFlota('La ruta comercial debe tener al menos 1 tramo operativo.', 'warning');
+        } else {
+            alert('La ruta comercial debe tener al menos 1 tramo operativo.');
+        }
+        return;
+    }
     if (card) {
         card.remove();
     }
@@ -1050,27 +1084,43 @@ function actualizarFilaRutaEnDOM(ruta) {
         `;
     }
 
-    // Columna 4: Tarifa Pasaje
-    const colPasaje = fila.querySelector('.col-ruta-tarifa-pasaje');
-    if (colPasaje) {
-        const txtUtil = (tipoUtilidad === 'FIJO') 
-            ? '$' + utilidadPasaje.toFixed(2) 
-            : utilidadPasaje.toFixed(0) + '%';
-        colPasaje.innerHTML = `
-            <span class="fs-6 fw-bold text-dark">$ ${precioPasaje.toFixed(2)}</span>
-            <small class="text-success d-block fw-bold" style="font-size: 0.72rem;" title="Retención de Utilidad de la Agencia">
-                💼 ${txtUtil} util.
-            </small>
+    // Columna Costo Operador / Liquidación
+    const colCosto = fila.querySelector('.col-ruta-costo');
+    const costoTotal = parseFloat(ruta.COSTO_CALCULADO !== undefined ? ruta.COSTO_CALCULADO : (ruta.COSTO_TOTAL_RUTA || 0));
+    if (colCosto) {
+        colCosto.innerHTML = `
+            <span class="fs-6 fw-bold text-danger">$${costoTotal.toFixed(2)}</span>
+            <small class="text-muted d-block" style="font-size: 0.68rem;">liquidación</small>
         `;
     }
 
-    // Columna 5: Tarifa Encomienda
-    const colEncomienda = fila.querySelector('.col-ruta-tarifa-encomienda');
-    if (colEncomienda) {
-        colEncomienda.innerHTML = `<span class="fs-6 fw-bold text-dark">$ ${precioEncomienda.toFixed(2)}</span>`;
+    // Columna Tarifa Pasaje (PVP)
+    const colPasaje = fila.querySelector('.col-ruta-tarifa-pasaje');
+    if (colPasaje) {
+        colPasaje.innerHTML = `
+            <span class="fs-6 fw-bold text-primary">$${precioPasaje.toFixed(2)}</span>
+            <small class="text-muted d-block" style="font-size: 0.68rem;">precio viajero</small>
+        `;
     }
 
-    // Columna 6: Estado
+    // Columna Ganancia Agencia
+    const colGanancia = fila.querySelector('.col-ruta-ganancia');
+    const ganancia = parseFloat(ruta.UTILIDAD_CALCULADA !== undefined ? ruta.UTILIDAD_CALCULADA : (ruta.UTILIDAD_PASAJE || Math.max(0, precioPasaje - costoTotal)));
+    const margenPct = parseFloat(ruta.MARGEN_PCT !== undefined ? ruta.MARGEN_PCT : (precioPasaje > 0 ? ((ganancia / precioPasaje) * 100) : 0));
+    if (colGanancia) {
+        colGanancia.innerHTML = `
+            <span class="fs-6 fw-bold text-success">$${ganancia.toFixed(2)}</span>
+            <small class="text-success d-block fw-bold" style="font-size: 0.68rem;">${margenPct.toFixed(1)}% margen</small>
+        `;
+    }
+
+    // Columna Tarifa Encomienda
+    const colEncomienda = fila.querySelector('.col-ruta-tarifa-encomienda');
+    if (colEncomienda) {
+        colEncomienda.innerHTML = `<span class="fs-6 fw-bold text-dark">$${precioEncomienda.toFixed(2)}</span>`;
+    }
+
+    // Columna Estado
     const colEstado = fila.querySelector('.col-ruta-estado');
     if (colEstado) {
         colEstado.innerHTML = esActivo 
@@ -1217,6 +1267,17 @@ document.addEventListener('DOMContentLoaded', function() {
             const tabObj = bootstrap.Tab.getOrCreateInstance(tabBtn);
             tabObj.show();
         }
+    }
+
+    // Garantizar que Nueva Ruta Manual tenga al menos 1 tramo operativo al abrirse
+    const modalNueva = document.getElementById('modalNuevaRutaManual');
+    if (modalNueva) {
+        modalNueva.addEventListener('show.bs.modal', function() {
+            const list = document.getElementById('lista_tramos_nuevos');
+            if (list && list.querySelectorAll('.tramo-card').length === 0) {
+                addTramo('lista_tramos_nuevos', '');
+            }
+        });
     }
 });
 

@@ -902,12 +902,21 @@ class FlotaRepository {
             $colsRuta = array_column($this->db->query("DESCRIBE RUTA")->fetchAll(PDO::FETCH_ASSOC), 'Field');
             $hasAdmiteSp = in_array('ADMITE_SOBREPESO', $colsRuta);
             $hasIdOperador = in_array('ID_OPERADOR', $colsRuta);
+            $hasCostoTotal = in_array('COSTO_TOTAL_RUTA', $colsRuta);
 
             $idOp = !empty($datos['id_operador']) ? intval($datos['id_operador']) : 1;
             $modalidad = !empty($datos['modalidad']) ? $datos['modalidad'] : (!empty($datos['operador']) ? $datos['operador'] : 'Propio Suramérica');
 
-            $camposInsert = "ID_CORREDOR, RUT_ORIGEN, RUT_DESTINO, TIPO_VIAJE, MODALIDAD" . ($hasIdOperador ? ", ID_OPERADOR" : "") . ($hasAdmiteSp ? ", ADMITE_SOBREPESO" : "") . ", DIAS_SALIDA, RUT_SAHORA, PRECIO_PASAJE, PRECIO_ENCOMIENDA_KG, PRECIO_SOBRE, PRECIO_VOLUMEN, LIMITE_EQUIPAJE_KG, PRECIO_SOBREPESO_KG, COMISION_VALOR, TIPO_UTILIDAD, UTILIDAD_PASAJE, UTILIDAD_ENCOMIENDA, UTILIDAD_VALORES, ESTADO";
-            $valoresInsert = ":id_corredor, :origen, :destino, :tipo, :modalidad" . ($hasIdOperador ? ", :id_operador" : "") . ($hasAdmiteSp ? ", :admite_sp" : "") . ", :dias, :hora, :precio_p, :precio_e, :precio_sobre, :precio_vol, :limite_eq, :precio_s, :comision_v, :t_util, :u_pasaje, :u_enc, :u_val, 'ACTIVO'";
+            $camposInsert = "ID_CORREDOR, RUT_ORIGEN, RUT_DESTINO, TIPO_VIAJE, MODALIDAD" 
+                . ($hasIdOperador ? ", ID_OPERADOR" : "") 
+                . ($hasAdmiteSp ? ", ADMITE_SOBREPESO" : "") 
+                . ($hasCostoTotal ? ", COSTO_TOTAL_RUTA" : "") 
+                . ", DIAS_SALIDA, RUT_SAHORA, PRECIO_PASAJE, PRECIO_ENCOMIENDA_KG, PRECIO_SOBRE, PRECIO_VOLUMEN, LIMITE_EQUIPAJE_KG, PRECIO_SOBREPESO_KG, COMISION_VALOR, TIPO_UTILIDAD, UTILIDAD_PASAJE, UTILIDAD_ENCOMIENDA, UTILIDAD_VALORES, ESTADO";
+            $valoresInsert = ":id_corredor, :origen, :destino, :tipo, :modalidad" 
+                . ($hasIdOperador ? ", :id_operador" : "") 
+                . ($hasAdmiteSp ? ", :admite_sp" : "") 
+                . ($hasCostoTotal ? ", :costo_total" : "") 
+                . ", :dias, :hora, :precio_p, :precio_e, :precio_sobre, :precio_vol, :limite_eq, :precio_s, :comision_v, :t_util, :u_pasaje, :u_enc, :u_val, 'ACTIVO'";
 
             $query = "INSERT INTO RUTA ($camposInsert) VALUES ($valoresInsert)";
             $stmt = $this->db->prepare($query);
@@ -929,6 +938,9 @@ class FlotaRepository {
             if ($hasAdmiteSp) {
                 $params[':admite_sp'] = $datos['admite_sobrepeso'] ?? 1;
             }
+            if ($hasCostoTotal) {
+                $params[':costo_total'] = floatval($datos['costo_total_ruta'] ?? 0);
+            }
             $stmt->execute($params);
 
             $idRuta = $this->db->lastInsertId();
@@ -937,14 +949,21 @@ class FlotaRepository {
             $this->asegurarCiudadExiste($datos['origen']);
             $this->asegurarCiudadExiste($datos['destino']);
 
-            // Insertar Tramos si es conexión
-            if ($datos['tipo_viaje'] === 'CONEXION' && !empty($datos['tramos'])) {
+            // Insertar Tramos (tanto si es viaje directo de 1 tramo como conexión de varios tramos)
+            if (!empty($datos['tramos'])) {
                 $colsTramo = array_column($this->db->query("DESCRIBE RUTA_TRAMO")->fetchAll(PDO::FETCH_ASSOC), 'Field');
                 $tramoHasIdOp = in_array('ID_OPERADOR', $colsTramo);
+                $tramoHasIdCat = in_array('ID_TRAMO_CATALOGO', $colsTramo);
 
                 $sqlTramo = "INSERT INTO RUTA_TRAMO 
-                    (ID_RUTA, ORDEN, ORIGEN_TRAMO, DESTINO_TRAMO, OPERADOR" . ($tramoHasIdOp ? ", ID_OPERADOR" : "") . ", PVP_TRAMO, COSTO_OPERADOR, UTILIDAD_AGENCIA, ADMITE_SOBREPESO, LIMITE_EQUIPAJE_KG, PRECIO_SOBREPESO_KG, COSTO_SOBREPESO_KG, UTILIDAD_SOBREPESO_KG) 
-                    VALUES (?, ?, ?, ?, ?" . ($tramoHasIdOp ? ", ?" : "") . ", ?, ?, ?, ?, ?, ?, ?, ?)";
+                    (ID_RUTA, ORDEN, ORIGEN_TRAMO, DESTINO_TRAMO, OPERADOR" 
+                    . ($tramoHasIdOp ? ", ID_OPERADOR" : "") 
+                    . ($tramoHasIdCat ? ", ID_TRAMO_CATALOGO" : "") 
+                    . ", PVP_TRAMO, COSTO_OPERADOR, UTILIDAD_AGENCIA, ADMITE_SOBREPESO, LIMITE_EQUIPAJE_KG, PRECIO_SOBREPESO_KG, COSTO_SOBREPESO_KG, UTILIDAD_SOBREPESO_KG) 
+                    VALUES (?, ?, ?, ?, ?" 
+                    . ($tramoHasIdOp ? ", ?" : "") 
+                    . ($tramoHasIdCat ? ", ?" : "") 
+                    . ", ?, ?, ?, ?, ?, ?, ?, ?)";
                 $stmtTramo = $this->db->prepare($sqlTramo);
                 foreach ($datos['tramos'] as $i => $tramo) {
                     $this->asegurarCiudadExiste($tramo['origen']);
@@ -958,6 +977,9 @@ class FlotaRepository {
                     ];
                     if ($tramoHasIdOp) {
                         $vals[] = !empty($tramo['id_operador']) ? intval($tramo['id_operador']) : 1;
+                    }
+                    if ($tramoHasIdCat) {
+                        $vals[] = !empty($tramo['id_tramo_catalogo']) ? intval($tramo['id_tramo_catalogo']) : null;
                     }
                     $vals = array_merge($vals, [
                         $tramo['pvp'] ?? 0.00,
@@ -985,10 +1007,12 @@ class FlotaRepository {
             $colsRuta = array_column($this->db->query("DESCRIBE RUTA")->fetchAll(PDO::FETCH_ASSOC), 'Field');
             $hasAdmiteSp = in_array('ADMITE_SOBREPESO', $colsRuta);
             $hasIdOperador = in_array('ID_OPERADOR', $colsRuta);
+            $hasCostoTotal = in_array('COSTO_TOTAL_RUTA', $colsRuta);
             $setAdmiteSp = $hasAdmiteSp ? ", ADMITE_SOBREPESO = :admite_sp" : "";
             $setIdOperador = $hasIdOperador ? ", ID_OPERADOR = :id_operador" : "";
+            $setCostoTotal = $hasCostoTotal ? ", COSTO_TOTAL_RUTA = :costo_total" : "";
 
-            $query = "UPDATE RUTA SET ID_CORREDOR = COALESCE(:id_corredor, ID_CORREDOR), RUT_ORIGEN = :origen, RUT_DESTINO = :destino, TIPO_VIAJE = :tipo, MODALIDAD = :modalidad $setIdOperador $setAdmiteSp, DIAS_SALIDA = :dias, RUT_SAHORA = :hora, PRECIO_PASAJE = :precio_p, PRECIO_ENCOMIENDA_KG = :precio_e, PRECIO_SOBRE = :precio_sobre, PRECIO_VOLUMEN = :precio_vol, LIMITE_EQUIPAJE_KG = :limite_eq, PRECIO_SOBREPESO_KG = :precio_s, COMISION_VALOR = :comision_v, TIPO_UTILIDAD = :t_util, UTILIDAD_PASAJE = :u_pasaje, UTILIDAD_ENCOMIENDA = :u_enc, UTILIDAD_VALORES = :u_val, ESTADO = :estado WHERE ID_RUTA = :id";
+            $query = "UPDATE RUTA SET ID_CORREDOR = COALESCE(:id_corredor, ID_CORREDOR), RUT_ORIGEN = :origen, RUT_DESTINO = :destino, TIPO_VIAJE = :tipo, MODALIDAD = :modalidad $setIdOperador $setAdmiteSp $setCostoTotal, DIAS_SALIDA = :dias, RUT_SAHORA = :hora, PRECIO_PASAJE = :precio_p, PRECIO_ENCOMIENDA_KG = :precio_e, PRECIO_SOBRE = :precio_sobre, PRECIO_VOLUMEN = :precio_vol, LIMITE_EQUIPAJE_KG = :limite_eq, PRECIO_SOBREPESO_KG = :precio_s, COMISION_VALOR = :comision_v, TIPO_UTILIDAD = :t_util, UTILIDAD_PASAJE = :u_pasaje, UTILIDAD_ENCOMIENDA = :u_enc, UTILIDAD_VALORES = :u_val, ESTADO = :estado WHERE ID_RUTA = :id";
             $stmt = $this->db->prepare($query);
             $params = [
                 ':id_corredor' => $datos['id_corredor'],
@@ -1009,17 +1033,27 @@ class FlotaRepository {
             if ($hasAdmiteSp) {
                 $params[':admite_sp'] = $datos['admite_sobrepeso'] ?? 1;
             }
+            if ($hasCostoTotal) {
+                $params[':costo_total'] = floatval($datos['costo_total_ruta'] ?? 0);
+            }
             $stmt->execute($params);
 
-            // Renovar Tramos
+            // Renovar Tramos (se guardan siempre, tanto si es directo de 1 tramo como conexión de varios tramos)
             $this->db->prepare("DELETE FROM RUTA_TRAMO WHERE ID_RUTA = ?")->execute([$datos['id_ruta']]);
-            if ($datos['tipo_viaje'] === 'CONEXION' && !empty($datos['tramos'])) {
+            if (!empty($datos['tramos'])) {
                 $colsTramo = array_column($this->db->query("DESCRIBE RUTA_TRAMO")->fetchAll(PDO::FETCH_ASSOC), 'Field');
                 $tramoHasIdOp = in_array('ID_OPERADOR', $colsTramo);
+                $tramoHasIdCat = in_array('ID_TRAMO_CATALOGO', $colsTramo);
 
                 $sqlTramo = "INSERT INTO RUTA_TRAMO 
-                    (ID_RUTA, ORDEN, ORIGEN_TRAMO, DESTINO_TRAMO, OPERADOR" . ($tramoHasIdOp ? ", ID_OPERADOR" : "") . ", PVP_TRAMO, COSTO_OPERADOR, UTILIDAD_AGENCIA, ADMITE_SOBREPESO, LIMITE_EQUIPAJE_KG, PRECIO_SOBREPESO_KG, COSTO_SOBREPESO_KG, UTILIDAD_SOBREPESO_KG) 
-                    VALUES (?, ?, ?, ?, ?" . ($tramoHasIdOp ? ", ?" : "") . ", ?, ?, ?, ?, ?, ?, ?, ?)";
+                    (ID_RUTA, ORDEN, ORIGEN_TRAMO, DESTINO_TRAMO, OPERADOR" 
+                    . ($tramoHasIdOp ? ", ID_OPERADOR" : "") 
+                    . ($tramoHasIdCat ? ", ID_TRAMO_CATALOGO" : "") 
+                    . ", PVP_TRAMO, COSTO_OPERADOR, UTILIDAD_AGENCIA, ADMITE_SOBREPESO, LIMITE_EQUIPAJE_KG, PRECIO_SOBREPESO_KG, COSTO_SOBREPESO_KG, UTILIDAD_SOBREPESO_KG) 
+                    VALUES (?, ?, ?, ?, ?" 
+                    . ($tramoHasIdOp ? ", ?" : "") 
+                    . ($tramoHasIdCat ? ", ?" : "") 
+                    . ", ?, ?, ?, ?, ?, ?, ?, ?)";
                 $stmtTramo = $this->db->prepare($sqlTramo);
                 foreach ($datos['tramos'] as $i => $tramo) {
                     $vals = [
@@ -1031,6 +1065,9 @@ class FlotaRepository {
                     ];
                     if ($tramoHasIdOp) {
                         $vals[] = !empty($tramo['id_operador']) ? intval($tramo['id_operador']) : 1;
+                    }
+                    if ($tramoHasIdCat) {
+                        $vals[] = !empty($tramo['id_tramo_catalogo']) ? intval($tramo['id_tramo_catalogo']) : null;
                     }
                     $vals = array_merge($vals, [
                         $tramo['pvp'] ?? 0.00,

@@ -579,7 +579,7 @@
                                     </div>
 
                                     <!-- BLOQUE VIAJE DIRECTO: OPERADOR Y SOBREPESO -->
-                                    <div id="opciones_directo_edit_<?= $r['ID_RUTA'] ?>" class="<?= ($r['TIPO_VIAJE'] ?? 'DIRECTO') === 'CONEXION' ? 'd-none' : '' ?> bg-white p-2 rounded border mt-2">
+                                    <div id="opciones_directo_edit_<?= $r['ID_RUTA'] ?>" style="display: none;">
                                         <div class="row g-2 align-items-center">
                                             <div class="col-md-6">
                                                 <label class="form-label small text-dark mb-0 fw-bold">🏢 Operador de la Ruta Directa</label>
@@ -602,7 +602,7 @@
                                 </div>
 
                                 <!-- BLOQUE 2: TRAMOS DE CONEXIÓN Y FINANZAS -->
-                                <div id="tramos_edit_<?= $r['ID_RUTA'] ?>" class="<?= ($r['TIPO_VIAJE'] ?? '') === 'CONEXION' ? '' : 'd-none' ?> border rounded p-3 mb-3" style="background-color: #f8fafc;">
+                                <div id="tramos_edit_<?= $r['ID_RUTA'] ?>" class="border rounded p-3 mb-3" style="background-color: #f8fafc;">
                                     <div class="d-flex justify-content-between align-items-center mb-2 pb-1 border-bottom">
                                         <div>
                                             <h6 class="text-dark fw-bold mb-0">🛤️ Tramos Operativos, Operadores y Márgenes de Utilidad</h6>
@@ -615,12 +615,33 @@
 
                                     <div id="lista_tramos_edit_<?= $r['ID_RUTA'] ?>">
                                         <?php 
-                                        $tramosList = $r['TRAMOS_DETALLE'] ?? [];
+                                                                                $tramosList = $r['TRAMOS_DETALLE'] ?? [];
                                         if (empty($tramosList)) {
                                             $tramosList = json_decode($r['TRAMOS_JSON'] ?? '[]', true) ?: [];
                                         }
-                                        if(!empty($tramosList)): 
-                                            foreach($tramosList as $trIndex => $tramo):
+                                        if (empty($tramosList)) {
+                                            $costoBase = floatval($r['COSTO_TOTAL_RUTA'] ?? 0);
+                                            $pvpBase = floatval($r['PRECIO_PASAJE'] ?? 0);
+                                            $tramosList = [
+                                                [
+                                                    'origen' => $r['RUT_ORIGEN'],
+                                                    'destino' => $r['RUT_DESTINO'],
+                                                    'id_operador' => $r['ID_OPERADOR'] ?? 1,
+                                                    'operador' => !empty($r['OPERADOR_NOMBRE']) ? $r['OPERADOR_NOMBRE'] : 'Suramérica 2030',
+                                                    'pvp' => $pvpBase,
+                                                    'costo' => $costoBase,
+                                                    'utilidad' => max(0, $pvpBase - $costoBase),
+                                                    'admite_sobrepeso' => $r['ADMITE_SOBREPESO'] ?? 1,
+                                                    'limite_equipaje' => $r['LIMITE_EQUIPAJE_KG'] ?? 35,
+                                                    'precio_sobrepeso' => $r['PRECIO_SOBREPESO_KG'] ?? 1
+                                                ]
+                                            ];
+                                        }
+                                        $sumPvp = array_sum(array_column($tramosList, 'pvp'));
+                                        $sumCosto = array_sum(array_column($tramosList, 'costo'));
+                                        $sumUtil = array_sum(array_column($tramosList, 'utilidad'));
+                                        if(!empty($tramosList)):
+foreach($tramosList as $trIndex => $tramo):
                                                 $tOrigen = $tramo['origen'] ?? $tramo['ORIGEN_TRAMO'] ?? '';
                                                 $tDestino = $tramo['destino'] ?? $tramo['DESTINO_TRAMO'] ?? '';
                                                 $tOperador = $tramo['operador'] ?? $tramo['OPERADOR'] ?? 'Propio';
@@ -700,9 +721,9 @@
                                     <div class="bg-white border rounded p-2 mt-2 d-flex justify-content-between align-items-center flex-wrap gap-2 shadow-sm">
                                         <div class="d-flex align-items-center flex-wrap gap-2">
                                             <span class="small text-muted fw-bold">RESUMEN TRAMOS:</span>
-                                            <span class="badge bg-primary fs-6" id="resumen_pvp_<?= $r['ID_RUTA'] ?>">PVP Total: $0.00</span>
-                                            <span class="badge bg-danger fs-6" id="resumen_costo_<?= $r['ID_RUTA'] ?>">Costo Socios: $0.00</span>
-                                            <span class="badge bg-success fs-6" id="resumen_utilidad_<?= $r['ID_RUTA'] ?>">Utilidad Neta: $0.00</span>
+                                            <span class="badge bg-primary fs-6" id="resumen_pvp_<?= $r['ID_RUTA'] ?>">PVP Total: $<?= number_format($sumPvp ?? 0, 2) ?></span>
+                                            <span class="badge bg-danger fs-6" id="resumen_costo_<?= $r['ID_RUTA'] ?>">Costo Socios: $<?= number_format($sumCosto ?? 0, 2) ?></span>
+                                            <span class="badge bg-success fs-6" id="resumen_utilidad_<?= $r['ID_RUTA'] ?>">Utilidad Neta: $<?= number_format($sumUtil ?? 0, 2) ?></span>
                                         </div>
                                         <div>
                                             <button type="button" class="btn btn-sm btn-outline-primary fw-bold" onclick="copiarTotalATarifa('<?= $r['ID_RUTA'] ?>')">
@@ -916,7 +937,7 @@
                                 </div>
 
                                 <!-- BLOQUE VIAJE DIRECTO: OPERADOR Y SOBREPESO -->
-                                <div id="opciones_directo_nuevo" class="bg-white p-2 rounded border mt-2">
+                                <div id="opciones_directo_nuevo" style="display: none;">
                                     <div class="row g-2 align-items-center">
                                         <div class="col-md-6">
                                             <label class="form-label small text-dark mb-0 fw-bold">🏢 Operador de la Ruta Directa</label>
@@ -939,7 +960,7 @@
                             </div>
 
                             <!-- BLOQUE 2: DEFINICIÓN DE TRAMOS -->
-                            <div id="tramos_nuevos" class="d-none border rounded p-3 mb-3" style="background-color: #f8fafc;">
+                            <div id="tramos_nuevos" class="border rounded p-3 mb-3" style="background-color: #f8fafc;">
                                 <div class="d-flex justify-content-between align-items-center mb-2 pb-1 border-bottom">
                                     <div>
                                         <h6 class="text-dark fw-bold mb-0">🛤️ Tramos Operativos, Operadores y Márgenes de Utilidad</h6>
