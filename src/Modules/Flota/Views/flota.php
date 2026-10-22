@@ -66,10 +66,13 @@ $vJs = @filemtime(__DIR__ . '/../../../../public/assets/js/flota.js') ?: time();
         $encontrado = false;
         $valNorm = mb_strtolower(trim((string)$valorSeleccionado));
 
+        $ciudadesYaEnParadas = [];
         if (!empty($paradas)) {
             $html .= '<optgroup label="📍 Paradas del Corredor (en orden de viaje)">';
             foreach ($paradas as $idx => $p) {
-                $isSel = ($valNorm !== '' && mb_strtolower(trim($p['CIUDAD'])) === $valNorm);
+                $cNorm = mb_strtolower(trim($p['CIUDAD']));
+                $ciudadesYaEnParadas[$cNorm] = true;
+                $isSel = ($valNorm !== '' && $cNorm === $valNorm);
                 if ($isSel) $encontrado = true;
                 $tipo = !empty($p['TIPO_PARADA']) ? ' [' . str_replace('_', ' ', $p['TIPO_PARADA']) . ']' : '';
                 $html .= '<option value="' . htmlspecialchars($p['CIUDAD']) . '" ' . ($isSel ? 'selected' : '') . '>'
@@ -77,6 +80,32 @@ $vJs = @filemtime(__DIR__ . '/../../../../public/assets/js/flota.js') ?: time();
             }
             $html .= '</optgroup>';
         }
+
+        // Agrupar el catálogo del dominio por país para permitir seleccionar cualquier ciudad
+        if (!empty($ciudadesCatalogo)) {
+            $porPais = [];
+            foreach ($ciudadesCatalogo as $cd) {
+                $pais = strtoupper(trim($cd['PAIS'] ?? 'OTROS'));
+                $porPais[$pais][] = $cd['NOMBRE'];
+            }
+            
+            $banderas = ['VENEZUELA' => '🇻🇪', 'COLOMBIA' => '🇨🇴', 'ECUADOR' => '🇪🇨', 'PERU' => '🇵🇪'];
+
+            foreach ($porPais as $pais => $ciudades) {
+                $flag = $banderas[$pais] ?? '🌎';
+                $html .= '<optgroup label="' . $flag . ' Catálogo de Ciudades - ' . htmlspecialchars($pais) . '">';
+                foreach ($ciudades as $nomCiu) {
+                    $cNorm = mb_strtolower(trim($nomCiu));
+                    $isSel = ($valNorm !== '' && $cNorm === $valNorm);
+                    if ($isSel) $encontrado = true;
+                    $enCorredorTag = isset($ciudadesYaEnParadas[$cNorm]) ? ' (En corredor)' : '';
+                    $html .= '<option value="' . htmlspecialchars($nomCiu) . '" ' . ($isSel ? 'selected' : '') . '>'
+                          . htmlspecialchars($nomCiu) . $enCorredorTag . '</option>';
+                }
+                $html .= '</optgroup>';
+            }
+        }
+
         if ($valorSeleccionado !== '' && !$encontrado) {
             $html .= '<optgroup label="⚠️ Ciudad Actual Configurada">';
             $html .= '<option value="' . htmlspecialchars($valorSeleccionado) . '" selected>' . htmlspecialchars($valorSeleccionado) . ' (Registrada)</option>';
@@ -136,6 +165,11 @@ $vJs = @filemtime(__DIR__ . '/../../../../public/assets/js/flota.js') ?: time();
             🚌 Buses y Operadores / Socios <span class="badge bg-secondary ms-1"><?= count($buses) ?> buses · <?= count($operadores) ?> operadores</span>
         </button>
     </li>
+    <li class="nav-item">
+        <button class="nav-link fw-bold <?= ($tabActiva == 'ciudades') ? 'active' : '' ?>" data-bs-toggle="tab" data-bs-target="#tab-ciudades" type="button">
+            🏙️ Dominio de Ciudades y Destinos <span class="badge bg-secondary ms-1"><?= count($ciudadesCompletas ?? $ciudadesCatalogo) ?></span>
+        </button>
+    </li>
 </ul>
 
 <div class="tab-content">
@@ -147,6 +181,9 @@ $vJs = @filemtime(__DIR__ . '/../../../../public/assets/js/flota.js') ?: time();
 
     <!-- PESTAÑA 3: FLOTA DE BUSES Y OPERADORES / SOCIOS -->
     <?php require __DIR__ . '/partials/tab_buses.php'; ?>
+
+    <!-- PESTAÑA 4: GESTIÓN DE CIUDADES Y DOMINIO DE DESTINOS -->
+    <?php require __DIR__ . '/partials/tab_ciudades.php'; ?>
 </div>
 
 <!-- CONFIGURACIÓN DE CORREDORES Y SCRIPT MODULAR -->

@@ -9,9 +9,11 @@
     <?php 
         $vLayoutCss = @filemtime(__DIR__ . '/../../../public/assets/css/layout.css') ?: time();
         $vLiveDataCss = @filemtime(__DIR__ . '/../../../public/assets/css/live-data.css') ?: time();
+        $vSearchSelectCss = @filemtime(__DIR__ . '/../../../public/assets/css/searchable-select.css') ?: time();
     ?>
     <link rel="stylesheet" href="/suramerica2030/public/assets/css/layout.css?v=<?= $vLayoutCss ?>">
     <link rel="stylesheet" href="/suramerica2030/public/assets/css/live-data.css?v=<?= $vLiveDataCss ?>">
+    <link rel="stylesheet" href="/suramerica2030/public/assets/css/searchable-select.css?v=<?= $vSearchSelectCss ?>">
 </head>
 <body class="bg-light position-relative">
 
@@ -422,8 +424,10 @@ if (isset($titulo)) {
     $vSanitizarJs = @filemtime(__DIR__ . '/../../../public/assets/js/sanitizar-inputs.js') ?: time();
     $vMobileJs = @filemtime(__DIR__ . '/../../../public/assets/js/mobile-nav.js') ?: time();
     $vValidacionesJs = @filemtime(__DIR__ . '/../../../public/assets/js/validaciones.js') ?: time();
+    $vSearchSelectJs = @filemtime(__DIR__ . '/../../../public/assets/js/searchable-select.js') ?: time();
 ?>
 
+<script src="/suramerica2030/public/assets/js/searchable-select.js?v=<?= $vSearchSelectJs ?>"></script>
 <script src="/suramerica2030/public/assets/js/validaciones.js?v=<?= $vValidacionesJs ?>"></script>
 <script src="/suramerica2030/public/assets/js/sanitizar-inputs.js?v=<?= $vSanitizarJs ?>"></script>
 <!-- Script de Navegación Móvil (Menú Hamburguesa y Drawer Lateral) -->

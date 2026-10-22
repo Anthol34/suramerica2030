@@ -38,6 +38,7 @@ class FlotaController {
         $paradasPorCorredor = $this->repository->obtenerParadasDeTodosLosCorredores();
         $tramosOperativos = $corredorActivo ? $this->repository->obtenerTramosOperativos($idCorredorSeleccionado) : [];
         $ciudadesCatalogo = $this->repository->obtenerCiudadesCatalogo();
+        $ciudadesCompletas = $this->repository->obtenerTodasLasCiudadesConEstadisticas();
         $rutas = $this->repository->obtenerRutas();
         $buses = $this->repository->obtenerBusesConSocios();
         $operadores = $this->repository->obtenerOperadores(false);
@@ -272,6 +273,40 @@ class FlotaController {
         if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             $resultado = $this->service->procesarEliminarOperador($_POST);
             $this->redireccionar('operadores', $resultado, 'success_delete');
+        }
+    }
+
+    // --- ACCIONES DE GESTIÓN DE CIUDADES Y DOMINIO REGIONAL ---
+    public function guardarCiudad() {
+        $this->verificarPermiso();
+        if ($_SERVER['REQUEST_METHOD'] == 'POST') {
+            $resultado = $this->service->procesarGuardarCiudad($_POST);
+            $token = !empty($_POST['id_ciudad']) ? 'success_edit' : 'success';
+            $this->redireccionar('ciudades', $resultado, $token);
+        }
+    }
+
+    public function cambiarEstadoCiudad() {
+        $this->verificarPermiso();
+        if ($_SERVER['REQUEST_METHOD'] == 'POST') {
+            $resultado = $this->service->procesarCambiarEstadoCiudad($_POST);
+            $this->redireccionar('ciudades', $resultado, 'success_edit');
+        }
+    }
+
+    public function eliminarCiudad() {
+        $this->verificarPermiso();
+        if ($_SERVER['REQUEST_METHOD'] == 'POST') {
+            $resultado = $this->service->procesarEliminarCiudad($_POST);
+            $this->redireccionar('ciudades', $resultado, 'success_delete');
+        }
+    }
+
+    public function precargarCiudades() {
+        $this->verificarPermiso();
+        if ($_SERVER['REQUEST_METHOD'] == 'POST') {
+            $resultado = $this->service->procesarPrecargarCiudades();
+            $this->redireccionar('ciudades', $resultado, 'success');
         }
     }
     

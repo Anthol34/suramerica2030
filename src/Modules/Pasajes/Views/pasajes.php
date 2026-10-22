@@ -9,7 +9,10 @@ $tabActual = $filtros['tab'] ?? 'activos';
 $filtroRapido = $filtros['filtro_rapido'] ?? '';
 $vCss = @filemtime(__DIR__ . '/../../../../public/assets/css/pasajes.css') ?: time();
 $vJs = @filemtime(__DIR__ . '/../../../../public/assets/js/pasajes.js') ?: time();
+$vSearchSelectCss = @filemtime(__DIR__ . '/../../../../public/assets/css/searchable-select.css') ?: time();
+$vSearchSelectJs = @filemtime(__DIR__ . '/../../../../public/assets/js/searchable-select.js') ?: time();
 ?>
+<link rel="stylesheet" href="/suramerica2030/public/assets/css/searchable-select.css?v=<?= $vSearchSelectCss ?>">
 <link rel="stylesheet" href="/suramerica2030/public/assets/css/pasajes.css?v=<?= $vCss ?>">
 
 <div class="d-flex justify-content-between align-items-center mb-3">
@@ -51,7 +54,9 @@ $vJs = @filemtime(__DIR__ . '/../../../../public/assets/js/pasajes.js') ?: time(
 <script>
 window.PASAJES_CONFIG = {
     rutas: <?= json_encode($rutas ?? []) ?>,
-    ciudadSucursal: <?= json_encode(strtoupper(trim($_SESSION['ciudad_sucursal'] ?? ''))) ?>
+    ciudadSucursal: <?= json_encode(strtoupper(trim($_SESSION['ciudad_sucursal'] ?? ''))) ?>,
+    ventasPorDestino: <?= json_encode($ventasPorDestino ?? []) ?>,
+    ventasPorOrigen: <?= json_encode($ventasPorOrigen ?? []) ?>
 };
 </script>
 <script src="/suramerica2030/public/assets/js/pasajes.js?v=<?= $vJs ?>"></script>

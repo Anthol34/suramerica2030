@@ -338,5 +338,24 @@ class FlotaService {
 
         return $this->repository->actualizarTarifaRapidaBD($idRuta, $precioPasaje, $precioEncomienda, $estado);
     }
+
+    public function procesarGuardarCiudad($postData) {
+        return $this->repository->guardarCiudadBD($postData);
+    }
+
+    public function procesarCambiarEstadoCiudad($postData) {
+        $idCiudad = intval($postData['id_ciudad'] ?? 0);
+        $estado = intval($postData['estado'] ?? 1);
+        return $this->repository->cambiarEstadoCiudadBD($idCiudad, $estado);
+    }
+
+    public function procesarEliminarCiudad($postData) {
+        $idCiudad = intval($postData['id_ciudad'] ?? 0);
+        return $this->repository->eliminarCiudadBD($idCiudad);
+    }
+
+    public function procesarPrecargarCiudades() {
+        return $this->repository->precargarCatalogoCompletoCiudades();
+    }
 }
 ?>

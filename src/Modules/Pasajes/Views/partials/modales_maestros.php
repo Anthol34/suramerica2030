@@ -18,13 +18,13 @@
                     </div>
                     <div class="row mb-3 p-3 bg-light rounded border g-2" id="caja_itinerario">
                         <div class="col-md-4">
-                            <label class="fw-bold"><span class="text-primary">📍</span> Ciudad Origen</label>
+                            <label class="fw-bold"><span class="text-primary">📍</span> Origen*</label>
                             <select id="sel_origen_pasaje" class="form-select border-primary" required onchange="alCambiarOrigenPasaje()">
                                 <option value="">- Seleccione Origen -</option>
                             </select>
                         </div>
                         <div class="col-md-4">
-                            <label class="fw-bold"><span class="text-danger">🏁</span> Ciudad Destino</label>
+                            <label class="fw-bold"><span class="text-danger">🏁</span> Destino*</label>
                             <select id="sel_destino_pasaje" class="form-select border-primary" required onchange="alCambiarDestinoPasaje()" disabled>
                                 <option value="">- Elija Origen Primero -</option>
                             </select>

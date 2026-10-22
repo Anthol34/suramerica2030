@@ -4,16 +4,43 @@ function generarOpcionesParadasCorredor(idCorredor, valorSeleccionado = '', plac
     let encontrado = false;
     const valNorm = (valorSeleccionado || '').trim().toLowerCase();
 
+    const ciudadesEnParadas = {};
     if (paradas.length > 0) {
         html += `<optgroup label="📍 Paradas del Corredor (en orden de viaje)">`;
         paradas.forEach((p, idx) => {
-            const isSel = valNorm && p.CIUDAD.trim().toLowerCase() === valNorm;
+            const cNorm = p.CIUDAD.trim().toLowerCase();
+            ciudadesEnParadas[cNorm] = true;
+            const isSel = valNorm && cNorm === valNorm;
             if (isSel) encontrado = true;
             const extra = p.TIPO_PARADA ? ` [${p.TIPO_PARADA.replace(/_/g, ' ')}]` : '';
             html += `<option value="${p.CIUDAD}" ${isSel ? 'selected' : ''}>${idx + 1}. ${p.CIUDAD} (${p.PAIS})${extra}</option>`;
         });
         html += `</optgroup>`;
     }
+
+    if (typeof CIUDADES_CATALOGO !== 'undefined' && Array.isArray(CIUDADES_CATALOGO)) {
+        const porPais = {};
+        CIUDADES_CATALOGO.forEach(cd => {
+            const pais = (cd.PAIS || 'OTROS').toUpperCase().trim();
+            if (!porPais[pais]) porPais[pais] = [];
+            porPais[pais].push(cd.NOMBRE);
+        });
+
+        const banderas = { 'VENEZUELA': '🇻🇪', 'COLOMBIA': '🇨🇴', 'ECUADOR': '🇪🇨', 'PERU': '🇵🇪' };
+        Object.keys(porPais).forEach(pais => {
+            const flag = banderas[pais] || '🌎';
+            html += `<optgroup label="${flag} Catálogo de Ciudades - ${pais}">`;
+            porPais[pais].forEach(nomCiu => {
+                const cNorm = nomCiu.trim().toLowerCase();
+                const isSel = valNorm && cNorm === valNorm;
+                if (isSel) encontrado = true;
+                const enCorredor = ciudadesEnParadas[cNorm] ? ' (En corredor)' : '';
+                html += `<option value="${nomCiu}" ${isSel ? 'selected' : ''}>${nomCiu}${enCorredor}</option>`;
+            });
+            html += `</optgroup>`;
+        });
+    }
+
     if (valorSeleccionado && !encontrado) {
         html += `<optgroup label="⚠️ Ciudad Actual Configurada">`;
         html += `<option value="${valorSeleccionado}" selected>${valorSeleccionado} (Registrada)</option>`;

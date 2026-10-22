@@ -57,6 +57,157 @@ class FlotaRepository {
         return $this->db->query("SELECT * FROM CIUDAD WHERE ESTADO = 1 ORDER BY PAIS ASC, NOMBRE ASC")->fetchAll(PDO::FETCH_ASSOC);
     }
 
+    public function obtenerTodasLasCiudadesConEstadisticas() {
+        $sql = "
+            SELECT c.*,
+                   COUNT(DISTINCT CASE WHEN r.RUT_ORIGEN = c.NOMBRE OR r.RUT_DESTINO = c.NOMBRE THEN r.ID_RUTA END) as TOTAL_RUTAS,
+                   COUNT(DISTINCT CASE WHEN cp.CIUDAD = c.NOMBRE THEN cp.ID_CORREDOR END) as TOTAL_CORREDORES,
+                   COALESCE(ventas.TOTAL_PASAJES, 0) as TOTAL_PASAJES
+            FROM CIUDAD c
+            LEFT JOIN RUTA r ON (r.RUT_ORIGEN = c.NOMBRE OR r.RUT_DESTINO = c.NOMBRE)
+            LEFT JOIN CORREDOR_PARADA cp ON cp.CIUDAD = c.NOMBRE
+            LEFT JOIN (
+                SELECT r2.RUT_DESTINO as CIUDAD, COUNT(p.ID_PASAJE) as TOTAL_PASAJES
+                FROM PASAJE p
+                JOIN FACTURA f ON p.ID_FACTURA = f.ID_FACTURA
+                JOIN RUTA r2 ON f.ID_RUTA = r2.ID_RUTA
+                WHERE COALESCE(p.ESTADO, '') != 'ANULADO'
+                GROUP BY r2.RUT_DESTINO
+            ) ventas ON ventas.CIUDAD = c.NOMBRE
+            GROUP BY c.ID_CIUDAD
+            ORDER BY TOTAL_PASAJES DESC, c.PAIS ASC, c.NOMBRE ASC
+        ";
+        return $this->db->query($sql)->fetchAll(PDO::FETCH_ASSOC);
+    }
+
+    public function asegurarCiudadExiste($nombre, $pais = null) {
+        if (empty($nombre)) return null;
+        $nombre = trim($nombre);
+        $stmt = $this->db->prepare("SELECT ID_CIUDAD FROM CIUDAD WHERE LOWER(NOMBRE) = LOWER(?) LIMIT 1");
+        $stmt->execute([$nombre]);
+        $row = $stmt->fetch(PDO::FETCH_ASSOC);
+        if ($row) {
+            return (int)$row['ID_CIUDAD'];
+        }
+
+        if (empty($pais)) {
+            $pais = 'VENEZUELA';
+        }
+        $ins = $this->db->prepare("INSERT INTO CIUDAD (NOMBRE, PAIS, ESTADO) VALUES (?, ?, 1)");
+        $ins->execute([$nombre, strtoupper(trim($pais))]);
+        return (int)$this->db->lastInsertId();
+    }
+
+    public function guardarCiudadBD($datos) {
+        try {
+            $id = !empty($datos['id_ciudad']) ? intval($datos['id_ciudad']) : 0;
+            $nombre = trim($datos['nombre'] ?? '');
+            $pais = strtoupper(trim($datos['pais'] ?? 'VENEZUELA'));
+            $estado = isset($datos['estado']) ? intval($datos['estado']) : 1;
+
+            if (empty($nombre)) {
+                return "Debe ingresar el nombre de la ciudad.";
+            }
+
+            if ($id > 0) {
+                $stmt = $this->db->prepare("UPDATE CIUDAD SET NOMBRE = ?, PAIS = ?, ESTADO = ? WHERE ID_CIUDAD = ?");
+                $stmt->execute([$nombre, $pais, $estado, $id]);
+            } else {
+                $stmtCheck = $this->db->prepare("SELECT ID_CIUDAD FROM CIUDAD WHERE LOWER(NOMBRE) = LOWER(?)");
+                $stmtCheck->execute([$nombre]);
+                if ($stmtCheck->fetch()) {
+                    return "Ya existe una ciudad registrada con el nombre '{$nombre}'.";
+                }
+                $stmt = $this->db->prepare("INSERT INTO CIUDAD (NOMBRE, PAIS, ESTADO) VALUES (?, ?, ?)");
+                $stmt->execute([$nombre, $pais, $estado]);
+            }
+            return true;
+        } catch (Exception $e) {
+            return $e->getMessage();
+        }
+    }
+
+    public function cambiarEstadoCiudadBD($idCiudad, $estado) {
+        try {
+            $stmt = $this->db->prepare("UPDATE CIUDAD SET ESTADO = ? WHERE ID_CIUDAD = ?");
+            $stmt->execute([intval($estado), intval($idCiudad)]);
+            return true;
+        } catch (Exception $e) {
+            return $e->getMessage();
+        }
+    }
+
+    public function eliminarCiudadBD($idCiudad) {
+        try {
+            $idCiudad = intval($idCiudad);
+            $stmt = $this->db->prepare("SELECT NOMBRE FROM CIUDAD WHERE ID_CIUDAD = ?");
+            $stmt->execute([$idCiudad]);
+            $ciu = $stmt->fetch(PDO::FETCH_ASSOC);
+            if (!$ciu) return "Ciudad no encontrada.";
+
+            $stmtUso = $this->db->prepare("SELECT COUNT(*) FROM RUTA WHERE RUT_ORIGEN = ? OR RUT_DESTINO = ?");
+            $stmtUso->execute([$ciu['NOMBRE'], $ciu['NOMBRE']]);
+            $rutasUso = $stmtUso->fetchColumn();
+
+            $stmtPar = $this->db->prepare("SELECT COUNT(*) FROM CORREDOR_PARADA WHERE CIUDAD = ?");
+            $stmtPar->execute([$ciu['NOMBRE']]);
+            $paradasUso = $stmtPar->fetchColumn();
+
+            if ($rutasUso > 0 || $paradasUso > 0) {
+                $this->db->prepare("UPDATE CIUDAD SET ESTADO = 0 WHERE ID_CIUDAD = ?")->execute([$idCiudad]);
+                return "La ciudad tiene {$rutasUso} rutas y {$paradasUso} paradas asociadas; ha sido marcada como INACTIVA para proteger el historial.";
+            }
+
+            $stmtDel = $this->db->prepare("DELETE FROM CIUDAD WHERE ID_CIUDAD = ?");
+            $stmtDel->execute([$idCiudad]);
+            return true;
+        } catch (Exception $e) {
+            return $e->getMessage();
+        }
+    }
+
+    public function precargarCatalogoCompletoCiudades() {
+        try {
+            $ciudadesIniciales = [
+                ['Maturín', 'VENEZUELA'], ['Puerto Ordaz', 'VENEZUELA'], ['San Félix', 'VENEZUELA'],
+                ['Ciudad Bolívar', 'VENEZUELA'], ['El Tigre', 'VENEZUELA'], ['Anaco', 'VENEZUELA'],
+                ['Cumaná', 'VENEZUELA'], ['Carúpano', 'VENEZUELA'], ['Barquisimeto', 'VENEZUELA'],
+                ['Maracaibo', 'VENEZUELA'], ['Cabimas', 'VENEZUELA'], ['Ciudad Ojeda', 'VENEZUELA'],
+                ['Valera', 'VENEZUELA'], ['Mérida', 'VENEZUELA'], ['El Vigía', 'VENEZUELA'],
+                ['Guanare', 'VENEZUELA'], ['Acarigua', 'VENEZUELA'], ['San Antonio del Táchira', 'VENEZUELA'],
+                ['La Fría', 'VENEZUELA'], ['Valle de la Pascua', 'VENEZUELA'], ['San Juan de los Morros', 'VENEZUELA'],
+                ['Calabozo', 'VENEZUELA'], ['Coro', 'VENEZUELA'], ['Punto Fijo', 'VENEZUELA'],
+                ['San Felipe', 'VENEZUELA'], ['La Guaira', 'VENEZUELA'], ['Guatire', 'VENEZUELA'],
+                ['Charallave', 'VENEZUELA'], ['Los Teques', 'VENEZUELA'], ['Puerto Cabello', 'VENEZUELA'],
+                ['Santa Elena de Uairén', 'VENEZUELA'], ['Caracas', 'VENEZUELA'], ['Valencia', 'VENEZUELA'],
+                ['Maracay', 'VENEZUELA'], ['San Cristóbal', 'VENEZUELA'], ['Barinas', 'VENEZUELA'],
+                ['Barcelona', 'VENEZUELA'], ['Puerto La Cruz', 'VENEZUELA'],
+                ['Barrancabermeja', 'COLOMBIA'], ['Honda', 'COLOMBIA'], ['Ibagué', 'COLOMBIA'],
+                ['Palmira', 'COLOMBIA'], ['Cúcuta', 'COLOMBIA'], ['Bucaramanga', 'COLOMBIA'],
+                ['Bogotá', 'COLOMBIA'], ['Cali', 'COLOMBIA'], ['Medellín', 'COLOMBIA'],
+                ['Pasto', 'COLOMBIA'], ['Ipiales', 'COLOMBIA'], ['Popayán', 'COLOMBIA'],
+                ['Armenia', 'COLOMBIA'], ['Pereira', 'COLOMBIA'], ['Manizales', 'COLOMBIA'],
+                ['Pamplona', 'COLOMBIA'], ['Santa Marta', 'COLOMBIA'], ['Barranquilla', 'COLOMBIA'],
+                ['Cartagena', 'COLOMBIA'],
+                ['Manta', 'ECUADOR'], ['Portoviejo', 'ECUADOR'], ['Guayaquil', 'ECUADOR'],
+                ['Quito', 'ECUADOR'], ['Tulcán', 'ECUADOR'], ['Santo Domingo', 'ECUADOR'],
+                ['Quevedo', 'ECUADOR'], ['Babahoyo', 'ECUADOR'], ['Ambato', 'ECUADOR'],
+                ['Riobamba', 'ECUADOR'], ['Cuenca', 'ECUADOR'], ['Loja', 'ECUADOR'],
+                ['Machala', 'ECUADOR'], ['Huaquillas', 'ECUADOR'], ['Ibarra', 'ECUADOR'],
+                ['Otavalo', 'ECUADOR'], ['Chone', 'ECUADOR'], ['Jipijapa', 'ECUADOR'],
+                ['Esmeraldas', 'ECUADOR']
+            ];
+
+            $stmt = $this->db->prepare("INSERT INTO CIUDAD (NOMBRE, PAIS, ESTADO) VALUES (?, ?, 1) ON DUPLICATE KEY UPDATE PAIS = VALUES(PAIS)");
+            foreach ($ciudadesIniciales as $c) {
+                $stmt->execute([$c[0], $c[1]]);
+            }
+            return true;
+        } catch (Exception $e) {
+            return $e->getMessage();
+        }
+    }
+
     public function crearCorredorBD($datos) {
         try {
             $this->db->beginTransaction();
@@ -251,6 +402,9 @@ class FlotaRepository {
             $stmtIns = $this->db->prepare("INSERT INTO CORREDOR_PARADA (ID_CORREDOR, ORDEN, CIUDAD, PAIS, TIPO_PARADA, PERMITE_SUBIDA, PERMITE_BAJADA, TIEMPO_ESTIMADO_HORAS) 
                                         VALUES (?, ?, ?, ?, ?, 1, 1, ?)");
             $stmtIns->execute([$idCorredor, $targetOrden, trim($ciudad), trim($pais), $tipoParada, $tiempoHoras]);
+
+            // Auto-registrar en el catálogo de ciudades del dominio
+            $this->asegurarCiudadExiste(trim($ciudad), trim($pais));
 
             $this->normalizarOrdenesParadas($idCorredor);
 
@@ -761,6 +915,10 @@ class FlotaRepository {
 
             $idRuta = $this->db->lastInsertId();
 
+            // Auto-registrar origen y destino en catálogo del dominio
+            $this->asegurarCiudadExiste($datos['origen']);
+            $this->asegurarCiudadExiste($datos['destino']);
+
             // Insertar Tramos si es conexión
             if ($datos['tipo_viaje'] === 'CONEXION' && !empty($datos['tramos'])) {
                 $colsTramo = array_column($this->db->query("DESCRIBE RUTA_TRAMO")->fetchAll(PDO::FETCH_ASSOC), 'Field');
@@ -771,6 +929,8 @@ class FlotaRepository {
                     VALUES (?, ?, ?, ?, ?" . ($tramoHasIdOp ? ", ?" : "") . ", ?, ?, ?, ?, ?, ?, ?, ?)";
                 $stmtTramo = $this->db->prepare($sqlTramo);
                 foreach ($datos['tramos'] as $i => $tramo) {
+                    $this->asegurarCiudadExiste($tramo['origen']);
+                    $this->asegurarCiudadExiste($tramo['destino']);
                     $vals = [
                         $idRuta, 
                         $i + 1, 

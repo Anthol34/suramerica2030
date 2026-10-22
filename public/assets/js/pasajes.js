@@ -1,5 +1,10 @@
 const TODAS_LAS_RUTAS = (window.PASAJES_CONFIG && window.PASAJES_CONFIG.rutas) ? window.PASAJES_CONFIG.rutas : [];
 const CIUDAD_SUCURSAL_ACTUAL = (window.PASAJES_CONFIG && window.PASAJES_CONFIG.ciudadSucursal) ? window.PASAJES_CONFIG.ciudadSucursal : '';
+const VENTAS_POR_DESTINO = (window.PASAJES_CONFIG && window.PASAJES_CONFIG.ventasPorDestino) ? window.PASAJES_CONFIG.ventasPorDestino : {};
+const VENTAS_POR_ORIGEN = (window.PASAJES_CONFIG && window.PASAJES_CONFIG.ventasPorOrigen) ? window.PASAJES_CONFIG.ventasPorOrigen : {};
+
+let searchableOrigen = null;
+let searchableDestino = null;
 
 // =============== DINÁMICA DE PASAJEROS MULTIPLES ===============
 let paxCount = 1;
@@ -97,13 +102,21 @@ function filtrarRutasPorFecha() {
     let origenPrevio = selOrigen.value;
     let destinoPrevio = selDestino.value;
     
-    // Obtenemos lista única de orígenes disponibles
-    let origenesUnicos = Array.from(new Set(rutasValidas.map(r => r.RUT_ORIGEN))).sort();
+    // Obtenemos lista única de orígenes disponibles y ordenamos descendentemente por pasajes vendidos
+    let origenesUnicos = Array.from(new Set(rutasValidas.map(r => r.RUT_ORIGEN)));
+    origenesUnicos.sort((a, b) => {
+        let cantA = VENTAS_POR_ORIGEN[a] || 0;
+        let cantB = VENTAS_POR_ORIGEN[b] || 0;
+        if (cantB !== cantA) return cantB - cantA; // Más vendidos primero
+        return a.localeCompare(b);
+    });
     
     selOrigen.innerHTML = '<option value="">- Seleccione Origen -</option>';
     origenesUnicos.forEach(orig => {
         let opt = document.createElement('option');
         opt.value = orig;
+        let vts = VENTAS_POR_ORIGEN[orig] || 0;
+        opt.setAttribute('data-ventas', vts);
         opt.textContent = '📍 ' + orig;
         selOrigen.appendChild(opt);
     });
@@ -138,12 +151,22 @@ function alCambiarOrigenPasaje(forzarDestino = null) {
     }
     
     let rutasValidas = getRutasValidasPorFecha().filter(r => r.RUT_ORIGEN === origen);
-    let destinosUnicos = Array.from(new Set(rutasValidas.map(r => r.RUT_DESTINO))).sort();
+    let destinosUnicos = Array.from(new Set(rutasValidas.map(r => r.RUT_DESTINO)));
+    
+    // Ordenar de forma descendente en función de cuántos pasajes están vendidos (más usados arriba)
+    destinosUnicos.sort((a, b) => {
+        let cantA = VENTAS_POR_DESTINO[a] || 0;
+        let cantB = VENTAS_POR_DESTINO[b] || 0;
+        if (cantB !== cantA) return cantB - cantA; // Más vendidos primero
+        return a.localeCompare(b);
+    });
     
     selDestino.innerHTML = '<option value="">- Seleccione Destino -</option>';
     destinosUnicos.forEach(dest => {
         let opt = document.createElement('option');
         opt.value = dest;
+        let vts = VENTAS_POR_DESTINO[dest] || 0;
+        opt.setAttribute('data-ventas', vts);
         opt.textContent = '🏁 ' + dest;
         selDestino.appendChild(opt);
     });
@@ -386,6 +409,30 @@ function toggleItinerario() {
 
 document.addEventListener('DOMContentLoaded', function() {
     filtrarRutasPorFecha();
+
+    const selOrigen = document.getElementById('sel_origen_pasaje');
+    const selDestino = document.getElementById('sel_destino_pasaje');
+
+    if (window.SearchableSelect) {
+        if (selOrigen) {
+            searchableOrigen = new SearchableSelect(selOrigen, {
+                sortBySales: true,
+                salesData: VENTAS_POR_ORIGEN,
+                placeholder: 'Seleccionar Origen',
+                showBadges: true,
+                uppercase: true
+            });
+        }
+        if (selDestino) {
+            searchableDestino = new SearchableSelect(selDestino, {
+                sortBySales: true,
+                salesData: VENTAS_POR_DESTINO,
+                placeholder: 'Seleccionar',
+                showBadges: true,
+                uppercase: true
+            });
+        }
+    }
 });
 
 // =============== LÓGICA DE MAPA DE ASIENTOS CON CONTROL DE COLISIONES ===============

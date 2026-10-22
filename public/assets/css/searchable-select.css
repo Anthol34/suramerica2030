@@ -1,0 +1,250 @@
+/**
+ * Searchable Select Component
+ * Replica visual y funcional del selector con buscador integrado y ordenamiento por popularidad
+ */
+
+.searchable-select-wrapper {
+    position: relative;
+    width: 100%;
+    font-family: inherit;
+    user-select: none;
+}
+
+/* Disparador (Trigger) principal */
+.searchable-select-trigger {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+    min-height: 38px;
+    padding: 0.375rem 0.6rem 0.375rem 0.75rem;
+    font-size: 0.95rem;
+    font-weight: 500;
+    line-height: 1.5;
+    color: #212529;
+    background-color: #fff;
+    background-clip: padding-box;
+    border: 1px solid #ced4da;
+    border-radius: 0.375rem;
+    cursor: pointer;
+    transition: border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
+}
+
+.searchable-select-trigger:focus,
+.searchable-select-trigger.is-open {
+    border-color: #86b7fe;
+    outline: 0;
+    box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.25);
+}
+
+.searchable-select-trigger.is-disabled {
+    background-color: #e9ecef;
+    opacity: 0.7;
+    cursor: not-allowed;
+    pointer-events: none;
+    border-color: #dee2e6;
+}
+
+.searchable-select-label {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    margin-right: 8px;
+    font-weight: 600;
+    letter-spacing: 0.2px;
+}
+
+.searchable-select-trigger.placeholder-selected .searchable-select-label {
+    color: #6c757d;
+    font-weight: normal;
+}
+
+/* Separador y flecha hacia abajo estilo screenshot */
+.searchable-select-arrow-box {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding-left: 8px;
+    border-left: 1px solid #ced4da;
+    color: #666;
+    font-size: 11px;
+    height: 20px;
+    transition: transform 0.2s ease;
+}
+
+.searchable-select-trigger.is-open .searchable-select-arrow-box {
+    transform: rotate(180deg);
+}
+
+/* Panel Desplegable (Dropdown) */
+.searchable-select-dropdown {
+    position: absolute;
+    top: calc(100% + 3px);
+    left: 0;
+    right: 0;
+    z-index: 1080;
+    display: none;
+    background-color: #ffffff;
+    border: 1px solid #9ca3af;
+    border-radius: 6px;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.22);
+    padding: 6px 5px 6px 5px;
+    min-width: 200px;
+    animation: fadeInDownSelect 0.15s ease-out;
+}
+
+.searchable-select-dropdown.is-open {
+    display: block;
+}
+
+@keyframes fadeInDownSelect {
+    from {
+        opacity: 0;
+        transform: translateY(-6px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Caja de Búsqueda con lupa a la derecha */
+.searchable-select-search-box {
+    position: relative;
+    width: 100%;
+    margin-bottom: 5px;
+}
+
+.searchable-select-search-input {
+    width: 100%;
+    height: 32px;
+    padding: 4px 28px 4px 8px;
+    font-size: 13px;
+    font-weight: 500;
+    color: #111827;
+    background-color: #fff;
+    border: 1px solid #94a3b8;
+    border-radius: 4px;
+    outline: none;
+    box-sizing: border-box;
+    transition: border-color 0.15s ease;
+}
+
+.searchable-select-search-input:focus {
+    border-color: #3b82f6;
+    box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2);
+}
+
+.searchable-select-search-icon {
+    position: absolute;
+    right: 8px;
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: 13px;
+    color: #4b5563;
+    pointer-events: none;
+}
+
+/* Lista de Opciones */
+.searchable-select-options {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    max-height: 220px;
+    overflow-y: auto;
+    overflow-x: hidden;
+}
+
+/* Scrollbar estilizada */
+.searchable-select-options::-webkit-scrollbar {
+    width: 8px;
+}
+
+.searchable-select-options::-webkit-scrollbar-track {
+    background: #f1f5f9;
+    border-radius: 4px;
+}
+
+.searchable-select-options::-webkit-scrollbar-thumb {
+    background: #94a3b8;
+    border-radius: 4px;
+}
+
+.searchable-select-options::-webkit-scrollbar-thumb:hover {
+    background: #64748b;
+}
+
+/* Cada Item de la Lista */
+.searchable-select-option {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 6px 8px;
+    font-size: 13px;
+    font-weight: 600;
+    color: #1f2937;
+    cursor: pointer;
+    border-radius: 3px;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+    margin-bottom: 1px;
+    transition: background-color 0.1s ease;
+}
+
+.searchable-select-option:hover {
+    background-color: #f1f5f9;
+    color: #0f172a;
+}
+
+/* Estado Seleccionado / Activo: Fondo Naranja Cálido como en el screenshot */
+.searchable-select-option.is-selected {
+    background-color: #f39c12 !important;
+    color: #8b1d00 !important;
+    font-weight: 700;
+}
+
+.searchable-select-option.is-focused:not(.is-selected) {
+    background-color: #e2e8f0;
+}
+
+/* Badge de Ventas / Popularidad */
+.searchable-select-sales-badge {
+    font-size: 10px;
+    font-weight: 600;
+    text-transform: none;
+    padding: 2px 6px;
+    border-radius: 10px;
+    background-color: #f8fafc;
+    border: 1px solid #cbd5e1;
+    color: #475569;
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    margin-left: 6px;
+}
+
+.searchable-select-option.is-selected .searchable-select-sales-badge {
+    background-color: rgba(255, 255, 255, 0.3);
+    border-color: rgba(255, 255, 255, 0.5);
+    color: #ffffff;
+}
+
+.searchable-select-badge-top {
+    background-color: #fee2e2;
+    border-color: #fca5a5;
+    color: #b91c1c;
+}
+
+/* Estado sin resultados */
+.searchable-select-no-results {
+    padding: 12px 8px;
+    text-align: center;
+    font-size: 12px;
+    color: #64748b;
+    font-style: italic;
+}
+
+/* Ocultar elementos nativos seleccionados */
+.searchable-select-hidden-native {
+    display: none !important;
+}
