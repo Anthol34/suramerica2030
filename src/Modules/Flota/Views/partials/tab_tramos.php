@@ -173,6 +173,27 @@ $promedioMargenPct = ($promedioPvp > 0) ? round(($promedioUtilidad / $promedioPv
                         $margenPct = ($pvp > 0) ? round(($utilidad / $pvp) * 100, 1) : 0;
                         $rutasEnUso = intval($t['TOTAL_RUTAS_USANDO'] ?? 0);
                         $opNombre = !empty($t['OPERADOR_NOMBRE']) ? $t['OPERADOR_NOMBRE'] : 'No asignado';
+                        $idOp = intval($t['ID_OPERADOR'] ?? 0);
+                        $duracion = floatval($t['TIEMPO_ESTIMADO_HORAS'] ?? 0);
+
+                        $badgeOpClass = 'bg-light text-dark border';
+                        $iconoOp = '🏢';
+                        if ($idOp === 1) {
+                            $badgeOpClass = 'bg-primary text-white border-0';
+                            $iconoOp = '🚍';
+                        } elseif ($idOp === 2) {
+                            $badgeOpClass = 'bg-warning-subtle text-dark border border-warning';
+                            $iconoOp = '🚌';
+                        } elseif ($idOp === 3) {
+                            $badgeOpClass = 'bg-warning-subtle text-dark border border-warning-subtle';
+                            $iconoOp = '🇪🇨';
+                        } elseif ($idOp === 4) {
+                            $badgeOpClass = 'bg-info-subtle text-info-emphasis border border-info-subtle';
+                            $iconoOp = '🇨🇴';
+                        } elseif ($idOp === 5) {
+                            $badgeOpClass = 'bg-success-subtle text-success-emphasis border border-success-subtle';
+                            $iconoOp = '🇻🇪';
+                        }
                     ?>
                         <tr class="fila-tramo-cat <?= $esActivo ? '' : 'table-secondary opacity-75' ?>"
                             id="fila_tramo_cat_<?= $t['ID_TRAMO_CATALOGO'] ?>"
@@ -184,7 +205,14 @@ $promedioMargenPct = ($promedioPvp > 0) ? round(($promedioUtilidad / $promedioPv
                                 <span class="badge bg-light text-dark border font-monospace"><?= htmlspecialchars($t['CODIGO'] ?? ('TC-' . $t['ID_TRAMO_CATALOGO'])) ?></span>
                             </td>
                             <td>
-                                <div class="fw-bold text-dark fs-6"><?= htmlspecialchars($t['ORIGEN_TRAMO']) ?> ➔ <?= htmlspecialchars($t['DESTINO_TRAMO']) ?></div>
+                                <div class="d-flex align-items-center gap-2 flex-wrap">
+                                    <span class="fw-bold text-dark fs-6"><?= htmlspecialchars($t['ORIGEN_TRAMO']) ?> ➔ <?= htmlspecialchars($t['DESTINO_TRAMO']) ?></span>
+                                    <?php if ($duracion > 0): ?>
+                                        <span class="badge bg-light text-secondary border font-monospace" style="font-size: 0.75rem;" title="Tiempo estimado de viaje">
+                                            ⏱️ <?= $duracion ?>h
+                                        </span>
+                                    <?php endif; ?>
+                                </div>
                                 <small class="text-muted"><?= htmlspecialchars($t['NOMBRE_TRAMO']) ?></small>
                             </td>
                             <td>
@@ -194,12 +222,17 @@ $promedioMargenPct = ($promedioPvp > 0) ? round(($promedioUtilidad / $promedioPv
                             </td>
                             <td>
                                 <div class="d-flex align-items-center gap-1">
-                                    <span class="badge bg-primary-subtle text-primary border border-primary-subtle">
-                                        🏢 <?= htmlspecialchars($opNombre) ?>
+                                    <span class="badge <?= $badgeOpClass ?> px-2 py-1">
+                                        <?= $iconoOp ?> <?= htmlspecialchars($opNombre) ?>
                                     </span>
                                 </div>
                                 <?php if (!empty($t['ADMITE_SOBREPESO'])): ?>
-                                    <small class="text-success d-block" style="font-size: 0.70rem;">🧳 Admite sobrepeso (<?= floatval($t['LIMITE_EQUIPAJE_KG'] ?? 35) ?>kg)</small>
+                                    <small class="text-success d-block mt-1" style="font-size: 0.70rem;">
+                                        🧳 Admite sobrepeso (<?= floatval($t['LIMITE_EQUIPAJE_KG'] ?? 35) ?>kg)
+                                        <?php if (!empty($t['PRECIO_SOBREPESO_KG'])): ?>
+                                            · $<?= number_format(floatval($t['PRECIO_SOBREPESO_KG']), 2) ?>/kg
+                                        <?php endif; ?>
+                                    </small>
                                 <?php endif; ?>
                             </td>
                             <td class="text-end">
@@ -234,6 +267,9 @@ $promedioMargenPct = ($promedioPvp > 0) ? round(($promedioUtilidad / $promedioPv
                                 <div class="btn-group btn-group-sm">
                                     <button class="btn btn-outline-primary" onclick='editarTramoCatalogo(<?= json_encode($t, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP) ?>)' title="Editar Tramo y Tarifas">
                                         ✏️
+                                    </button>
+                                    <button class="btn btn-outline-secondary" onclick="duplicarTramoInverso(<?= $t['ID_TRAMO_CATALOGO'] ?>, '<?= htmlspecialchars(addslashes($t['ORIGEN_TRAMO'] . ' ➔ ' . $t['DESTINO_TRAMO'])) ?>')" title="Duplicar Tramo Inverso (Crear Vuelta)">
+                                        🔄
                                     </button>
                                     <button class="btn btn-outline-danger" onclick="eliminarTramoCatalogo(<?= $t['ID_TRAMO_CATALOGO'] ?>, '<?= htmlspecialchars(addslashes($t['ORIGEN_TRAMO'] . ' ➔ ' . $t['DESTINO_TRAMO'])) ?>', <?= $rutasEnUso ?>)" title="Eliminar Tramo">
                                         🗑️
@@ -302,13 +338,13 @@ $promedioMargenPct = ($promedioPvp > 0) ? round(($promedioUtilidad / $promedioPv
                         <?php endforeach; ?>
                     </datalist>
 
-                    <!-- FILA 2: NOMBRE DESCRIPTIVO Y OPERADOR -->
+                    <!-- FILA 2: NOMBRE DESCRIPTIVO, OPERADOR Y TIEMPO -->
                     <div class="row g-3 mb-3">
-                        <div class="col-md-6">
+                        <div class="col-md-5">
                             <label class="form-label small fw-bold">🏷️ Nombre Descriptivo del Tramo</label>
                             <input type="text" name="nombre_tramo" id="tramo_nombre_cat" class="form-control" placeholder="Ej: Maturín ➔ Caracas (Oriente)">
                         </div>
-                        <div class="col-md-6">
+                        <div class="col-md-4">
                             <label class="form-label small fw-bold">🏢 Operador Responsable <span class="text-danger">*</span></label>
                             <select name="id_operador" id="tramo_operador_cat" class="form-select" required>
                                 <option value="">-- Seleccionar Operador --</option>
@@ -316,6 +352,13 @@ $promedioMargenPct = ($promedioPvp > 0) ? round(($promedioUtilidad / $promedioPv
                                     <option value="<?= $op['ID_OPERADOR'] ?>"><?= htmlspecialchars($op['NOMBRE_COMERCIAL']) ?> (<?= htmlspecialchars($op['TIPO_OPERADOR']) ?>)</option>
                                 <?php endforeach; ?>
                             </select>
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label small fw-bold">⏱️ Horas Estimadas</label>
+                            <div class="input-group">
+                                <input type="number" step="0.5" min="0" max="99" name="tiempo_estimado_horas" id="tramo_tiempo_cat" class="form-control" placeholder="Ej: 8.5" value="0.0">
+                                <span class="input-group-text bg-light text-muted small">hrs</span>
+                            </div>
                         </div>
                     </div>
 
@@ -362,11 +405,15 @@ $promedioMargenPct = ($promedioPvp > 0) ? round(($promedioUtilidad / $promedioPv
                             <label class="form-label small fw-bold">Límite Equipaje (Kg)</label>
                             <input type="number" step="0.1" name="limite_equipaje_kg" id="tramo_limite_eq_cat" class="form-control" value="35.00">
                         </div>
-                        <div class="col-md-3">
-                            <label class="form-label small fw-bold">Precio Sobrepeso/Kg ($)</label>
-                            <input type="number" step="0.01" name="precio_sobrepeso_kg" id="tramo_precio_sp_cat" class="form-control" value="1.00">
+                        <div class="col-md-2">
+                            <label class="form-label small fw-bold">Costo Kg ($)</label>
+                            <input type="number" step="0.01" min="0" name="costo_sobrepeso_kg" id="tramo_costo_sp_cat" class="form-control" value="0.00" title="Costo liquidación al operador por kg adicional">
                         </div>
-                        <div class="col-md-3">
+                        <div class="col-md-2">
+                            <label class="form-label small fw-bold">PVP Kg ($)</label>
+                            <input type="number" step="0.01" min="0" name="precio_sobrepeso_kg" id="tramo_precio_sp_cat" class="form-control" value="1.00" title="Precio cobrado al pasajero por kg adicional">
+                        </div>
+                        <div class="col-md-2">
                             <label class="form-label small fw-bold">Estado</label>
                             <select name="estado" id="tramo_estado_cat" class="form-select">
                                 <option value="ACTIVO">✅ Activo</option>
@@ -404,6 +451,10 @@ function abrirModalNuevoTramo() {
     document.getElementById('tituloModalTramo').innerHTML = '🧩 Nuevo Tramo Modular Maestro';
     document.getElementById('lblUtilidadTramoModal').innerText = '$0.00';
     document.getElementById('lblMargenTramoModal').innerText = '0% margen';
+    if (document.getElementById('tramo_tiempo_cat')) document.getElementById('tramo_tiempo_cat').value = '0.0';
+    if (document.getElementById('tramo_costo_sp_cat')) document.getElementById('tramo_costo_sp_cat').value = '0.00';
+    if (document.getElementById('tramo_precio_sp_cat')) document.getElementById('tramo_precio_sp_cat').value = '1.00';
+    if (document.getElementById('tramo_limite_eq_cat')) document.getElementById('tramo_limite_eq_cat').value = '35.00';
 }
 
 function editarTramoCatalogo(t) {
@@ -414,11 +465,19 @@ function editarTramoCatalogo(t) {
     document.getElementById('tramo_pais_cat').value = t.PAIS_TRAMO || 'INTERNACIONAL';
     document.getElementById('tramo_nombre_cat').value = t.NOMBRE_TRAMO;
     document.getElementById('tramo_operador_cat').value = t.ID_OPERADOR || '';
+    if (document.getElementById('tramo_tiempo_cat')) {
+        document.getElementById('tramo_tiempo_cat').value = parseFloat(t.TIEMPO_ESTIMADO_HORAS || 0).toFixed(1);
+    }
     document.getElementById('tramo_costo_cat').value = parseFloat(t.COSTO_OPERADOR || 0).toFixed(2);
     document.getElementById('tramo_pvp_cat').value = parseFloat(t.PVP_SUGERIDO || 0).toFixed(2);
     document.getElementById('tramo_admite_sp_cat').value = t.ADMITE_SOBREPESO !== undefined ? t.ADMITE_SOBREPESO : '1';
     document.getElementById('tramo_limite_eq_cat').value = parseFloat(t.LIMITE_EQUIPAJE_KG || 35).toFixed(2);
-    document.getElementById('tramo_precio_sp_cat').value = parseFloat(t.PRECIO_SOBREPESO_KG || 1).toFixed(2);
+    if (document.getElementById('tramo_costo_sp_cat')) {
+        document.getElementById('tramo_costo_sp_cat').value = parseFloat(t.COSTO_SOBREPESO_KG || 0).toFixed(2);
+    }
+    if (document.getElementById('tramo_precio_sp_cat')) {
+        document.getElementById('tramo_precio_sp_cat').value = parseFloat(t.PRECIO_SOBREPESO_KG || 1).toFixed(2);
+    }
     document.getElementById('tramo_estado_cat').value = t.ESTADO || 'ACTIVO';
     
     calcularRentabilidadTramoModal();
@@ -442,6 +501,22 @@ function calcularRentabilidadTramoModal() {
     } else {
         btn.disabled = false;
         btn.title = '';
+    }
+}
+
+function duplicarTramoInverso(id, nombre) {
+    let msg = `¿Deseas duplicar el tramo "${nombre}" en sentido inverso (crear viaje de vuelta)?\n\nSe creará el tramo opuesto con el mismo operador, tarifas y duración estimada.`;
+    if (confirm(msg)) {
+        const form = document.createElement('form');
+        form.method = 'POST';
+        form.action = '/suramerica2030/flota/duplicarTramoInverso';
+        const input = document.createElement('input');
+        input.type = 'hidden';
+        input.name = 'id_tramo_catalogo';
+        input.value = id;
+        form.appendChild(input);
+        document.body.appendChild(form);
+        form.submit();
     }
 }
 

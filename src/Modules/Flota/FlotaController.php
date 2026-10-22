@@ -327,6 +327,14 @@ class FlotaController {
         }
     }
 
+    public function duplicarTramoInverso() {
+        $this->verificarPermiso();
+        if ($_SERVER['REQUEST_METHOD'] == 'POST') {
+            $resultado = $this->service->procesarDuplicarTramoInverso($_POST);
+            $this->redireccionar('tramos', $resultado, 'success');
+        }
+    }
+
     public function sincronizarTarifasTramos() {
         $this->verificarPermiso();
         if ($_SERVER['REQUEST_METHOD'] == 'POST') {

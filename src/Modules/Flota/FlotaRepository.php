@@ -801,35 +801,42 @@ class FlotaRepository {
             $this->asegurarCiudadExiste($origen);
             $this->asegurarCiudadExiste($destino);
 
+            $tiempoHoras = floatval($datos['tiempo_estimado_horas'] ?? 0);
+            $utilidadSp = max(0, $precioSp - $costoSp);
+
             if ($id > 0) {
                 $sql = "UPDATE tramo_catalogo SET 
                     NOMBRE_TRAMO = ?, ORIGEN_TRAMO = ?, DESTINO_TRAMO = ?, PAIS_TRAMO = ?,
                     ID_OPERADOR = ?, OPERADOR_NOMBRE = ?, COSTO_OPERADOR = ?, PVP_SUGERIDO = ?,
-                    UTILIDAD_AGENCIA = ?, ADMITE_SOBREPESO = ?, LIMITE_EQUIPAJE_KG = ?,
-                    PRECIO_SOBREPESO_KG = ?, COSTO_SOBREPESO_KG = ?, ESTADO = ?, OBSERVACIONES = ?
+                    UTILIDAD_AGENCIA = ?, ADMITE_SOBREPESO = ?, TIEMPO_ESTIMADO_HORAS = ?, LIMITE_EQUIPAJE_KG = ?,
+                    PRECIO_SOBREPESO_KG = ?, COSTO_SOBREPESO_KG = ?, UTILIDAD_SOBREPESO_KG = ?, ESTADO = ?, OBSERVACIONES = ?
                     WHERE ID_TRAMO_CATALOGO = ?";
                 $stmt = $this->db->prepare($sql);
                 $stmt->execute([
                     $nombre, $origen, $destino, $pais,
                     $idOperador, $operadorNombre, $costo, $pvp,
-                    $utilidad, $admiteSp, $limiteEq,
-                    $precioSp, $costoSp, $estado, $observaciones,
+                    $utilidad, $admiteSp, $tiempoHoras, $limiteEq,
+                    $precioSp, $costoSp, $utilidadSp, $estado, $observaciones,
                     $id
                 ]);
             } else {
-                $codigo = 'TC-' . strtoupper(substr(preg_replace('/[^A-Za-z]/', '', $origen), 0, 3)) . '-' . strtoupper(substr(preg_replace('/[^A-Za-z]/', '', $destino), 0, 3));
+                $codigoOp = ($idOperador == 2) ? 'PAN' : (($idOperador == 1) ? 'SUR' : 'LOC');
+                $cOrig = strtoupper(substr(preg_replace('/[^A-Za-z]/', '', $origen), 0, 3));
+                $cDest = strtoupper(substr(preg_replace('/[^A-Za-z]/', '', $destino), 0, 3));
+                $codigo = "TC-{$cOrig}-{$cDest}-{$codigoOp}";
+
                 $sql = "INSERT INTO tramo_catalogo (
                     CODIGO, NOMBRE_TRAMO, ORIGEN_TRAMO, DESTINO_TRAMO, PAIS_TRAMO,
                     ID_OPERADOR, OPERADOR_NOMBRE, COSTO_OPERADOR, PVP_SUGERIDO,
-                    UTILIDAD_AGENCIA, ADMITE_SOBREPESO, LIMITE_EQUIPAJE_KG,
-                    PRECIO_SOBREPESO_KG, COSTO_SOBREPESO_KG, ESTADO, OBSERVACIONES
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+                    UTILIDAD_AGENCIA, ADMITE_SOBREPESO, TIEMPO_ESTIMADO_HORAS, LIMITE_EQUIPAJE_KG,
+                    PRECIO_SOBREPESO_KG, COSTO_SOBREPESO_KG, UTILIDAD_SOBREPESO_KG, ESTADO, OBSERVACIONES
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
                 $stmt = $this->db->prepare($sql);
                 $stmt->execute([
                     $codigo, $nombre, $origen, $destino, $pais,
                     $idOperador, $operadorNombre, $costo, $pvp,
-                    $utilidad, $admiteSp, $limiteEq,
-                    $precioSp, $costoSp, $estado, $observaciones
+                    $utilidad, $admiteSp, $tiempoHoras, $limiteEq,
+                    $precioSp, $costoSp, $utilidadSp, $estado, $observaciones
                 ]);
                 $id = (int)$this->db->lastInsertId();
             }
@@ -837,6 +844,51 @@ class FlotaRepository {
             if (!empty($datos['sincronizar_rutas'])) {
                 $this->sincronizarTarifasTramosEnRutas($id);
             }
+
+            return true;
+        } catch (Exception $e) {
+            return $e->getMessage();
+        }
+    }
+
+    public function duplicarTramoInversoBD($idTramo) {
+        try {
+            $t = $this->obtenerTramoCatalogoPorId($idTramo);
+            if (!$t) return "Tramo maestro no encontrado.";
+
+            $origen = trim($t['DESTINO_TRAMO']);
+            $destino = trim($t['ORIGEN_TRAMO']);
+            $idOperador = !empty($t['ID_OPERADOR']) ? intval($t['ID_OPERADOR']) : null;
+
+            // Verificar si el tramo inverso ya existe
+            $stmtCheck = $this->db->prepare("SELECT ID_TRAMO_CATALOGO FROM tramo_catalogo WHERE LOWER(ORIGEN_TRAMO) = LOWER(?) AND LOWER(DESTINO_TRAMO) = LOWER(?) AND ID_OPERADOR <=> ?");
+            $stmtCheck->execute([$origen, $destino, $idOperador]);
+            $idExistente = $stmtCheck->fetchColumn();
+
+            if ($idExistente) {
+                return "El tramo inverso '{$origen} ➔ {$destino}' ya existe en el catálogo (#{$idExistente}).";
+            }
+
+            $codigoOp = ($idOperador == 2) ? 'PAN' : (($idOperador == 1) ? 'SUR' : 'LOC');
+            $cOrig = strtoupper(substr(preg_replace('/[^A-Za-z]/', '', $origen), 0, 3));
+            $cDest = strtoupper(substr(preg_replace('/[^A-Za-z]/', '', $destino), 0, 3));
+            $codigo = "TC-{$cOrig}-{$cDest}-{$codigoOp}";
+            $nombre = "{$origen} ➔ {$destino}";
+
+            $sql = "INSERT INTO tramo_catalogo (
+                CODIGO, NOMBRE_TRAMO, ORIGEN_TRAMO, DESTINO_TRAMO, PAIS_TRAMO,
+                ID_OPERADOR, OPERADOR_NOMBRE, COSTO_OPERADOR, PVP_SUGERIDO, UTILIDAD_AGENCIA,
+                TIEMPO_ESTIMADO_HORAS, ADMITE_SOBREPESO, LIMITE_EQUIPAJE_KG, PRECIO_SOBREPESO_KG,
+                COSTO_SOBREPESO_KG, UTILIDAD_SOBREPESO_KG, ESTADO, OBSERVACIONES
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'ACTIVO', ?)";
+
+            $stmtIns = $this->db->prepare($sql);
+            $stmtIns->execute([
+                $codigo, $nombre, $origen, $destino, $t['PAIS_TRAMO'],
+                $idOperador, $t['OPERADOR_NOMBRE'], $t['COSTO_OPERADOR'], $t['PVP_SUGERIDO'], $t['UTILIDAD_AGENCIA'],
+                $t['TIEMPO_ESTIMADO_HORAS'] ?? 0, $t['ADMITE_SOBREPESO'], $t['LIMITE_EQUIPAJE_KG'], $t['PRECIO_SOBREPESO_KG'],
+                $t['COSTO_SOBREPESO_KG'], $t['UTILIDAD_SOBREPESO_KG'] ?? 1, 'Tramo inverso generado automáticamente'
+            ]);
 
             return true;
         } catch (Exception $e) {

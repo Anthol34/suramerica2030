@@ -309,6 +309,14 @@ class FlotaService {
         return $this->repository->eliminarTramoCatalogoBD($idTramo);
     }
 
+    public function procesarDuplicarTramoInverso($postData) {
+        $idTramo = is_array($postData) ? intval($postData['id_tramo_catalogo'] ?? 0) : intval($postData);
+        if ($idTramo <= 0) {
+            return "ID de tramo inválido.";
+        }
+        return $this->repository->duplicarTramoInversoBD($idTramo);
+    }
+
     public function procesarSincronizarTarifasTramos($postData) {
         $idTramo = !empty($postData['id_tramo_catalogo']) ? intval($postData['id_tramo_catalogo']) : null;
         return $this->repository->sincronizarTarifasTramosEnRutas($idTramo);
