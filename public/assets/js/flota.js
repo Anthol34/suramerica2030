@@ -1237,47 +1237,40 @@ document.addEventListener('submit', function(e) {
 // ========================================================
 // MANEJO DE PARÁMETROS URL PARA MODALES Y PESTAÑAS (COMPATIBILIDAD)
 // ========================================================
+function irATabOperadores(subtabId = 'subtab-tramos') {
+    const tabFlotaBtn = document.querySelector('button[data-bs-target="#tab-flota"]');
+    if (tabFlotaBtn && window.bootstrap && bootstrap.Tab) {
+        bootstrap.Tab.getOrCreateInstance(tabFlotaBtn).show();
+    }
+    if (subtabId) {
+        const subBtn = document.querySelector(`button[data-bs-target="#${subtabId}"]`);
+        if (subBtn && window.bootstrap && bootstrap.Tab) {
+            bootstrap.Tab.getOrCreateInstance(subBtn).show();
+        }
+    }
+}
+window.irATabOperadores = irATabOperadores;
+
 document.addEventListener('DOMContentLoaded', function() {
     const params = new URLSearchParams(window.location.search);
     const tab = params.get('tab');
     const openModal = params.get('openModal');
 
-    // Mapeo de parámetros heredados a modales satélites
+    // Mapeo automático de parámetros a las pestañas y subpestañas
     if (tab === 'tramos' || openModal === 'tramos') {
-        const modalEl = document.getElementById('modalCatalogoTramos');
+        irATabOperadores('subtab-tramos');
+    } else if (tab === 'operadores' || openModal === 'operadores') {
+        irATabOperadores('subtab-operadores');
+    } else if (tab === 'buses' || openModal === 'buses') {
+        irATabOperadores('subtab-capacidad');
+    } else if (tab === 'flota') {
+        irATabOperadores('subtab-operadores');
+    } else if (openModal === 'nueva_ruta') {
+        const modalEl = document.getElementById('modalNuevaRutaComercial');
         if (modalEl && window.bootstrap && bootstrap.Modal) {
             const modal = new bootstrap.Modal(modalEl);
             modal.show();
         }
-    } else if (tab === 'corredor' || openModal === 'corredor') {
-        const modalEl = document.getElementById('modalItinerarioCorredor');
-        if (modalEl && window.bootstrap && bootstrap.Modal) {
-            const modal = new bootstrap.Modal(modalEl);
-            modal.show();
-        }
-    } else if (tab === 'ciudades' || openModal === 'ciudades') {
-        const modalEl = document.getElementById('modalCatalogoCiudades');
-        if (modalEl && window.bootstrap && bootstrap.Modal) {
-            const modal = new bootstrap.Modal(modalEl);
-            modal.show();
-        }
-    } else if (tab === 'buses' || tab === 'operadores' || tab === 'flota') {
-        const tabBtn = document.querySelector('button[data-bs-target="#tab-flota"]');
-        if (tabBtn && window.bootstrap && bootstrap.Tab) {
-            const tabObj = bootstrap.Tab.getOrCreateInstance(tabBtn);
-            tabObj.show();
-        }
-    }
-
-    // Garantizar que Nueva Ruta Manual tenga al menos 1 tramo operativo al abrirse
-    const modalNueva = document.getElementById('modalNuevaRutaManual');
-    if (modalNueva) {
-        modalNueva.addEventListener('show.bs.modal', function() {
-            const list = document.getElementById('lista_tramos_nuevos');
-            if (list && list.querySelectorAll('.tramo-card').length === 0) {
-                addTramo('lista_tramos_nuevos', '');
-            }
-        });
     }
 });
 

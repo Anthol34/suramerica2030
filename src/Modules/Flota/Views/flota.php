@@ -21,8 +21,8 @@ $vJs = @filemtime(__DIR__ . '/../../../../public/assets/js/flota.js') ?: time();
 
 <div class="d-flex justify-content-between align-items-center mb-3">
     <div>
-        <h3 class="text-primary mb-0 fw-bold">Gestión de Corredores y Flota</h3>
-        <p class="text-muted small mb-0">Configura itinerarios maestros, tarifas comerciales y la flota de buses de Suramérica 2030.</p>
+        <h3 class="text-primary mb-0 fw-bold">Gestión Comercial de Rutas y Operadores</h3>
+        <p class="text-muted small mb-0">Administración de tarifas al viajero en taquilla, acuerdos de liquidación con empresas aliadas y cuentas bancarias.</p>
     </div>
 </div>
 
@@ -153,12 +153,12 @@ $vJs = @filemtime(__DIR__ . '/../../../../public/assets/js/flota.js') ?: time();
 <ul class="nav nav-pills mb-4 bg-white p-2 rounded shadow-sm border d-flex flex-wrap gap-2" id="flotaTabs" role="tablist">
     <li class="nav-item">
         <button class="nav-link fw-bold fs-6 px-4 py-2 <?= !$esTabFlota ? 'active' : '' ?>" data-bs-toggle="tab" data-bs-target="#tab-rutas" type="button" role="tab" aria-selected="<?= !$esTabFlota ? 'true' : 'false' ?>">
-            🗺️ Rutas Comerciales y Tarifario <span class="badge bg-secondary ms-1"><?= count($rutas) ?></span>
+            🗺️ Rutas Comerciales y Tarifas PVP <span class="badge bg-primary ms-1"><?= count($rutas) ?></span>
         </button>
     </li>
     <li class="nav-item">
         <button class="nav-link fw-bold fs-6 px-4 py-2 <?= $esTabFlota ? 'active' : '' ?>" data-bs-toggle="tab" data-bs-target="#tab-flota" type="button" role="tab" aria-selected="<?= $esTabFlota ? 'true' : 'false' ?>">
-            🤝 Flota y Aliados Operadores <span class="badge bg-secondary ms-1"><?= count($buses) ?> buses · <?= count($operadores) ?> operadores</span>
+            🤝 Operadores y Acuerdos de Liquidación <span class="badge bg-secondary ms-1"><?= count($operadores) ?> aliados · <?= count($tramosCatalogo ?? []) ?> tramos pactados</span>
         </button>
     </li>
 </ul>

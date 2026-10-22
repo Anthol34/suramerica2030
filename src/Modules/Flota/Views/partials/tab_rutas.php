@@ -3,66 +3,54 @@
     <!-- ======================================================== -->
     <div class="tab-pane fade <?= (!in_array($tabActiva, ['flota', 'buses', 'operadores'])) ? 'show active' : '' ?>" id="tab-rutas">
         
-        <!-- EXECUTIVE TOOLBAR: RUTAS COMERCIALES, CORREDOR Y CATÁLOGOS MAESTROS -->
+        <!-- DATALIST GLOBAL DE CIUDADES PARA AUTOCOMPLETADO RÁPIDO -->
+        <datalist id="listaCiudadesDatalist">
+            <?php foreach ($ciudadesCatalogo ?? [] as $cd): ?>
+                <option value="<?= htmlspecialchars($cd['NOMBRE']) ?>"><?= htmlspecialchars($cd['PAIS']) ?></option>
+            <?php endforeach; ?>
+        </datalist>
+
+        <!-- TOOLBAR PRINCIPAL: RUTAS COMERCIALES Y ACCIONES -->
         <div class="card border-0 shadow-sm mb-4 bg-white" style="border-radius: 12px; border-left: 5px solid #0d6efd !important;">
             <div class="card-body py-3 px-4">
                 <div class="d-flex flex-wrap justify-content-between align-items-center gap-3">
-                    <!-- Selector de Corredor Activo -->
-                    <div class="d-flex align-items-center gap-2 flex-grow-1" style="min-width: 280px; max-width: 480px;">
-                        <span class="fs-4">🌐</span>
+                    <div class="d-flex align-items-center gap-3">
+                        <span class="fs-2">🗺️</span>
                         <div>
-                            <small class="text-muted text-uppercase fw-bold d-block" style="font-size: 0.72rem; letter-spacing: 0.5px;">Corredor Activo</small>
-                            <select class="form-select form-select-sm fw-bold border-primary text-primary" onchange="window.location.href='/suramerica2030/flota?tab=rutas&corredor_id=' + this.value;">
-                                <?php foreach($corredores as $c): ?>
-                                    <option value="<?= $c['ID_CORREDOR'] ?>" <?= ($corredorActivo && $corredorActivo['ID_CORREDOR'] == $c['ID_CORREDOR']) ? 'selected' : '' ?>>
-                                        <?= htmlspecialchars($c['CODIGO'] ?? 'COR') ?> - <?= htmlspecialchars($c['NOMBRE']) ?> (<?= htmlspecialchars($c['ORIGEN_CABECERA']) ?> ➔ <?= htmlspecialchars($c['DESTINO_TERMINAL']) ?>)
-                                    </option>
-                                <?php endforeach; ?>
-                            </select>
+                            <h5 class="fw-bold text-dark mb-0">Rutas Comerciales y Tarifas al Viajero (PVP)</h5>
+                            <small class="text-muted">Servicios y boletos a la venta en taquilla para pasajeros internacionales.</small>
                         </div>
                     </div>
 
-                    <!-- Botonera de Acciones Rápidas y Catálogos Satélites -->
                     <div class="d-flex flex-wrap align-items-center gap-2">
-                        <!-- Botón Asistente 3 Clics -->
-                        <button class="btn btn-primary fw-bold shadow-sm px-3" data-bs-toggle="modal" data-bs-target="#modalCrearRutaRapida" onclick="abrirModalRutaRapida()">
-                            ⚡ Crear Ruta (3 Clics)
+                        <!-- Botón Único de Creación -->
+                        <button class="btn btn-primary fw-bold shadow-sm px-3" data-bs-toggle="modal" data-bs-target="#modalNuevaRutaComercial" onclick="abrirModalNuevaRutaComercial()">
+                            ➕ Nueva Ruta Comercial
                         </button>
 
-                        <!-- Botón Catálogo de Tramos Maestros -->
-                        <button class="btn btn-outline-secondary fw-bold" data-bs-toggle="modal" data-bs-target="#modalCatalogoTramos">
-                            🧩 Tramos y Costos
+                        <!-- Enlace Rápido a Acuerdos de Liquidación en Tab 2 -->
+                        <button class="btn btn-outline-primary fw-bold shadow-sm px-3" onclick="irATabOperadores('subtab-tramos')">
+                            🤝 Acuerdos de Liquidación
                         </button>
 
-                        <!-- Botón Itinerario y Paradas Troncales -->
-                        <button class="btn btn-outline-secondary fw-bold" data-bs-toggle="modal" data-bs-target="#modalItinerarioCorredor">
-                            🌐 Itinerario Troncal
-                        </button>
-
-                        <!-- Botón Catálogo de Ciudades -->
-                        <button class="btn btn-outline-secondary fw-bold" data-bs-toggle="modal" data-bs-target="#modalCatalogoCiudades">
-                            🏙️ Ciudades
-                        </button>
-
-                        <!-- Dropdown de Acciones Avanzadas -->
+                        <!-- Menú de Opciones -->
                         <div class="dropdown">
                             <button class="btn btn-light border dropdown-toggle fw-bold" type="button" data-bs-toggle="dropdown" aria-expanded="false">
-                                ⚙️ Más Opciones
+                                ⚙️ Opciones
                             </button>
                             <ul class="dropdown-menu dropdown-menu-end shadow-sm border-0">
                                 <li>
-                                    <button class="dropdown-item py-2 fw-semibold" data-bs-toggle="modal" data-bs-target="#modalNuevaRutaManual">
-                                        ➕ Nueva Ruta Manual Detallada
-                                    </button>
-                                </li>
-                                <li><hr class="dropdown-divider my-1"></li>
-                                <li>
-                                    <form action="/suramerica2030/flota/generarRutasCorredor" method="POST" onsubmit="return confirm('¿Deseas generar o sincronizar todas las combinaciones comerciales del corredor seleccionado? Los precios que ya hayas personalizado se respetarán.');">
+                                    <form action="/suramerica2030/flota/generarRutasCorredor" method="POST" onsubmit="return confirm('¿Deseas sincronizar todas las combinaciones comerciales del corredor seleccionado?');">
                                         <input type="hidden" name="id_corredor" id="generador_id_corredor" value="<?= $corredorActivo['ID_CORREDOR'] ?? 1 ?>">
                                         <button type="submit" class="dropdown-item py-2 fw-semibold text-success">
                                             ⚡ Sincronizar Combinaciones del Corredor
                                         </button>
                                     </form>
+                                </li>
+                                <li>
+                                    <button class="dropdown-item py-2 fw-semibold text-primary" onclick="window.location.reload();">
+                                        🔄 Refrescar Listado
+                                    </button>
                                 </li>
                             </ul>
                         </div>
@@ -875,569 +863,501 @@ foreach($tramosList as $trIndex => $tramo):
             </div>
         <?php endforeach; ?>
 
-        <!-- MODAL NUEVA RUTA MANUAL -->
-        <div class="modal fade" id="modalNuevaRutaManual" tabindex="-1">
+                <!-- ======================================================== -->
+        <!-- MODAL UNIFICADO: NUEVA RUTA COMERCIAL                    -->
+        <!-- ======================================================== -->
+        <div class="modal fade" id="modalNuevaRutaComercial" tabindex="-1" aria-labelledby="modalNuevaRutaComercialLabel" aria-hidden="true">
             <div class="modal-dialog modal-xl modal-dialog-scrollable">
-                <form class="modal-content" action="/suramerica2030/flota/guardarRuta" method="POST" id="formNuevaRutaManual">
-                    <div class="modal-header bg-primary text-white">
-                        <h5 class="modal-title fw-bold">+ Programar Nueva Ruta Comercial Manual</h5>
-                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
-                    </div>
-                    <div class="modal-body" style="overflow-y: auto; max-height: calc(100vh - 200px);">
-                            <!-- BLOQUE 1: CORREDOR, CABECERA Y MODALIDAD -->
-                            <div class="bg-light p-3 rounded border mb-3">
-                                <div class="row g-2">
-                                    <div class="col-md-4">
-                                        <label class="form-label fw-bold">Corredor Asociado</label>
-                                        <select name="id_corredor" id="nuevo_corredor" class="form-select border-primary fw-bold" required onchange="alCambiarCorredorEnRuta('')">
-                                            <?php foreach($corredores as $cor): ?>
-                                                <option value="<?= $cor['ID_CORREDOR'] ?>" <?= (($corredorActivo['ID_CORREDOR'] ?? 0) == $cor['ID_CORREDOR']) ? 'selected' : '' ?>>
-                                                    <?= htmlspecialchars($cor['CODIGO'] . ' - ' . $cor['NOMBRE']) ?>
-                                                </option>
-                                            <?php endforeach; ?>
-                                        </select>
-                                    </div>
-                                    <div class="col-md-4">
-                                        <label class="form-label fw-bold">Origen Cabecera</label>
-                                        <select name="origen" id="nuevo_origen" class="form-select select-origen-ruta border-primary fw-bold" required onchange="alCambiarCabecerasRuta('')">
-                                            <?= $generarOpcionesCiudades($corredorActivo['ID_CORREDOR'] ?? ($corredores[0]['ID_CORREDOR'] ?? 0), '', '-- Seleccione Origen --') ?>
-                                        </select>
-                                    </div>
-                                    <div class="col-md-4">
-                                        <label class="form-label fw-bold">Destino Terminal</label>
-                                        <select name="destino" id="nuevo_destino" class="form-select select-destino-ruta border-primary fw-bold" required onchange="alCambiarCabecerasRuta('')">
-                                            <?= $generarOpcionesCiudades($corredorActivo['ID_CORREDOR'] ?? ($corredores[0]['ID_CORREDOR'] ?? 0), '', '-- Seleccione Destino --') ?>
-                                        </select>
-                                    </div>
-                                </div>
-
-                                <div class="row g-2 mt-2">
-                                    <div class="col-md-6">
-                                        <label class="form-label text-primary fw-bold">Tipo de Itinerario</label>
-                                        <select name="tipo_viaje" id="nuevo_tipo_viaje" class="form-select border-primary fw-bold" onchange="toggleTramos(this.value, 'tramos_nuevos'); condicionarModalidadAutomatica('');">
-                                            <option value="DIRECTO">➡️ Viaje Directo (Un solo operador / bus)</option>
-                                            <option value="CONEXION">🔄 Con Conexiones (Tramos Operativos y Transbordos)</option>
-                                        </select>
-                                        <small class="text-muted">Si es directo o conexión con transbordos.</small>
-                                    </div>
-                                    <div class="col-md-6">
-                                        <label class="form-label text-primary fw-bold">🔀 Modalidad Logística del Servicio</label>
-                                        <select name="modalidad" id="modalidad_select_edit_" class="form-select border-info fw-bold text-dark" onchange="alCambiarModalidadSelect(this, '')">
-                                            <option value="AUTO" selected>🤖 Automático (según Operador y Tramos)</option>
-                                            <option value="PANAMERICANA">⭐ Vía Panamericana</option>
-                                            <option value="CONEXION_TRAMOS">🔀 Con Conexión por Tramos</option>
-                                            <option value="ESTANDAR">➡️ Directo Estándar</option>
-                                            <option value="OTRO">✏️ Nombre Personalizado...</option>
-                                        </select>
-                                        <div id="caja_modalidad_personalizada_" class="d-none mt-1">
-                                            <input type="text" name="modalidad_personalizada" class="form-control form-control-sm border-info" placeholder="Ej: Ruta Expresa Internacional" value="">
-                                        </div>
-                                        <small class="text-muted" style="font-size:11px;">Nombre con el que se identificará este trayecto en Taquilla y Finanzas.</small>
-                                    </div>
-                                </div>
-
-                                <!-- BLOQUE VIAJE DIRECTO: OPERADOR Y SOBREPESO -->
-                                <div id="opciones_directo_nuevo" style="display: none;">
-                                    <div class="row g-2 align-items-center">
-                                        <div class="col-md-6">
-                                            <label class="form-label small text-dark mb-0 fw-bold">🏢 Operador de la Ruta Directa</label>
-                                            <select name="id_operador" id="nuevo_id_operador" class="form-select form-select-sm fw-bold border-primary text-primary" onchange="const nom = this.options[this.selectedIndex].getAttribute('data-nombre'); const hid = this.form.querySelector('input[name=operador]'); if(hid) hid.value = nom; condicionarModalidadPorOperador(this.value, '');">
-                                                 <?= $generarOpcionesOperadores(1) ?>
-                                             </select>
-                                             <input type="hidden" name="operador" value="Suramérica 2030 (Flota Propia)">
-                                            <small class="text-muted" style="font-size:11px;">Empresa o socio responsable de la operación directa.</small>
-                                        </div>
-                                        <div class="col-md-6">
-                                            <label class="form-label small text-dark mb-0 fw-bold">⚖️ ¿Cobrar Sobrepeso en Ecuador?</label>
-                                            <select name="admite_sobrepeso" class="form-select form-select-sm fw-bold">
-                                                <option value="1" selected>✅ Sí (Cobro activo en Taquilla)</option>
-                                                <option value="0">❌ No cobrar sobrepeso (Sin cobro en oficina)</option>
-                                            </select>
-                                            <small class="text-muted" style="font-size:11px;">Habilita o inhabilita el módulo de sobrepeso para esta ruta.</small>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <!-- BLOQUE 2: DEFINICIÓN DE TRAMOS -->
-                            <div id="tramos_nuevos" class="border rounded p-3 mb-3" style="background-color: #f8fafc;">
-                                <div class="d-flex justify-content-between align-items-center mb-2 pb-1 border-bottom">
-                                    <div>
-                                        <h6 class="text-dark fw-bold mb-0">🛤️ Tramos Operativos, Operadores y Márgenes de Utilidad</h6>
-                                        <small class="text-muted">Configure los tramos del viaje, operador socio, PVP, costo del servicio y permisos de sobrepeso.</small>
-                                    </div>
-                                    <button type="button" class="btn btn-sm btn-outline-dark fw-bold" onclick="addTramo('lista_tramos_nuevos', '')">
-                                        + Añadir Tramo
-                                    </button>
-                                </div>
-
-                                <div id="lista_tramos_nuevos"></div>
-
-                                <!-- RESUMEN FINANCIERO NUEVA RUTA -->
-                                <div class="bg-white border rounded p-2 mt-2 d-flex justify-content-between align-items-center flex-wrap gap-2 shadow-sm">
-                                    <div class="d-flex align-items-center flex-wrap gap-2">
-                                        <span class="small text-muted fw-bold">RESUMEN TRAMOS:</span>
-                                        <span class="badge bg-primary fs-6" id="resumen_pvp_nuevo">PVP Total: $0.00</span>
-                                        <span class="badge bg-danger fs-6" id="resumen_costo_nuevo">Costo Socios: $0.00</span>
-                                        <span class="badge bg-success fs-6" id="resumen_utilidad_nuevo">Utilidad Neta: $0.00</span>
-                                    </div>
-                                    <div>
-                                        <button type="button" class="btn btn-sm btn-outline-primary fw-bold" onclick="copiarTotalATarifa('')">
-                                            ⚡ Sincronizar PVP y Utilidad
-                                        </button>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <!-- BLOQUE 3: DÍAS Y HORARIO -->
-                            <div class="mb-3">
-                                <label class="form-label text-secondary fw-bold">Días de Salida Fija</label>
-                                <div class="d-flex flex-wrap gap-2 mt-1">
-                                    <?php foreach($mapaDias as $numDia => $txtDia): ?>
-                                        <label class="btn btn-outline-secondary btn-sm">
-                                            <input type="checkbox" name="dias[]" value="<?= $numDia ?>"> <?= $txtDia ?>
-                                        </label>
-                                    <?php endforeach; ?>
-                                </div>
-                            </div>
-                            <div class="mb-3">
-                                <label class="form-label fw-bold">Hora de Salida</label>
-                                <input type="time" name="hora_salida" class="form-control" value="10:00" required>
-                            </div>
-                            
-                            <!-- BLOQUE 4: TARIFAS GLOBALES -->
-                            <h6 class="text-secondary border-bottom pb-1 fw-bold">Precios y Configuración Global de Venta ($)</h6>
-                            <div class="row g-2 mb-2">
-                                <div class="col-md-4">
-                                    <label class="form-label fw-bold text-primary">Tarifa Pasaje ($)</label>
-                                    <input type="number" step="0.01" name="precio_pasaje" id="precio_pasaje_nuevo" class="form-control form-control-lg fw-bold border-primary text-primary" value="0.00" required>
-                                </div>
-                                <div class="col-md-4">
-                                    <label class="form-label fw-bold">Kg Encomienda ($)</label>
-                                    <input type="number" step="0.01" name="precio_encomienda" class="form-control form-control-lg" value="0.00" required>
-                                </div>
-                                <div class="col-md-4">
-                                    <label class="form-label fw-bold">% Comisión Oficina</label>
-                                    <input type="number" step="0.10" name="comision_valor" class="form-control form-control-lg" value="10.00" required>
-                                </div>
-                            </div>
-                            <div class="row g-2 mb-3">
-                                <div class="col-md-6">
-                                    <label class="form-label">Equipaje Libre Base (Kg)</label>
-                                    <input type="number" step="0.1" name="limite_equipaje" class="form-control" value="35.00" required>
-                                </div>
-                                <div class="col-md-6">
-                                    <label class="form-label">Tarifa Sobrepeso Base ($/Kg)</label>
-                                    <input type="number" step="0.01" name="precio_sobrepeso" class="form-control" value="1.00" required>
-                                </div>
-                            </div>
-
-                            <!-- BLOQUE 5: MÁRGENES DE UTILIDAD EMPRESA / RETENCIÓN AGENCIA -->
-                            <h6 class="text-success border-bottom pb-1 fw-bold mt-3">💼 Márgenes de Utilidad Empresa / Terceros</h6>
-                            <div class="row g-2 mb-2">
-                                <div class="col-md-3">
-                                    <label class="form-label fw-bold text-secondary">Cálculo Pasajes</label>
-                                    <select name="tipo_utilidad" class="form-select border-success fw-bold" id="tipo_utilidad_nuevo" onchange="actualizarSimbolosUtilidad('nuevo')">
-                                        <option value="PORCENTAJE" selected>% Porcentaje</option>
-                                        <option value="FIJO">$ Monto Fijo</option>
-                                    </select>
-                                    <small class="text-muted d-block" style="font-size: 0.68rem;">Aplica solo a pasajes.</small>
-                                </div>
-                                <div class="col-md-3">
-                                    <div class="d-flex justify-content-between align-items-center mb-1">
-                                        <label class="form-label fw-bold text-secondary mb-0">Utilidad Pasajes</label>
-                                        <span class="badge bg-info text-dark d-none" id="badge_util_auto_nuevo" style="font-size: 0.65rem;">⚡ Auto (Tramos)</span>
-                                    </div>
-                                    <div class="input-group">
-                                        <input type="number" step="0.01" min="0" name="utilidad_pasaje" id="utilidad_pasaje_nuevo" class="form-control fw-bold border-success text-success" value="100.00" required>
-                                        <span class="input-group-text bg-light fw-bold span-simbolo-util-pasaje-nuevo" id="span-simbolo-pasaje-nuevo">%</span>
-                                    </div>
-                                    <small class="text-muted d-block" style="font-size: 0.68rem;" id="hint_util_pasaje_nuevo">
-                                        Retención directa de agencia.
-                                    </small>
-                                </div>
-                                <div class="col-md-3">
-                                    <label class="form-label fw-bold text-secondary">Utilidad Encomiendas</label>
-                                    <div class="input-group">
-                                        <input type="number" step="0.01" min="0" name="utilidad_encomienda" class="form-control fw-bold border-success text-success" value="100.00" required>
-                                        <span class="input-group-text bg-light fw-bold text-secondary">%</span>
-                                    </div>
-                                    <small class="text-muted d-block" style="font-size: 0.68rem;">% del flete cobrado.</small>
-                                </div>
-                                <div class="col-md-3">
-                                    <label class="form-label fw-bold text-secondary">Utilidad Valores/Giros</label>
-                                    <div class="input-group">
-                                        <input type="number" step="0.01" min="0" name="utilidad_valores" class="form-control fw-bold border-success text-success" value="100.00" required>
-                                        <span class="input-group-text bg-light fw-bold text-secondary">%</span>
-                                    </div>
-                                    <small class="text-muted d-block" style="font-size: 0.68rem;">% de la comisión cobrada.</small>
-                                </div>
-                            </div>
-                            <small class="text-muted d-block mb-1">
-                                Determina la retención neta de la agencia vs el capital de reposición al socio operador en caja.
-                            </small>
-                        </div>
-                        <div class="modal-footer bg-light p-2">
-                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
-                            <button type="submit" class="btn btn-primary fw-bold px-4">💾 Guardar Ruta</button>
-                        </div>
-                </form>
-            </div>
-        </div>
-
-    <!-- ======================================================== -->
-    <!-- MODAL: ASISTENTE INTELIGENTE DE RUTAS EN 3 CLICS         -->
-    <!-- ======================================================== -->
-    <div class="modal fade" id="modalCrearRutaRapida" tabindex="-1" aria-hidden="true">
-        <div class="modal-dialog modal-lg">
-            <div class="modal-content shadow-lg border-0">
-                <form action="/suramerica2030/flota/crearRutaRapida" method="POST" id="formCrearRutaRapida">
+                <form class="modal-content shadow-lg border-0" action="/suramerica2030/flota/crearRutaRapida" method="POST" id="formNuevaRutaComercial">
                     <input type="hidden" name="ajax" value="1">
-                    <input type="hidden" name="tramos_json" id="rapida_tramos_json" value="">
-                    <input type="hidden" name="costo_total_ruta" id="rapida_costo_total_hidden" value="0">
+                    <input type="hidden" name="id_corredor" id="nueva_id_corredor" value="<?= $corredorActivo['ID_CORREDOR'] ?? 1 ?>">
+                    <input type="hidden" name="costo_total_ruta" id="nueva_costo_total_hidden" value="0">
+                    <input type="hidden" name="modalidad" value="AUTO">
 
                     <div class="modal-header bg-primary text-white py-3">
                         <div class="d-flex align-items-center gap-2">
-                            <span class="fs-4">⚡</span>
+                            <span class="fs-4">➕</span>
                             <div>
-                                <h5 class="modal-title fw-bold mb-0 text-white">Asistente de Creación de Rutas en 3 Clics</h5>
-                                <small class="text-white-50">Crea rutas comerciales en segundos con cálculo automático de tramos, costos y tarifas protegidas</small>
+                                <h5 class="modal-title fw-bold text-white mb-0" id="modalNuevaRutaComercialLabel">Programar Nueva Ruta Comercial</h5>
+                                <small class="text-white-50">Crea trayectos directos o con conexión. Detecta automáticamente tramos y costos de operadores aliados.</small>
                             </div>
                         </div>
                         <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Cerrar"></button>
                     </div>
 
-                    <div class="modal-body p-4">
-                        <!-- PASO 1: ORIGEN Y DESTINO -->
-                        <div class="card border-0 bg-light p-3 mb-3">
-                            <div class="d-flex align-items-center gap-2 mb-2">
-                                <span class="badge bg-primary rounded-circle">1</span>
-                                <h6 class="fw-bold text-dark mb-0">Selecciona el Trayecto Comercial</h6>
-                            </div>
+                    <div class="modal-body p-4 bg-light" style="overflow-y: auto; max-height: calc(100vh - 180px);">
+                        <!-- BLOQUE 1: CIUDADES Y FRECUENCIA -->
+                        <div class="card border-0 shadow-sm p-3 mb-3 bg-white">
                             <div class="row g-3">
-                                <div class="col-md-6">
-                                    <label class="form-label small fw-bold">🛫 Ciudad de Origen <span class="text-danger">*</span></label>
-                                    <input type="text" name="origen" id="rapida_origen" class="form-control form-control-lg fs-6 fw-bold" list="listaCiudadesRutaRapida" placeholder="Ej: Maturín, Quito o Caracas" required autocomplete="off" oninput="dispararSugerenciaRutaRapida()">
+                                <div class="col-md-5">
+                                    <label class="form-label small fw-bold text-dark mb-1">🛫 Ciudad de Origen (Embarque) <span class="text-danger">*</span></label>
+                                    <div class="input-group">
+                                        <span class="input-group-text bg-light text-muted">📍</span>
+                                        <input type="text" name="origen" id="nueva_origen" class="form-control fw-bold border-primary" list="listaCiudadesDatalist" placeholder="Ej: Manta" required autocomplete="off" oninput="dispararDeteccionNuevaRuta()" onchange="dispararDeteccionNuevaRuta()">
+                                    </div>
+                                    <small class="text-muted" style="font-size: 11px;">Escribe o selecciona la ciudad donde sube el pasajero.</small>
                                 </div>
-                                <div class="col-md-6">
-                                    <label class="form-label small fw-bold">🛬 Ciudad de Destino <span class="text-danger">*</span></label>
-                                    <input type="text" name="destino" id="rapida_destino" class="form-control form-control-lg fs-6 fw-bold" list="listaCiudadesRutaRapida" placeholder="Ej: Manta, Caracas o Cúcuta" required autocomplete="off" oninput="dispararSugerenciaRutaRapida()">
-                                </div>
-                            </div>
-                            <datalist id="listaCiudadesRutaRapida">
-                                <?php foreach ($ciudadesCatalogo ?? [] as $cd): ?>
-                                    <option value="<?= htmlspecialchars($cd['NOMBRE']) ?>"><?= htmlspecialchars($cd['PAIS']) ?></option>
-                                <?php endforeach; ?>
-                            </datalist>
-                        </div>
-
-                        <!-- PASO 2: MODALIDAD OPERATIVA Y RETORNO -->
-                        <div class="card border-0 bg-light p-3 mb-3">
-                            <div class="d-flex align-items-center gap-2 mb-2">
-                                <span class="badge bg-primary rounded-circle">2</span>
-                                <h6 class="fw-bold text-dark mb-0">Modalidad Operativa y Retorno</h6>
-                            </div>
-                            <div class="row g-3 align-items-center">
-                                <div class="col-md-6">
-                                    <label class="form-label small fw-bold">🤝 Modalidad de Alianza / Conexión</label>
-                                    <select name="modalidad" id="rapida_modalidad" class="form-select fw-bold" onchange="dispararSugerenciaRutaRapida()">
-                                        <option value="CONEXION_TRAMOS" selected>🔄 Suramérica Conexiones (Empresas Locales + Troncal)</option>
-                                        <option value="PANAMERICANA">⭐ Alianza Panamericana Internacional</option>
-                                        <option value="DIRECTO">➡️ Servicio Directo (Flota Propia)</option>
-                                    </select>
-                                </div>
-                                <div class="col-md-6">
-                                    <div class="form-check form-switch pt-2">
-                                        <input class="form-check-input" type="checkbox" name="crear_retorno" value="1" id="rapida_crear_retorno" checked>
-                                        <label class="form-check-label fw-bold text-primary" for="rapida_crear_retorno">
-                                            🔁 Crear Retorno Inverso Automáticamente
+                                <div class="col-md-2 text-center d-flex flex-column justify-content-center align-items-center">
+                                    <span class="fs-3 text-primary d-none d-md-block">➔</span>
+                                    <div class="form-check form-switch pt-1">
+                                        <input class="form-check-input" type="checkbox" name="crear_retorno" value="1" id="nueva_crear_retorno" checked>
+                                        <label class="form-check-label small fw-bold text-primary" for="nueva_crear_retorno" title="Genera también la ruta inversa Destino ➔ Origen">
+                                            🔁 Retorno
                                         </label>
-                                        <small class="text-muted d-block" style="font-size: 11px;">
-                                            Genera en la misma transacción la ruta inversa (Destino ➔ Origen) con sus tramos ordenados al revés.
-                                        </small>
+                                    </div>
+                                </div>
+                                <div class="col-md-5">
+                                    <label class="form-label small fw-bold text-dark mb-1">🛬 Ciudad de Destino (Desembarque) <span class="text-danger">*</span></label>
+                                    <div class="input-group">
+                                        <span class="input-group-text bg-light text-muted">🏁</span>
+                                        <input type="text" name="destino" id="nueva_destino" class="form-control fw-bold border-primary" list="listaCiudadesDatalist" placeholder="Ej: Caracas" required autocomplete="off" oninput="dispararDeteccionNuevaRuta()" onchange="dispararDeteccionNuevaRuta()">
+                                    </div>
+                                    <small class="text-muted" style="font-size: 11px;">Escribe o selecciona la ciudad donde finaliza el viaje.</small>
+                                </div>
+                            </div>
+
+                            <hr class="my-3">
+
+                            <div class="row g-3 align-items-center">
+                                <div class="col-md-7">
+                                    <label class="form-label small fw-bold text-secondary mb-1">Días de Salida Fija:</label>
+                                    <div class="d-flex flex-wrap gap-1">
+                                        <?php foreach($mapaDias as $numDia => $txtDia): ?>
+                                            <label class="btn btn-outline-secondary btn-sm py-1 px-2" style="font-size: 11px;">
+                                                <input type="checkbox" name="dias_salida[]" value="<?= $numDia ?>" checked> <?= $txtDia ?>
+                                            </label>
+                                        <?php endforeach; ?>
+                                    </div>
+                                </div>
+                                <div class="col-md-5">
+                                    <label class="form-label small fw-bold text-secondary mb-1">Hora de Salida:</label>
+                                    <div class="input-group input-group-sm">
+                                        <span class="input-group-text bg-light">⏰</span>
+                                        <input type="time" name="hora_salida" class="form-control" value="08:00" required>
                                     </div>
                                 </div>
                             </div>
                         </div>
 
-                        <!-- PASO 3: REVISIÓN DE TRAMOS Y TARIFA SEGURA (FAIL-SAFE) -->
-                        <div class="card border shadow-sm p-3 mb-3 bg-white">
-                            <div class="d-flex align-items-center justify-content-between mb-2">
-                                <div class="d-flex align-items-center gap-2">
-                                    <span class="badge bg-primary rounded-circle">3</span>
-                                    <h6 class="fw-bold text-dark mb-0">Tramos Detectados y Tarifa Comercial</h6>
+                        <!-- BLOQUE 2: TRAMOS OPERATIVOS Y COSTOS DE OPERADORES -->
+                        <div class="card border-0 shadow-sm p-3 mb-3 bg-white">
+                            <div class="d-flex justify-content-between align-items-center mb-2 pb-2 border-bottom flex-wrap gap-2">
+                                <div>
+                                    <div class="d-flex align-items-center gap-2">
+                                        <h6 class="fw-bold text-dark mb-0">🧩 Desglose de Tramos y Liquidación a Operadores</h6>
+                                        <span class="badge bg-light text-muted border" id="nueva_status_tramos">Esperando ciudades...</span>
+                                    </div>
+                                    <small class="text-muted" style="font-size: 11px;">Se detectan automáticamente según los acuerdos con Panamericana, Expresos Suramérica y Enlaces Locales.</small>
                                 </div>
-                                <span class="badge bg-light text-muted border" id="rapida_status_tramos">Esperando selección...</span>
+                                <button type="button" class="btn btn-sm btn-outline-primary fw-bold" onclick="crearTramoManualVacio()">
+                                    + Añadir Tramo Manual
+                                </button>
                             </div>
 
-                            <!-- CONTENEDOR DE TRAMOS DETECTADOS -->
-                            <div id="rapida_contenedor_tramos" class="p-2 mb-3 bg-light rounded border">
-                                <p class="text-muted small mb-0 text-center py-3">
-                                    👈 Escribe el origen y el destino para que el asistente calcule los tramos maestros y costos de operadores automáticamente.
-                                </p>
+                            <!-- CONTENEDOR DINÁMICO DE TRAMOS -->
+                            <div id="lista_tramos_nueva_comercial" class="d-flex flex-column gap-2 mb-2">
+                                <div class="text-center py-4 text-muted small" id="nueva_msg_vacio_tramos">
+                                    👈 Ingresa la ciudad de origen y destino arriba para detectar los tramos y costos de operadores automáticamente.
+                                </div>
                             </div>
+                        </div>
 
-                            <!-- MATRIZ DE PRECIO Y MARGEN -->
-                            <div class="row g-3 align-items-center p-3 rounded" id="rapida_caja_precios" style="background: #f1f8e9;">
+                        <!-- BLOQUE 3: MATRIZ FINANCIERA EN VIVO (FAIL-SAFE ANTI-PÉRDIDAS) -->
+                        <div class="card border-0 shadow-sm p-3 bg-white" style="background: linear-gradient(135deg, #f0fdf4 0%, #ffffff 100%) !important; border-left: 5px solid #16a34a !important;">
+                            <div class="row g-3 align-items-center">
                                 <div class="col-md-4">
-                                    <label class="form-label small fw-bold text-danger mb-0">Costo Operadores (Liquidación):</label>
-                                    <div class="fs-4 fw-bold text-danger" id="rapida_lbl_costo_total">$0.00</div>
-                                    <small class="text-muted" style="font-size: 11px;">Total a pagar a transportistas</small>
+                                    <label class="form-label small fw-bold text-danger mb-0">Costo Liquidación Operadores:</label>
+                                    <div class="fs-4 fw-bold text-danger" id="nueva_lbl_costo_total">$0.00</div>
+                                    <small class="text-muted" style="font-size: 11px;">Monto total a pagar a transportistas</small>
                                 </div>
                                 <div class="col-md-4">
-                                    <label class="form-label small fw-bold text-primary mb-1">Precio Pasaje al Público ($):</label>
+                                    <label class="form-label small fw-bold text-primary mb-1">Precio Pasaje al Público ($ PVP):</label>
                                     <div class="input-group">
                                         <span class="input-group-text bg-primary text-white fw-bold">$</span>
-                                        <input type="number" step="0.50" min="0" name="precio_pasaje" id="rapida_input_pvp" class="form-control form-control-lg fw-bold text-primary" placeholder="0.00" required oninput="recalcularMargenRutaRapida()">
+                                        <input type="number" step="0.50" min="0" name="precio_pasaje" id="nueva_input_pvp" class="form-control form-control-lg fw-bold text-primary" placeholder="0.00" required oninput="recalcularMargenNuevaRutaComercial()">
                                     </div>
-                                    <small class="text-muted" style="font-size: 11px;">Tarifa final cobrada al pasajero</small>
+                                    <small class="text-muted" style="font-size: 11px;">Tarifa final en taquilla al viajero</small>
                                 </div>
                                 <div class="col-md-4">
-                                    <label class="form-label small fw-bold text-success mb-0">Ganancia Agencia:</label>
-                                    <div class="fs-4 fw-bold text-success" id="rapida_lbl_ganancia">$0.00</div>
+                                    <label class="form-label small fw-bold text-success mb-0">Utilidad Neta de la Agencia:</label>
+                                    <div class="fs-4 fw-bold text-success" id="nueva_lbl_ganancia">$0.00</div>
                                     <div class="progress mt-1" style="height: 6px;">
-                                        <div id="rapida_barra_margen" class="progress-bar bg-success" role="progressbar" style="width: 0%;"></div>
+                                        <div id="nueva_barra_margen" class="progress-bar bg-success" role="progressbar" style="width: 0%;"></div>
                                     </div>
-                                    <small class="text-success fw-bold d-block mt-1" id="rapida_lbl_margen_pct" style="font-size: 11px;">0% margen</small>
+                                    <small class="text-success fw-bold d-block mt-1" id="nueva_lbl_margen_pct" style="font-size: 11px;">0% margen</small>
                                 </div>
                             </div>
 
-                            <!-- ALERTA DE BLOQUEO POR PÉRDIDA (FAIL-SAFE) -->
-                            <div id="rapida_alerta_perdida" class="alert alert-danger d-none mt-3 mb-0 py-2 d-flex align-items-center gap-2">
+                            <!-- ALERTA DE BLOQUEO POR PÉRDIDA -->
+                            <div id="nueva_alerta_perdida" class="alert alert-danger d-none mt-3 mb-0 py-2 d-flex align-items-center gap-2">
                                 <span class="fs-4">⛔</span>
                                 <div>
                                     <strong class="d-block">Bloqueo de Seguridad Activado</strong>
-                                    <span class="small" id="rapida_alerta_perdida_texto">El precio de venta no puede ser inferior a los costos de liquidación.</span>
+                                    <span class="small" id="nueva_alerta_perdida_texto">El precio de venta no puede ser inferior a los costos de liquidación.</span>
                                 </div>
-                            </div>
-                        </div>
-
-                        <!-- DÍAS Y HORARIO -->
-                        <div class="row g-3 align-items-center">
-                            <div class="col-md-7">
-                                <label class="form-label small fw-bold text-secondary mb-1">Días de Salida:</label>
-                                <div class="d-flex flex-wrap gap-1">
-                                    <?php foreach($mapaDias as $numDia => $txtDia): ?>
-                                        <label class="btn btn-outline-secondary btn-sm py-1 px-2" style="font-size: 11px;">
-                                            <input type="checkbox" name="dias_salida[]" value="<?= $numDia ?>" checked> <?= $txtDia ?>
-                                        </label>
-                                    <?php endforeach; ?>
-                                </div>
-                            </div>
-                            <div class="col-md-5">
-                                <label class="form-label small fw-bold text-secondary mb-1">Hora de Salida Fija:</label>
-                                <input type="time" name="hora_salida" class="form-control" value="08:00" required>
                             </div>
                         </div>
                     </div>
 
-                    <div class="modal-footer bg-light py-2">
+                    <div class="modal-footer bg-light py-2 px-3 d-flex justify-content-between">
                         <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
-                        <button type="submit" class="btn btn-primary fw-bold px-4" id="btnGuardarRutaRapida">
-                            🚀 Crear Ruta(s) Comerciales
+                        <button type="submit" class="btn btn-primary fw-bold px-4" id="btnGuardarNuevaRutaComercial">
+                            🚀 Crear Ruta Comercial
                         </button>
                     </div>
                 </form>
             </div>
         </div>
-    </div>
 
-    <!-- SCRIPT DEL ASISTENTE DE RUTAS EN 3 CLICS -->
-    <script>
-    let timerSugerenciaRapida = null;
-    let tramosSugeridosActuales = [];
+        <!-- SCRIPT UNIFICADO DE NUEVA RUTA COMERCIAL -->
+        <script>
+        let timerDeteccionNueva = null;
 
-    function abrirModalRutaRapida() {
-        document.getElementById('formCrearRutaRapida').reset();
-        document.getElementById('rapida_tramos_json').value = '';
-        document.getElementById('rapida_costo_total_hidden').value = '0';
-        document.getElementById('rapida_lbl_costo_total').innerText = '$0.00';
-        document.getElementById('rapida_input_pvp').value = '';
-        document.getElementById('rapida_lbl_ganancia').innerText = '$0.00';
-        document.getElementById('rapida_lbl_margen_pct').innerText = '0% margen';
-        document.getElementById('rapida_barra_margen').style.width = '0%';
-        document.getElementById('rapida_status_tramos').innerText = 'Esperando selección...';
-        document.getElementById('rapida_status_tramos').className = 'badge bg-light text-muted border';
-        document.getElementById('rapida_contenedor_tramos').innerHTML = `
-            <p class="text-muted small mb-0 text-center py-3">
-                👈 Escribe el origen y el destino para que el asistente calcule los tramos maestros y costos de operadores automáticamente.
-            </p>
-        `;
-        document.getElementById('rapida_alerta_perdida').classList.add('d-none');
-        document.getElementById('btnGuardarRutaRapida').disabled = false;
-    }
-
-    function dispararSugerenciaRutaRapida() {
-        clearTimeout(timerSugerenciaRapida);
-        const origen = (document.getElementById('rapida_origen').value || '').trim();
-        const destino = (document.getElementById('rapida_destino').value || '').trim();
-        const modalidad = (document.getElementById('rapida_modalidad').value || 'CONEXION_TRAMOS');
-
-        if (origen.length < 3 || destino.length < 3) {
-            return;
-        }
-
-        if (origen.toLowerCase() === destino.toLowerCase()) {
-            document.getElementById('rapida_contenedor_tramos').innerHTML = `
-                <div class="alert alert-warning py-2 mb-0 small text-center">
-                    ⚠️ El origen y el destino no pueden ser la misma ciudad.
+        function abrirModalNuevaRutaComercial() {
+            const form = document.getElementById('formNuevaRutaComercial');
+            if (form) form.reset();
+            document.getElementById('nueva_costo_total_hidden').value = '0';
+            document.getElementById('nueva_lbl_costo_total').innerText = '$0.00';
+            document.getElementById('nueva_input_pvp').value = '';
+            document.getElementById('nueva_lbl_ganancia').innerText = '$0.00';
+            document.getElementById('nueva_lbl_margen_pct').innerText = '0% margen';
+            document.getElementById('nueva_barra_margen').style.width = '0%';
+            document.getElementById('nueva_status_tramos').innerText = 'Esperando ciudades...';
+            document.getElementById('nueva_status_tramos').className = 'badge bg-light text-muted border';
+            document.getElementById('lista_tramos_nueva_comercial').innerHTML = `
+                <div class="text-center py-4 text-muted small" id="nueva_msg_vacio_tramos">
+                    👈 Ingresa la ciudad de origen y destino arriba para detectar los tramos y costos de operadores automáticamente.
                 </div>
             `;
-            return;
+            document.getElementById('nueva_alerta_perdida').classList.add('d-none');
+            document.getElementById('btnGuardarNuevaRutaComercial').disabled = false;
         }
 
-        document.getElementById('rapida_status_tramos').innerText = 'Calculando tramos...';
-        document.getElementById('rapida_status_tramos').className = 'badge bg-warning-subtle text-warning border border-warning-subtle';
+        function dispararDeteccionNuevaRuta() {
+            clearTimeout(timerDeteccionNueva);
+            const orig = (document.getElementById('nueva_origen').value || '').trim();
+            const dest = (document.getElementById('nueva_destino').value || '').trim();
 
-        timerSugerenciaRapida = setTimeout(() => {
-            fetch(`/suramerica2030/flota/sugerirTramosRuta?origen=${encodeURIComponent(origen)}&destino=${encodeURIComponent(destino)}&modalidad=${encodeURIComponent(modalidad)}`)
-                .then(res => res.json())
-                .then(res => {
-                    if (res.status === 'success' && res.data) {
-                        renderizarTramosSugeridosRapida(res.data);
-                    } else {
-                        document.getElementById('rapida_status_tramos').innerText = 'Error al calcular';
-                        document.getElementById('rapida_status_tramos').className = 'badge bg-danger-subtle text-danger border border-danger-subtle';
-                    }
-                })
-                .catch(err => {
-                    console.error('Error calculando sugerencia:', err);
-                });
-        }, 350);
-    }
+            if (orig.length < 3 || dest.length < 3) return;
+            if (orig.toLowerCase() === dest.toLowerCase()) {
+                document.getElementById('nueva_status_tramos').innerText = 'Origen y destino iguales';
+                document.getElementById('nueva_status_tramos').className = 'badge bg-warning-subtle text-warning border';
+                return;
+            }
 
-    function renderizarTramosSugeridosRapida(data) {
-        tramosSugeridosActuales = data.tramos || [];
-        document.getElementById('rapida_tramos_json').value = JSON.stringify(tramosSugeridosActuales);
-        document.getElementById('rapida_costo_total_hidden').value = data.costo_total_operadores || 0;
-        document.getElementById('rapida_lbl_costo_total').innerText = '$' + (data.costo_total_operadores || 0).toFixed(2);
-        
-        // Asignar PVP sugerido
-        const inputPvp = document.getElementById('rapida_input_pvp');
-        inputPvp.value = (data.pvp_sugerido || 0).toFixed(2);
+            document.getElementById('nueva_status_tramos').innerText = 'Detectando tramos...';
+            document.getElementById('nueva_status_tramos').className = 'badge bg-info-subtle text-info border';
 
-        document.getElementById('rapida_status_tramos').innerText = (tramosSugeridosActuales.length) + ' tramo(s) detectado(s)';
-        document.getElementById('rapida_status_tramos').className = 'badge bg-success-subtle text-success border border-success-subtle';
-
-        let html = '<div class="list-group list-group-flush">';
-        tramosSugeridosActuales.forEach((t, idx) => {
-            html += `
-                <div class="list-group-item d-flex justify-content-between align-items-center px-2 py-2 bg-white rounded mb-1 border shadow-xs">
-                    <div>
-                        <div class="fw-bold text-dark small">
-                            ${idx + 1}. ${t.origen} ➔ ${t.destino}
-                        </div>
-                        <small class="text-secondary" style="font-size: 11px;">
-                            🏢 ${t.operador}
-                        </small>
-                    </div>
-                    <div class="text-end">
-                        <span class="badge bg-danger-subtle text-danger border border-danger-subtle">
-                            Costo: $${parseFloat(t.costo).toFixed(2)}
-                        </span>
-                        <span class="badge bg-primary-subtle text-primary border border-primary-subtle ms-1">
-                            PVP: $${parseFloat(t.pvp).toFixed(2)}
-                        </span>
-                    </div>
-                </div>
-            `;
-        });
-        html += '</div>';
-
-        document.getElementById('rapida_contenedor_tramos').innerHTML = html;
-        recalcularMargenRutaRapida();
-    }
-
-    function recalcularMargenRutaRapida() {
-        const costoTotal = parseFloat(document.getElementById('rapida_costo_total_hidden').value) || 0;
-        const pvp = parseFloat(document.getElementById('rapida_input_pvp').value) || 0;
-        const btn = document.getElementById('btnGuardarRutaRapida');
-        const alertaPerdida = document.getElementById('rapida_alerta_perdida');
-        const alertaTexto = document.getElementById('rapida_alerta_perdida_texto');
-
-        if (costoTotal > 0 && pvp < costoTotal) {
-            // BLOQUEO POR PÉRDIDA (FAIL-SAFE)
-            const deficit = (costoTotal - pvp).toFixed(2);
-            alertaTexto.innerText = `El precio configurado ($${pvp.toFixed(2)}) genera una pérdida neta de -$${deficit} frente a la liquidación de operadores ($${costoTotal.toFixed(2)}). Corrija el precio para continuar.`;
-            alertaPerdida.classList.remove('d-none');
-            btn.disabled = true;
-
-            document.getElementById('rapida_lbl_ganancia').innerText = '-$' + deficit;
-            document.getElementById('rapida_lbl_ganancia').className = 'fs-4 fw-bold text-danger';
-            document.getElementById('rapida_lbl_margen_pct').innerText = 'Pérdida';
-            document.getElementById('rapida_lbl_margen_pct').className = 'text-danger fw-bold d-block mt-1';
-            document.getElementById('rapida_barra_margen').style.width = '0%';
-            document.getElementById('rapida_barra_margen').className = 'progress-bar bg-danger';
-            return;
-        }
-
-        alertaPerdida.classList.add('d-none');
-        btn.disabled = false;
-
-        const utilidad = Math.max(0, pvp - costoTotal);
-        const margenPct = (pvp > 0) ? ((utilidad / pvp) * 100).toFixed(1) : '0';
-
-        document.getElementById('rapida_lbl_ganancia').innerText = '$' + utilidad.toFixed(2);
-        document.getElementById('rapida_lbl_ganancia').className = 'fs-4 fw-bold text-success';
-        document.getElementById('rapida_lbl_margen_pct').innerText = margenPct + '% margen de rentabilidad';
-        document.getElementById('rapida_lbl_margen_pct').className = 'text-success fw-bold d-block mt-1';
-        document.getElementById('rapida_barra_margen').style.width = Math.min(100, margenPct) + '%';
-        document.getElementById('rapida_barra_margen').className = 'progress-bar bg-success';
-    }
-
-    // Manejar envío AJAX del formulario de Ruta Rápida
-    document.addEventListener('DOMContentLoaded', function() {
-        const formRapida = document.getElementById('formCrearRutaRapida');
-        if (formRapida) {
-            formRapida.addEventListener('submit', function(e) {
-                e.preventDefault();
-                const btn = document.getElementById('btnGuardarRutaRapida');
-                btn.disabled = true;
-                btn.innerText = '⏳ Creando Ruta(s)...';
-
-                const formData = new FormData(formRapida);
-
-                fetch(formRapida.action, {
-                    method: 'POST',
-                    headers: { 'X-Requested-With': 'XMLHttpRequest' },
-                    body: formData
-                })
-                .then(r => r.json())
-                .then(data => {
-                    btn.disabled = false;
-                    btn.innerText = '🚀 Crear Ruta(s) Comerciales';
-
-                    if (data.status === 'success') {
-                        // Cerrar modal
-                        const modalEl = document.getElementById('modalCrearRutaRapida');
-                        const modal = bootstrap.Modal.getInstance(modalEl);
-                        if (modal) modal.hide();
-
-                        // Mostrar Toast
-                        const toastEl = document.getElementById('toastFlotaAjax');
-                        if (toastEl) {
-                            document.getElementById('toastFlotaAjaxMsg').innerText = data.mensaje || 'Ruta creada exitosamente.';
-                            const toast = new bootstrap.Toast(toastEl, { delay: 4000 });
-                            toast.show();
+            timerDeteccionNueva = setTimeout(() => {
+                fetch(`/suramerica2030/flota/sugerirTramosRuta?origen=${encodeURIComponent(orig)}&destino=${encodeURIComponent(dest)}`)
+                    .then(r => r.json())
+                    .then(res => {
+                        if (res.status === 'success' && res.data && res.data.tramos && res.data.tramos.length > 0) {
+                            renderizarTramosNuevaRuta(res.data);
+                        } else {
+                            document.getElementById('nueva_status_tramos').innerText = 'Sin tramos predefinidos';
+                            document.getElementById('nueva_status_tramos').className = 'badge bg-secondary-subtle text-secondary border';
+                            if (!document.querySelector('#lista_tramos_nueva_comercial .tramo-card')) {
+                                crearTramoDirectoPorDefecto(orig, dest);
+                            }
                         }
+                    })
+                    .catch(err => {
+                        console.error(err);
+                        if (!document.querySelector('#lista_tramos_nueva_comercial .tramo-card')) {
+                            crearTramoDirectoPorDefecto(orig, dest);
+                        }
+                    });
+            }, 300);
+        }
 
-                        // Recargar tab de rutas
-                        setTimeout(() => {
-                            window.location.href = '/suramerica2030/flota?tab=rutas&status=success';
-                        }, 800);
-                    } else {
-                        alert(data.mensaje || 'Error al crear la ruta.');
-                    }
-                })
-                .catch(err => {
-                    btn.disabled = false;
-                    btn.innerText = '🚀 Crear Ruta(s) Comerciales';
-                    alert('Error en la comunicación con el servidor: ' + err.message);
-                });
+        function renderizarTramosNuevaRuta(data) {
+            const tramos = data.tramos || [];
+            const container = document.getElementById('lista_tramos_nueva_comercial');
+            container.innerHTML = '';
+
+            tramos.forEach((t, idx) => {
+                const div = document.createElement('div');
+                div.className = 'tramo-card card border p-3 mb-2 bg-light shadow-sm';
+                div.innerHTML = `
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <span class="badge bg-primary px-2 py-1 tramo-badge-titulo">Tramo ${idx + 1}: ${t.origen} ➔ ${t.destino}</span>
+                        <button type="button" class="btn btn-outline-danger btn-sm py-0 px-2 fw-bold" onclick="eliminarTramoCardNueva(this)">✕ Quitar</button>
+                    </div>
+                    <div class="row g-2">
+                        <div class="col-md-3">
+                            <label class="form-label small text-muted mb-0">Sube en</label>
+                            <input type="text" name="tramo_origen[]" class="form-control form-control-sm fw-bold tramo-origen-select" value="${t.origen}" list="listaCiudadesDatalist" required onchange="actualizarTitulosTramosNueva()">
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label small text-muted mb-0">Baja en</label>
+                            <input type="text" name="tramo_destino[]" class="form-control form-control-sm fw-bold tramo-destino-select" value="${t.destino}" list="listaCiudadesDatalist" required onchange="actualizarTitulosTramosNueva()">
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label small text-muted mb-0">Operador Encargado</label>
+                            <select name="tramo_id_operador[]" class="form-select form-select-sm fw-bold border-primary text-primary" onchange="const opName = this.options[this.selectedIndex].getAttribute('data-nombre') || this.options[this.selectedIndex].text; this.closest('.tramo-card').querySelector('input[name=\'tramo_operador[]\']').value = opName;">
+                                ${HTML_OPCIONES_OPERADORES}
+                            </select>
+                            <input type="hidden" name="tramo_operador[]" value="${t.operador || 'Panamericana'}">
+                        </div>
+                        <div class="col-md-2">
+                            <label class="form-label small text-danger fw-bold mb-0">Costo ($)</label>
+                            <input type="number" step="0.50" min="0" name="tramo_costo[]" class="form-control form-control-sm fw-bold text-danger border-danger tramo-costo-input" value="${parseFloat(t.costo || 0).toFixed(2)}" required oninput="recalcularMargenNuevaRutaComercial()">
+                        </div>
+                        <div class="col-md-1 d-flex align-items-end justify-content-center">
+                            <div class="form-check" title="Admite Sobrepeso">
+                                <input class="form-check-input" type="checkbox" name="tramo_admite_sp[]" value="1" ${t.admite_sobrepeso ? 'checked' : ''}>
+                                <label class="form-check-label small" style="font-size:10px;">SP</label>
+                            </div>
+                        </div>
+                    </div>
+                    <input type="hidden" name="tramo_pvp[]" class="tramo-pvp-input" value="${parseFloat(t.pvp || 0).toFixed(2)}">
+                `;
+                container.appendChild(div);
+
+                if (t.id_operador) {
+                    const selOp = div.querySelector('select[name="tramo_id_operador[]"]');
+                    if (selOp) selOp.value = t.id_operador;
+                }
+            });
+
+            document.getElementById('nueva_status_tramos').innerText = `${tramos.length} tramo(s) detectado(s)`;
+            document.getElementById('nueva_status_tramos').className = 'badge bg-success-subtle text-success border';
+
+            if (data.pvp_sugerido && (!document.getElementById('nueva_input_pvp').value || parseFloat(document.getElementById('nueva_input_pvp').value) === 0)) {
+                document.getElementById('nueva_input_pvp').value = parseFloat(data.pvp_sugerido).toFixed(2);
+            }
+
+            recalcularMargenNuevaRutaComercial();
+        }
+
+        function crearTramoDirectoPorDefecto(orig, dest) {
+            const container = document.getElementById('lista_tramos_nueva_comercial');
+            container.innerHTML = '';
+            const div = document.createElement('div');
+            div.className = 'tramo-card card border p-3 mb-2 bg-light shadow-sm';
+            div.innerHTML = `
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <span class="badge bg-primary px-2 py-1 tramo-badge-titulo">Tramo 1: ${orig} ➔ ${dest} (Directo)</span>
+                    <button type="button" class="btn btn-outline-danger btn-sm py-0 px-2 fw-bold" onclick="eliminarTramoCardNueva(this)">✕ Quitar</button>
+                </div>
+                <div class="row g-2">
+                    <div class="col-md-3">
+                        <label class="form-label small text-muted mb-0">Sube en</label>
+                        <input type="text" name="tramo_origen[]" class="form-control form-control-sm fw-bold tramo-origen-select" value="${orig}" list="listaCiudadesDatalist" required onchange="actualizarTitulosTramosNueva()">
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label small text-muted mb-0">Baja en</label>
+                        <input type="text" name="tramo_destino[]" class="form-control form-control-sm fw-bold tramo-destino-select" value="${dest}" list="listaCiudadesDatalist" required onchange="actualizarTitulosTramosNueva()">
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label small text-muted mb-0">Operador Encargado</label>
+                        <select name="tramo_id_operador[]" class="form-select form-select-sm fw-bold border-primary text-primary" onchange="const opName = this.options[this.selectedIndex].getAttribute('data-nombre') || this.options[this.selectedIndex].text; this.closest('.tramo-card').querySelector('input[name=\'tramo_operador[]\']').value = opName;">
+                            ${HTML_OPCIONES_OPERADORES}
+                        </select>
+                        <input type="hidden" name="tramo_operador[]" value="Panamericana">
+                    </div>
+                    <div class="col-md-2">
+                        <label class="form-label small text-danger fw-bold mb-0">Costo ($)</label>
+                        <input type="number" step="0.50" min="0" name="tramo_costo[]" class="form-control form-control-sm fw-bold text-danger border-danger tramo-costo-input" value="0.00" required oninput="recalcularMargenNuevaRutaComercial()">
+                    </div>
+                    <div class="col-md-1 d-flex align-items-end justify-content-center">
+                        <div class="form-check" title="Admite Sobrepeso">
+                            <input class="form-check-input" type="checkbox" name="tramo_admite_sp[]" value="1" checked>
+                            <label class="form-check-label small" style="font-size:10px;">SP</label>
+                        </div>
+                    </div>
+                </div>
+                <input type="hidden" name="tramo_pvp[]" class="tramo-pvp-input" value="0.00">
+            `;
+            container.appendChild(div);
+            recalcularMargenNuevaRutaComercial();
+        }
+
+        function crearTramoManualVacio() {
+            const container = document.getElementById('lista_tramos_nueva_comercial');
+            const msgVacio = document.getElementById('nueva_msg_vacio_tramos');
+            if (msgVacio) msgVacio.remove();
+
+            const cant = container.querySelectorAll('.tramo-card').length + 1;
+            const div = document.createElement('div');
+            div.className = 'tramo-card card border p-3 mb-2 bg-light shadow-sm';
+            div.innerHTML = `
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <span class="badge bg-primary px-2 py-1 tramo-badge-titulo">Tramo ${cant}: Nuevo Tramo</span>
+                    <button type="button" class="btn btn-outline-danger btn-sm py-0 px-2 fw-bold" onclick="eliminarTramoCardNueva(this)">✕ Quitar</button>
+                </div>
+                <div class="row g-2">
+                    <div class="col-md-3">
+                        <label class="form-label small text-muted mb-0">Sube en</label>
+                        <input type="text" name="tramo_origen[]" class="form-control form-control-sm fw-bold tramo-origen-select" placeholder="Origen" list="listaCiudadesDatalist" required onchange="actualizarTitulosTramosNueva()">
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label small text-muted mb-0">Baja en</label>
+                        <input type="text" name="tramo_destino[]" class="form-control form-control-sm fw-bold tramo-destino-select" placeholder="Destino" list="listaCiudadesDatalist" required onchange="actualizarTitulosTramosNueva()">
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label small text-muted mb-0">Operador Encargado</label>
+                        <select name="tramo_id_operador[]" class="form-select form-select-sm fw-bold border-primary text-primary" onchange="const opName = this.options[this.selectedIndex].getAttribute('data-nombre') || this.options[this.selectedIndex].text; this.closest('.tramo-card').querySelector('input[name=\'tramo_operador[]\']').value = opName;">
+                            ${HTML_OPCIONES_OPERADORES}
+                        </select>
+                        <input type="hidden" name="tramo_operador[]" value="Panamericana">
+                    </div>
+                    <div class="col-md-2">
+                        <label class="form-label small text-danger fw-bold mb-0">Costo ($)</label>
+                        <input type="number" step="0.50" min="0" name="tramo_costo[]" class="form-control form-control-sm fw-bold text-danger border-danger tramo-costo-input" value="0.00" required oninput="recalcularMargenNuevaRutaComercial()">
+                    </div>
+                    <div class="col-md-1 d-flex align-items-end justify-content-center">
+                        <div class="form-check" title="Admite Sobrepeso">
+                            <input class="form-check-input" type="checkbox" name="tramo_admite_sp[]" value="1" checked>
+                            <label class="form-check-label small" style="font-size:10px;">SP</label>
+                        </div>
+                    </div>
+                </div>
+                <input type="hidden" name="tramo_pvp[]" class="tramo-pvp-input" value="0.00">
+            `;
+            container.appendChild(div);
+            actualizarTitulosTramosNueva();
+            recalcularMargenNuevaRutaComercial();
+        }
+
+        function eliminarTramoCardNueva(btn) {
+            const card = btn.closest('.tramo-card');
+            const container = document.getElementById('lista_tramos_nueva_comercial');
+            const cards = container.querySelectorAll('.tramo-card');
+            if (cards.length <= 1) {
+                alert('La ruta comercial debe tener al menos 1 tramo de transporte.');
+                return;
+            }
+            card.remove();
+            actualizarTitulosTramosNueva();
+            recalcularMargenNuevaRutaComercial();
+        }
+
+        function actualizarTitulosTramosNueva() {
+            const container = document.getElementById('lista_tramos_nueva_comercial');
+            if (!container) return;
+            const cards = container.querySelectorAll('.tramo-card');
+            cards.forEach((c, idx) => {
+                const orig = c.querySelector('.tramo-origen-select')?.value || '...';
+                const dest = c.querySelector('.tramo-destino-select')?.value || '...';
+                const badge = c.querySelector('.tramo-badge-titulo');
+                if (badge) {
+                    badge.innerText = `Tramo ${idx + 1}: ${orig} ➔ ${dest}`;
+                }
             });
         }
-    });
-    </script>
+
+        function recalcularMargenNuevaRutaComercial() {
+            const container = document.getElementById('lista_tramos_nueva_comercial');
+            let costoTotal = 0;
+            if (container) {
+                const costoInputs = container.querySelectorAll('.tramo-costo-input');
+                costoInputs.forEach(inp => {
+                    costoTotal += parseFloat(inp.value) || 0;
+                });
+            }
+
+            document.getElementById('nueva_costo_total_hidden').value = costoTotal.toFixed(2);
+            document.getElementById('nueva_lbl_costo_total').innerText = '$' + costoTotal.toFixed(2);
+
+            const pvp = parseFloat(document.getElementById('nueva_input_pvp').value) || 0;
+            const btn = document.getElementById('btnGuardarNuevaRutaComercial');
+            const alertaPerdida = document.getElementById('nueva_alerta_perdida');
+            const alertaTexto = document.getElementById('nueva_alerta_perdida_texto');
+
+            if (costoTotal > 0 && pvp < costoTotal) {
+                const deficit = (costoTotal - pvp).toFixed(2);
+                alertaTexto.innerText = `El precio configurado ($` + pvp.toFixed(2) + `) genera una pérdida neta de -$` + deficit + ` frente al costo de los operadores ($` + costoTotal.toFixed(2) + `). Corrija el precio para continuar.`;
+                alertaPerdida.classList.remove('d-none');
+                btn.disabled = true;
+
+                document.getElementById('nueva_lbl_ganancia').innerText = '-$' + deficit;
+                document.getElementById('nueva_lbl_ganancia').className = 'fs-4 fw-bold text-danger';
+                document.getElementById('nueva_lbl_margen_pct').innerText = 'Pérdida';
+                document.getElementById('nueva_lbl_margen_pct').className = 'text-danger fw-bold d-block mt-1';
+                document.getElementById('nueva_barra_margen').style.width = '0%';
+                document.getElementById('nueva_barra_margen').className = 'progress-bar bg-danger';
+                return;
+            }
+
+            alertaPerdida.classList.add('d-none');
+            btn.disabled = false;
+
+            const utilidad = Math.max(0, pvp - costoTotal);
+            const margenPct = (pvp > 0) ? ((utilidad / pvp) * 100).toFixed(1) : '0';
+
+            document.getElementById('nueva_lbl_ganancia').innerText = '$' + utilidad.toFixed(2);
+            document.getElementById('nueva_lbl_ganancia').className = 'fs-4 fw-bold text-success';
+            document.getElementById('nueva_lbl_margen_pct').innerText = margenPct + '% margen de rentabilidad';
+            document.getElementById('nueva_lbl_margen_pct').className = 'text-success fw-bold d-block mt-1';
+            document.getElementById('nueva_barra_margen').style.width = Math.min(100, margenPct) + '%';
+            document.getElementById('nueva_barra_margen').className = 'progress-bar bg-success';
+        }
+
+        function irATabOperadores(subtab = 'subtab-tramos') {
+            const tabFlotaBtn = document.querySelector('button[data-bs-target="#tab-flota"]');
+            if (tabFlotaBtn) {
+                bootstrap.Tab.getOrCreateInstance(tabFlotaBtn).show();
+            }
+            if (subtab) {
+                const subBtn = document.querySelector(`button[data-bs-target="#${subtab}"]`);
+                if (subBtn) {
+                    bootstrap.Tab.getOrCreateInstance(subBtn).show();
+                }
+            }
+        }
+
+        // Manejo de envío AJAX para Nueva Ruta Comercial
+        document.addEventListener('DOMContentLoaded', function() {
+            const formNueva = document.getElementById('formNuevaRutaComercial');
+            if (formNueva) {
+                formNueva.addEventListener('submit', function(e) {
+                    e.preventDefault();
+                    const btn = document.getElementById('btnGuardarNuevaRutaComercial');
+                    btn.disabled = true;
+                    btn.innerText = '⏳ Creando Ruta Comercial...';
+
+                    const formData = new FormData(formNueva);
+
+                    fetch(formNueva.action, {
+                        method: 'POST',
+                        headers: { 'X-Requested-With': 'XMLHttpRequest' },
+                        body: formData
+                    })
+                    .then(r => r.json())
+                    .then(data => {
+                        btn.disabled = false;
+                        btn.innerText = '🚀 Crear Ruta Comercial';
+
+                        if (data.status === 'success') {
+                            const modalEl = document.getElementById('modalNuevaRutaComercial');
+                            const modal = bootstrap.Modal.getInstance(modalEl);
+                            if (modal) modal.hide();
+
+                            const toastEl = document.getElementById('toastFlotaAjax');
+                            if (toastEl) {
+                                document.getElementById('toastFlotaAjaxMsg').innerText = data.mensaje || 'Ruta comercial creada correctamente.';
+                                const toast = new bootstrap.Toast(toastEl, { delay: 4000 });
+                                toast.show();
+                            }
+
+                            setTimeout(() => {
+                                window.location.href = '/suramerica2030/flota?tab=rutas&status=success';
+                            }, 700);
+                        } else {
+                            alert(data.mensaje || 'Error al crear la ruta.');
+                        }
+                    })
+                    .catch(err => {
+                        btn.disabled = false;
+                        btn.innerText = '🚀 Crear Ruta Comercial';
+                        alert('Error de comunicación: ' + err.message);
+                    });
+                });
+            }
+        });
+        </script>
 <!-- MODAL AJUSTE RÁPIDO DE PVP (FAIL-SAFE) -->
     <div class="modal fade text-start" id="modalAjusteRapidoPvp" tabindex="-1" aria-labelledby="modalAjusteRapidoPvpLabel" aria-hidden="true" style="z-index: 1070;">
         <div class="modal-dialog modal-dialog-centered" style="max-width: 440px;">
@@ -1511,10 +1431,7 @@ foreach($tramosList as $trIndex => $tramo):
         </div>
     </div>
 
-    <!-- SATELLITE CATALOG MODALS EMBEDDED IN WORKSPACE 1 -->
-    <?php require __DIR__ . '/tab_tramos.php'; ?>
-    <?php require __DIR__ . '/tab_corredores.php'; ?>
-    <?php require __DIR__ . '/tab_ciudades.php'; ?>
+
 
     <script>
     function abrirModalAjustePvp(idRuta, origen, destino, pvpActual, costoTotal) {

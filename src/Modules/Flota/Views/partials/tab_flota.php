@@ -83,206 +83,242 @@
         </div>
     </div>
 
-    <!-- SECCIÓN 1: DIRECTORIO MAESTRO DE OPERADORES Y SOCIOS -->
-    <div class="card shadow-sm border-0 mb-4 bg-white">
-        <div class="card-header bg-white py-3 d-flex flex-wrap justify-content-between align-items-center gap-2 border-bottom">
-            <div>
-                <h6 class="text-dark mb-0 fw-bold">🏢 Directorio Maestro de Operadores y Transportistas Aliados</h6>
-                <small class="text-muted">Razones sociales, RUC/Cédula, canales de contacto y cuentas para liquidar en Caja/Finanzas.</small>
-            </div>
-            <button class="btn btn-sm btn-primary fw-bold" data-bs-toggle="modal" data-bs-target="#modalCrearOperador">
-                + Nuevo Operador
+    <!-- SUB-PESTAÑAS DE NAVEGACIÓN EN OPERADORES Y ACUERDOS -->
+    <ul class="nav nav-pills mb-4 bg-white p-2 rounded shadow-sm border gap-2" id="subTabsFlota" role="tablist">
+        <li class="nav-item">
+            <button class="nav-link active fw-bold py-2 px-3" id="pill-subtab-operadores" data-bs-toggle="pill" data-bs-target="#subtab-operadores" type="button" role="tab" aria-selected="true">
+                🏢 Directorio de Operadores y Bancos <span class="badge bg-primary ms-1"><?= $totalOps ?></span>
             </button>
-        </div>
-        <div class="card-body p-0">
-            <div class="table-responsive">
-                <table class="table table-hover align-middle mb-0">
-                    <thead class="table-light">
-                        <tr>
-                            <th style="width: 50px;">ID</th>
-                            <th>Operador / Razón Social</th>
-                            <th>Tipo de Operador</th>
-                            <th>Identificación / RUC</th>
-                            <th>Contacto</th>
-                            <th>Cuenta Bancaria para Liquidaciones</th>
-                            <th class="text-center">Estado</th>
-                            <th class="text-center" style="width: 100px;">Acciones</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <?php if(empty($operadores)): ?>
-                            <tr><td colspan="8" class="text-center py-4 text-muted">No hay operadores registrados en el sistema.</td></tr>
-                        <?php else: ?>
-                            <?php foreach($operadores as $op): 
-                                $badgeTipo = 'bg-secondary';
-                                $labelTipo = $op['TIPO_OPERADOR'] ?? 'SOCIO_AFILIADO';
-                                if ($labelTipo === 'PROPIO') {
-                                    $badgeTipo = 'bg-primary';
-                                    $labelTipo = '🏢 Flota Propia';
-                                } elseif ($labelTipo === 'SOCIO_AFILIADO') {
-                                    $badgeTipo = 'bg-success';
-                                    $labelTipo = '🤝 Socio Propietario';
-                                } elseif ($labelTipo === 'EMPRESA_ALIADA') {
-                                    $badgeTipo = 'bg-info text-dark';
-                                    $labelTipo = '⭐ Empresa Aliada';
-                                }
-                            ?>
-                                <tr id="fila_operador_<?= $op['ID_OPERADOR'] ?>">
-                                    <td class="fw-bold text-muted">#<?= $op['ID_OPERADOR'] ?></td>
-                                    <td>
-                                        <div class="fw-bold text-dark fs-6"><?= htmlspecialchars($op['NOMBRE_COMERCIAL']) ?></div>
-                                        <?php if(!empty($op['RAZON_SOCIAL']) && $op['RAZON_SOCIAL'] !== $op['NOMBRE_COMERCIAL']): ?>
-                                            <small class="text-muted"><?= htmlspecialchars($op['RAZON_SOCIAL']) ?></small>
-                                        <?php endif; ?>
-                                        <?php if(!empty($op['OBSERVACIONES'])): ?>
-                                            <div class="small text-secondary fst-italic" style="font-size: 11px;">📝 <?= htmlspecialchars($op['OBSERVACIONES']) ?></div>
-                                        <?php endif; ?>
-                                    </td>
-                                    <td>
-                                        <span class="badge <?= $badgeTipo ?> px-2 py-1"><?= $labelTipo ?></span>
-                                    </td>
-                                    <td>
-                                        <?= !empty($op['IDENTIFICACION']) ? '<span class="font-monospace fw-bold text-dark">' . htmlspecialchars($op['IDENTIFICACION']) . '</span>' : '<span class="text-muted small">Sin registrar</span>' ?>
-                                    </td>
-                                    <td>
-                                        <?php if(!empty($op['TELEFONO'])): ?>
-                                            <div class="small text-success">📞 <?= htmlspecialchars($op['TELEFONO']) ?></div>
-                                        <?php endif; ?>
-                                        <?php if(!empty($op['CORREO'])): ?>
-                                            <div class="small text-muted">✉️ <?= htmlspecialchars($op['CORREO']) ?></div>
-                                        <?php endif; ?>
-                                        <?php if(empty($op['TELEFONO']) && empty($op['CORREO'])): ?>
-                                            <span class="text-muted small">Sin contacto</span>
-                                        <?php endif; ?>
-                                    </td>
-                                    <td>
-                                        <?php if(!empty($op['BANCO'])): ?>
-                                            <div class="fw-bold text-dark small">🏦 <?= htmlspecialchars($op['BANCO']) ?></div>
-                                            <div class="small">
-                                                <span class="badge bg-light text-secondary border"><?= htmlspecialchars($op['TIPO_CUENTA'] ?? 'Corriente') ?></span>
-                                                <span class="font-monospace fw-bold text-primary"><?= htmlspecialchars($op['NUMERO_CUENTA']) ?></span>
-                                            </div>
-                                            <?php if(!empty($op['TITULAR_CUENTA'])): ?>
-                                                <div class="small text-muted" style="font-size: 11px;">Titular: <?= htmlspecialchars($op['TITULAR_CUENTA']) ?> <?= !empty($op['TITULAR_DOC']) ? '(' . htmlspecialchars($op['TITULAR_DOC']) . ')' : '' ?></div>
-                                            <?php endif; ?>
-                                        <?php else: ?>
-                                            <span class="badge bg-warning bg-opacity-25 text-dark border border-warning" style="font-size: 11px;">⚠️ Sin cuenta configurada</span>
-                                        <?php endif; ?>
-                                    </td>
-                                    <td class="text-center">
-                                        <span class="badge <?= ($op['ESTADO'] ?? 'ACTIVO') === 'ACTIVO' ? 'bg-success' : 'bg-secondary' ?>">
-                                            <?= htmlspecialchars($op['ESTADO'] ?? 'ACTIVO') ?>
-                                        </span>
-                                    </td>
-                                    <td class="text-center">
-                                        <div class="btn-group btn-group-sm">
-                                            <button class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#modalEditarOperador<?= $op['ID_OPERADOR'] ?>" title="Editar Operador / Cuentas Bancarias">✏️</button>
-                                            <?php if($op['ID_OPERADOR'] > 1): ?>
-                                                <button class="btn btn-outline-danger" data-bs-toggle="modal" data-bs-target="#modalEliminarOperador<?= $op['ID_OPERADOR'] ?>" title="Eliminar Operador">🗑️</button>
-                                            <?php endif; ?>
-                                        </div>
-                                    </td>
+        </li>
+        <li class="nav-item">
+            <button class="nav-link fw-bold py-2 px-3" id="pill-subtab-tramos" data-bs-toggle="pill" data-bs-target="#subtab-tramos" type="button" role="tab" aria-selected="false">
+                🧩 Acuerdos de Costos por Tramo <span class="badge bg-success ms-1"><?= count($tramosCatalogo ?? []) ?></span>
+            </button>
+        </li>
+        <li class="nav-item">
+            <button class="nav-link fw-bold py-2 px-3" id="pill-subtab-capacidad" data-bs-toggle="pill" data-bs-target="#subtab-capacidad" type="button" role="tab" aria-selected="false">
+                🚌 Capacidad Operativa y Buses <span class="badge bg-secondary ms-1"><?= $totalBuses ?></span>
+            </button>
+        </li>
+    </ul>
+
+    <div class="tab-content" id="subTabsFlotaContent">
+        <!-- ======================================================== -->
+        <!-- SUBTAB 1: DIRECTORIO DE OPERADORES Y CUENTAS BANCARIAS   -->
+        <!-- ======================================================== -->
+        <div class="tab-pane fade show active" id="subtab-operadores" role="tabpanel">
+            <div class="card shadow-sm border-0 mb-4 bg-white">
+                <div class="card-header bg-white py-3 d-flex flex-wrap justify-content-between align-items-center gap-2 border-bottom">
+                    <div>
+                        <h6 class="text-dark mb-0 fw-bold">🏢 Directorio Maestro de Operadores y Transportistas Aliados</h6>
+                        <small class="text-muted">Razones sociales, RUC/Cédula, canales de contacto y cuentas para liquidar en Caja/Finanzas.</small>
+                    </div>
+                    <button class="btn btn-sm btn-primary fw-bold" data-bs-toggle="modal" data-bs-target="#modalCrearOperador">
+                        + Nuevo Operador
+                    </button>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-hover align-middle mb-0">
+                            <thead class="table-light">
+                                <tr>
+                                    <th style="width: 50px;">ID</th>
+                                    <th>Operador / Razón Social</th>
+                                    <th>Tipo de Operador</th>
+                                    <th>Identificación / RUC</th>
+                                    <th>Contacto</th>
+                                    <th>Cuenta Bancaria para Liquidaciones</th>
+                                    <th class="text-center">Estado</th>
+                                    <th class="text-center" style="width: 100px;">Acciones</th>
                                 </tr>
-                            <?php endforeach; ?>
-                        <?php endif; ?>
-                    </tbody>
-                </table>
-            </div>
-        </div>
-    </div>
-
-    <!-- SECCIÓN 2: PARQUE AUTOMOTOR Y BUSES -->
-    <div class="row">
-        <div class="col-md-4 mb-3">
-            <div class="card shadow-sm border-0 border-top border-primary border-3">
-                <div class="card-header bg-white"><h6 class="mb-0 text-primary fw-bold">🚌 Registrar Unidad (Bus)</h6></div>
-                <div class="card-body">
-                    <form action="/suramerica2030/flota/guardarBus" method="POST" data-live="true" data-live-refresh="#tab-flota, #tab-buses" data-live-reset="true">
-                        <label class="form-label small text-muted mb-1 fw-bold">🏢 Operador Propietario / Socio</label>
-                        <select name="id_operador" class="form-select form-select-sm fw-bold border-primary mb-3">
-                            <?= $generarOpcionesOperadores(1) ?>
-                        </select>
-
-                        <h6 class="text-secondary border-bottom pb-1">Datos de la Unidad</h6>
-                        <div class="row mb-2">
-                            <div class="col-6"><label class="form-label small">Marca</label><input type="text" name="marca" class="form-control form-control-sm" required placeholder="Ej: Scania, Volvo"></div>
-                            <div class="col-6"><label class="form-label small">Modelo</label><input type="text" name="modelo" class="form-control form-control-sm" required placeholder="Ej: K410, Marcopolo"></div>
-                        </div>
-                        <div class="row mb-3">
-                            <div class="col-6"><label class="form-label small">Placa</label><input type="text" name="placa" class="form-control form-control-sm text-uppercase fw-bold" required placeholder="Ej: ABC-1234"></div>
-                            <div class="col-6"><label class="form-label small">Asientos</label><input type="number" name="asientos" class="form-control form-control-sm" required min="10" max="80" value="44"></div>
-                        </div>
-
-                        <h6 class="text-secondary border-bottom pb-1">Chofer o Contacto Directo de la Unidad (Opcional)</h6>
-                        <div class="row mb-2">
-                            <div class="col-6"><label class="form-label small">Nombre</label><input type="text" name="socio_nombre" class="form-control form-control-sm" placeholder="Opcional"></div>
-                            <div class="col-6"><label class="form-label small">Apellido</label><input type="text" name="socio_apellido" class="form-control form-control-sm" placeholder="Opcional"></div>
-                        </div>
-                        <div class="mb-3"><label class="form-label small">Teléfono Chofer</label><input type="text" name="socio_telefono" class="form-control form-control-sm" placeholder="Ej: 0991234567"></div>
-
-                        <button type="submit" class="btn btn-primary w-100 fw-bold shadow-sm">Registrar Unidad</button>
-                    </form>
+                            </thead>
+                            <tbody>
+                                <?php if(empty($operadores)): ?>
+                                    <tr><td colspan="8" class="text-center py-4 text-muted">No hay operadores registrados en el sistema.</td></tr>
+                                <?php else: ?>
+                                    <?php foreach($operadores as $op): 
+                                        $badgeTipo = 'bg-secondary';
+                                        $labelTipo = $op['TIPO_OPERADOR'] ?? 'SOCIO_AFILIADO';
+                                        if ($labelTipo === 'PROPIO') {
+                                            $badgeTipo = 'bg-primary';
+                                            $labelTipo = '🏢 Flota Propia';
+                                        } elseif ($labelTipo === 'SOCIO_AFILIADO') {
+                                            $badgeTipo = 'bg-success';
+                                            $labelTipo = '🤝 Socio Propietario';
+                                        } elseif ($labelTipo === 'EMPRESA_ALIADA') {
+                                            $badgeTipo = 'bg-info text-dark';
+                                            $labelTipo = '⭐ Empresa Aliada';
+                                        }
+                                    ?>
+                                        <tr id="fila_operador_<?= $op['ID_OPERADOR'] ?>">
+                                            <td class="fw-bold text-muted">#<?= $op['ID_OPERADOR'] ?></td>
+                                            <td>
+                                                <div class="fw-bold text-dark fs-6"><?= htmlspecialchars($op['NOMBRE_COMERCIAL']) ?></div>
+                                                <?php if(!empty($op['RAZON_SOCIAL']) && $op['RAZON_SOCIAL'] !== $op['NOMBRE_COMERCIAL']): ?>
+                                                    <small class="text-muted"><?= htmlspecialchars($op['RAZON_SOCIAL']) ?></small>
+                                                <?php endif; ?>
+                                                <?php if(!empty($op['OBSERVACIONES'])): ?>
+                                                    <div class="small text-secondary fst-italic" style="font-size: 11px;">📝 <?= htmlspecialchars($op['OBSERVACIONES']) ?></div>
+                                                <?php endif; ?>
+                                            </td>
+                                            <td>
+                                                <span class="badge <?= $badgeTipo ?> px-2 py-1"><?= $labelTipo ?></span>
+                                            </td>
+                                            <td>
+                                                <?= !empty($op['IDENTIFICACION']) ? '<span class="font-monospace fw-bold text-dark">' . htmlspecialchars($op['IDENTIFICACION']) . '</span>' : '<span class="text-muted small">Sin registrar</span>' ?>
+                                            </td>
+                                            <td>
+                                                <?php if(!empty($op['TELEFONO'])): ?>
+                                                    <div class="small text-success">📞 <?= htmlspecialchars($op['TELEFONO']) ?></div>
+                                                <?php endif; ?>
+                                                <?php if(!empty($op['CORREO'])): ?>
+                                                    <div class="small text-muted">✉️ <?= htmlspecialchars($op['CORREO']) ?></div>
+                                                <?php endif; ?>
+                                                <?php if(empty($op['TELEFONO']) && empty($op['CORREO'])): ?>
+                                                    <span class="text-muted small">Sin contacto</span>
+                                                <?php endif; ?>
+                                            </td>
+                                            <td>
+                                                <?php if(!empty($op['BANCO'])): ?>
+                                                    <div class="fw-bold text-dark small">🏦 <?= htmlspecialchars($op['BANCO']) ?></div>
+                                                    <div class="small">
+                                                        <span class="badge bg-light text-secondary border"><?= htmlspecialchars($op['TIPO_CUENTA'] ?? 'Corriente') ?></span>
+                                                        <span class="font-monospace fw-bold text-primary"><?= htmlspecialchars($op['NUMERO_CUENTA']) ?></span>
+                                                    </div>
+                                                    <?php if(!empty($op['TITULAR_CUENTA'])): ?>
+                                                        <div class="small text-muted" style="font-size: 11px;">Titular: <?= htmlspecialchars($op['TITULAR_CUENTA']) ?> <?= !empty($op['TITULAR_DOC']) ? '(' . htmlspecialchars($op['TITULAR_DOC']) . ')' : '' ?></div>
+                                                    <?php endif; ?>
+                                                <?php else: ?>
+                                                    <span class="badge bg-warning bg-opacity-25 text-dark border border-warning" style="font-size: 11px;">⚠️ Sin cuenta configurada</span>
+                                                <?php endif; ?>
+                                            </td>
+                                            <td class="text-center">
+                                                <span class="badge <?= ($op['ESTADO'] ?? 'ACTIVO') === 'ACTIVO' ? 'bg-success' : 'bg-secondary' ?>">
+                                                    <?= htmlspecialchars($op['ESTADO'] ?? 'ACTIVO') ?>
+                                                </span>
+                                            </td>
+                                            <td class="text-center">
+                                                <div class="btn-group btn-group-sm">
+                                                    <button class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#modalEditarOperador<?= $op['ID_OPERADOR'] ?>" title="Editar Operador / Cuentas Bancarias">✏️</button>
+                                                    <?php if($op['ID_OPERADOR'] > 1): ?>
+                                                        <button class="btn btn-outline-danger" data-bs-toggle="modal" data-bs-target="#modalEliminarOperador<?= $op['ID_OPERADOR'] ?>" title="Eliminar Operador">🗑️</button>
+                                                    <?php endif; ?>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    <?php endforeach; ?>
+                                <?php endif; ?>
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
             </div>
         </div>
 
-        <div class="col-md-8">
-            <div class="card shadow-sm border-0 table-responsive">
-                <div class="card-header bg-white py-2 d-flex justify-content-between align-items-center">
-                    <h6 class="mb-0 text-dark fw-bold">🚌 Flota de Buses y Unidades Asignadas</h6>
-                    <span class="badge bg-secondary"><?= count($buses) ?> unidades</span>
+        <!-- ======================================================== -->
+        <!-- SUBTAB 2: CATÁLOGO MAESTRO DE TRAMOS Y COSTOS ACORDADOS  -->
+        <!-- ======================================================== -->
+        <div class="tab-pane fade" id="subtab-tramos" role="tabpanel">
+            <?php require __DIR__ . '/tab_tramos.php'; ?>
+        </div>
+
+        <!-- ======================================================== -->
+        <!-- SUBTAB 3: CAPACIDAD OPERATIVA Y BUSES                     -->
+        <!-- ======================================================== -->
+        <div class="tab-pane fade" id="subtab-capacidad" role="tabpanel">
+            <div class="row">
+                <div class="col-md-4 mb-3">
+                    <div class="card shadow-sm border-0 border-top border-primary border-3">
+                        <div class="card-header bg-white"><h6 class="mb-0 text-primary fw-bold">🚌 Registrar Unidad (Bus)</h6></div>
+                        <div class="card-body">
+                            <form action="/suramerica2030/flota/guardarBus" method="POST" data-live="true" data-live-refresh="#tab-flota, #tab-buses" data-live-reset="true">
+                                <label class="form-label small text-muted mb-1 fw-bold">🏢 Operador Propietario / Socio</label>
+                                <select name="id_operador" class="form-select form-select-sm fw-bold border-primary mb-3">
+                                    <?= $generarOpcionesOperadores(1) ?>
+                                </select>
+
+                                <h6 class="text-secondary border-bottom pb-1">Datos de la Unidad</h6>
+                                <div class="row mb-2">
+                                    <div class="col-6"><label class="form-label small">Marca</label><input type="text" name="marca" class="form-control form-control-sm" required placeholder="Ej: Scania, Volvo"></div>
+                                    <div class="col-6"><label class="form-label small">Modelo</label><input type="text" name="modelo" class="form-control form-control-sm" required placeholder="Ej: K410, Marcopolo"></div>
+                                </div>
+                                <div class="row mb-3">
+                                    <div class="col-6"><label class="form-label small">Placa</label><input type="text" name="placa" class="form-control form-control-sm text-uppercase fw-bold" required placeholder="Ej: ABC-1234"></div>
+                                    <div class="col-6"><label class="form-label small">Asientos</label><input type="number" name="asientos" class="form-control form-control-sm" required min="10" max="80" value="44"></div>
+                                </div>
+
+                                <h6 class="text-secondary border-bottom pb-1">Chofer o Contacto Directo de la Unidad (Opcional)</h6>
+                                <div class="row mb-2">
+                                    <div class="col-6"><label class="form-label small">Nombre</label><input type="text" name="socio_nombre" class="form-control form-control-sm" placeholder="Opcional"></div>
+                                    <div class="col-6"><label class="form-label small">Apellido</label><input type="text" name="socio_apellido" class="form-control form-control-sm" placeholder="Opcional"></div>
+                                </div>
+                                <div class="mb-3"><label class="form-label small">Teléfono Chofer</label><input type="text" name="socio_telefono" class="form-control form-control-sm" placeholder="Ej: 0991234567"></div>
+
+                                <button type="submit" class="btn btn-primary w-100 fw-bold shadow-sm">Registrar Unidad</button>
+                            </form>
+                        </div>
+                    </div>
                 </div>
-                <table class="table table-hover mb-0 align-middle">
-                    <thead class="table-light">
-                        <tr>
-                            <th>Bus / Unidad</th>
-                            <th>Placa</th>
-                            <th>Operador / Socio Asignado</th>
-                            <th>Contacto Chofer</th>
-                            <th class="text-center">Acciones</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <?php if(empty($buses)): ?>
-                            <tr><td colspan="5" class="text-center py-4 text-muted">No hay buses registrados aún.</td></tr>
-                        <?php else: ?>
-                            <?php foreach($buses as $b): ?>
-                                <tr id="fila_bus_<?= $b['ID_BUS'] ?>">
-                                    <td>
-                                        <strong><?= htmlspecialchars($b['BUS_MARCA']) ?></strong><br>
-                                        <small class="text-muted"><?= htmlspecialchars($b['BUS_MODELO']) ?> (<?= $b['BUS_ASIENTOS'] ?> Asientos)</small>
-                                    </td>
-                                    <td><span class="badge bg-dark px-2 py-1 fs-6"><?= htmlspecialchars($b['BUS_PLACA']) ?></span></td>
-                                    <td>
-                                        <div class="fw-bold text-primary">
-                                            <?= htmlspecialchars(!empty($b['OPERADOR_NOMBRE']) ? $b['OPERADOR_NOMBRE'] : 'Suramérica 2030 (Flota Propia)') ?>
-                                        </div>
-                                        <?php if(!empty($b['OPERADOR_BANCO'])): ?>
-                                            <small class="text-muted d-block">🏦 <?= htmlspecialchars($b['OPERADOR_BANCO']) ?>: <?= htmlspecialchars($b['OPERADOR_CUENTA']) ?></small>
-                                        <?php endif; ?>
-                                    </td>
-                                    <td>
-                                        <?php if(!empty($b['SOC_NOMBRE'])): ?>
-                                            👤 <?= htmlspecialchars(($b['SOC_NOMBRE'] ?? '') . ' ' . ($b['SOC_APELLIDOS'] ?? '')) ?><br>
-                                            <small class="text-success">📞 <?= htmlspecialchars($b['SOC_TELEFONO'] ?? '') ?></small>
-                                        <?php else: ?>
-                                            <span class="text-muted small">Sin chofer registrado</span>
-                                        <?php endif; ?>
-                                    </td>
-                                    <td class="text-center">
-                                        <div class="btn-group">
-                                            <button class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#modalEditarBus<?= $b['ID_BUS'] ?>">✏️</button>
-                                            <button class="btn btn-sm btn-outline-danger" data-bs-toggle="modal" data-bs-target="#modalEliminarBus<?= $b['ID_BUS'] ?>">🗑️</button>
-                                        </div>
-                                    </td>
+
+                <div class="col-md-8">
+                    <div class="card shadow-sm border-0 table-responsive">
+                        <div class="card-header bg-white py-2 d-flex justify-content-between align-items-center">
+                            <h6 class="mb-0 text-dark fw-bold">🚌 Flota de Buses y Unidades Asignadas</h6>
+                            <span class="badge bg-secondary"><?= count($buses) ?> unidades</span>
+                        </div>
+                        <table class="table table-hover mb-0 align-middle">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Bus / Unidad</th>
+                                    <th>Placa</th>
+                                    <th>Operador / Socio Asignado</th>
+                                    <th>Contacto Chofer</th>
+                                    <th class="text-center">Acciones</th>
                                 </tr>
-                            <?php endforeach; ?>
-                        <?php endif; ?>
-                    </tbody>
-                </table>
+                            </thead>
+                            <tbody>
+                                <?php if(empty($buses)): ?>
+                                    <tr><td colspan="5" class="text-center py-4 text-muted">No hay buses registrados aún.</td></tr>
+                                <?php else: ?>
+                                    <?php foreach($buses as $b): ?>
+                                        <tr id="fila_bus_<?= $b['ID_BUS'] ?>">
+                                            <td>
+                                                <strong><?= htmlspecialchars($b['BUS_MARCA']) ?></strong><br>
+                                                <small class="text-muted"><?= htmlspecialchars($b['BUS_MODELO']) ?> (<?= $b['BUS_ASIENTOS'] ?> Asientos)</small>
+                                            </td>
+                                            <td><span class="badge bg-dark px-2 py-1 fs-6"><?= htmlspecialchars($b['BUS_PLACA']) ?></span></td>
+                                            <td>
+                                                <div class="fw-bold text-primary">
+                                                    <?= htmlspecialchars(!empty($b['OPERADOR_NOMBRE']) ? $b['OPERADOR_NOMBRE'] : 'Suramérica 2030 (Flota Propia)') ?>
+                                                </div>
+                                                <?php if(!empty($b['OPERADOR_BANCO'])): ?>
+                                                    <small class="text-muted d-block">🏦 <?= htmlspecialchars($b['OPERADOR_BANCO']) ?>: <?= htmlspecialchars($b['OPERADOR_CUENTA']) ?></small>
+                                                <?php endif; ?>
+                                            </td>
+                                            <td>
+                                                <?php if(!empty($b['SOC_NOMBRE'])): ?>
+                                                    👤 <?= htmlspecialchars(($b['SOC_NOMBRE'] ?? '') . ' ' . ($b['SOC_APELLIDOS'] ?? '')) ?><br>
+                                                    <small class="text-success">📞 <?= htmlspecialchars($b['SOC_TELEFONO'] ?? '') ?></small>
+                                                <?php else: ?>
+                                                    <span class="text-muted small">Sin chofer registrado</span>
+                                                <?php endif; ?>
+                                            </td>
+                                            <td class="text-center">
+                                                <div class="btn-group">
+                                                    <button class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#modalEditarBus<?= $b['ID_BUS'] ?>">✏️</button>
+                                                    <button class="btn btn-sm btn-outline-danger" data-bs-toggle="modal" data-bs-target="#modalEliminarBus<?= $b['ID_BUS'] ?>">🗑️</button>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    <?php endforeach; ?>
+                                <?php endif; ?>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
             </div>
         </div>
-    </div>
+    </div> <!-- Cierra #subTabsFlotaContent -->
 
     <!-- ======================================================== -->
     <!-- MODAL REGISTRAR NUEVO OPERADOR / SOCIO                   -->

@@ -436,6 +436,31 @@ class FlotaService {
             }
         }
 
+        if (empty($postData['tramos']) && !empty($postData['tramo_origen']) && is_array($postData['tramo_origen'])) {
+            $tramosConstruidos = [];
+            foreach ($postData['tramo_origen'] as $i => $origTr) {
+                $destTr = $postData['tramo_destino'][$i] ?? '';
+                if (!empty($origTr) && !empty($destTr)) {
+                    $tramosConstruidos[] = [
+                        'origen' => trim($origTr),
+                        'destino' => trim($destTr),
+                        'costo' => floatval($postData['tramo_costo'][$i] ?? 0),
+                        'pvp' => floatval($postData['tramo_pvp'][$i] ?? 0),
+                        'id_operador' => intval($postData['tramo_id_operador'][$i] ?? 1),
+                        'operador' => trim($postData['tramo_operador'][$i] ?? 'Propio'),
+                        'admite_sobrepeso' => !empty($postData['tramo_admite_sp'][$i]) ? 1 : 0
+                    ];
+                }
+            }
+            if (!empty($tramosConstruidos)) {
+                $postData['tramos'] = $tramosConstruidos;
+                if ($costoTotal <= 0) {
+                    $costoTotal = array_sum(array_column($tramosConstruidos, 'costo'));
+                    $postData['costo_total_ruta'] = $costoTotal;
+                }
+            }
+        }
+
         return $this->repository->crearRutaRapidaBD($postData);
     }
 }
