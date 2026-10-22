@@ -1,22 +1,7 @@
-function generarOpcionesParadasCorredor(idCorredor, valorSeleccionado = '', placeholder = '-- Seleccionar Ciudad --') {
+function generarOpcionesCiudades(valorSeleccionado = '', placeholder = '-- Seleccionar Ciudad --') {
     let html = `<option value="">${placeholder}</option>`;
-    const paradas = (PARADAS_POR_CORREDOR && PARADAS_POR_CORREDOR[idCorredor]) ? PARADAS_POR_CORREDOR[idCorredor] : [];
     let encontrado = false;
     const valNorm = (valorSeleccionado || '').trim().toLowerCase();
-
-    const ciudadesEnParadas = {};
-    if (paradas.length > 0) {
-        html += `<optgroup label="📍 Paradas del Corredor (en orden de viaje)">`;
-        paradas.forEach((p, idx) => {
-            const cNorm = p.CIUDAD.trim().toLowerCase();
-            ciudadesEnParadas[cNorm] = true;
-            const isSel = valNorm && cNorm === valNorm;
-            if (isSel) encontrado = true;
-            const extra = p.TIPO_PARADA ? ` [${p.TIPO_PARADA.replace(/_/g, ' ')}]` : '';
-            html += `<option value="${p.CIUDAD}" ${isSel ? 'selected' : ''}>${idx + 1}. ${p.CIUDAD} (${p.PAIS})${extra}</option>`;
-        });
-        html += `</optgroup>`;
-    }
 
     if (typeof CIUDADES_CATALOGO !== 'undefined' && Array.isArray(CIUDADES_CATALOGO)) {
         const porPais = {};
@@ -27,15 +12,15 @@ function generarOpcionesParadasCorredor(idCorredor, valorSeleccionado = '', plac
         });
 
         const banderas = { 'VENEZUELA': '🇻🇪', 'COLOMBIA': '🇨🇴', 'ECUADOR': '🇪🇨', 'PERU': '🇵🇪' };
-        Object.keys(porPais).forEach(pais => {
+        Object.keys(porPais).sort().forEach(pais => {
             const flag = banderas[pais] || '🌎';
-            html += `<optgroup label="${flag} Catálogo de Ciudades - ${pais}">`;
-            porPais[pais].forEach(nomCiu => {
+            html += `<optgroup label="${flag} ${pais}">`;
+            const ciudades = porPais[pais].slice().sort((a, b) => a.localeCompare(b));
+            ciudades.forEach(nomCiu => {
                 const cNorm = nomCiu.trim().toLowerCase();
                 const isSel = valNorm && cNorm === valNorm;
                 if (isSel) encontrado = true;
-                const enCorredor = ciudadesEnParadas[cNorm] ? ' (En corredor)' : '';
-                html += `<option value="${nomCiu}" ${isSel ? 'selected' : ''}>${nomCiu}${enCorredor}</option>`;
+                html += `<option value="${nomCiu}" ${isSel ? 'selected' : ''}>${nomCiu}</option>`;
             });
             html += `</optgroup>`;
         });
@@ -50,39 +35,13 @@ function generarOpcionesParadasCorredor(idCorredor, valorSeleccionado = '', plac
     return html;
 }
 
+// Alias de retrocompatibilidad
+function generarOpcionesParadasCorredor(idIgnorado, valorSeleccionado = '', placeholder = '-- Seleccionar Ciudad --') {
+    return generarOpcionesCiudades(valorSeleccionado, placeholder);
+}
+
 function alCambiarCorredorEnRuta(rutaId) {
-    const selCorredor = document.getElementById(rutaId ? 'edit_corredor_' + rutaId : 'nuevo_corredor');
-    if (!selCorredor) return;
-    const idCorredor = selCorredor.value;
-
-    const selOrigen = document.getElementById(rutaId ? 'edit_origen_' + rutaId : 'nuevo_origen');
-    const selDestino = document.getElementById(rutaId ? 'edit_destino_' + rutaId : 'nuevo_destino');
-
-    if (selOrigen) {
-        const valActual = selOrigen.value;
-        selOrigen.innerHTML = generarOpcionesParadasCorredor(idCorredor, valActual, '-- Seleccione Origen --');
-    }
-    if (selDestino) {
-        const valActual = selDestino.value;
-        selDestino.innerHTML = generarOpcionesParadasCorredor(idCorredor, valActual, '-- Seleccione Destino --');
-    }
-
-    // Actualizar también todos los selectores de tramos en este modal
-    const containerId = rutaId ? 'lista_tramos_edit_' + rutaId : 'lista_tramos_nuevos';
-    const container = document.getElementById(containerId);
-    if (container) {
-        const selectsOrigen = container.querySelectorAll('.tramo-origen-select');
-        selectsOrigen.forEach(sel => {
-            const v = sel.value;
-            sel.innerHTML = generarOpcionesParadasCorredor(idCorredor, v, '-- Sube en --');
-        });
-        const selectsDestino = container.querySelectorAll('.tramo-destino-select');
-        selectsDestino.forEach(sel => {
-            const v = sel.value;
-            sel.innerHTML = generarOpcionesParadasCorredor(idCorredor, v, '-- Baja en --');
-        });
-        actualizarTitulosTramos(container);
-    }
+    // Obsoleto tras purga de corredores - preservado para evitar errores si está en caché
 }
 
 function alCambiarCabecerasRuta(rutaId) {
@@ -192,9 +151,6 @@ function addTramo(containerId, rutaId = '') {
     let container = document.getElementById(containerId);
     if (!container) return;
 
-    const selCorredor = document.getElementById(rutaId ? 'edit_corredor_' + rutaId : 'nuevo_corredor');
-    const idCorredor = selCorredor ? selCorredor.value : '';
-
     // Sugerir continuidad con el tramo anterior si existe
     const existingCards = container.querySelectorAll('.tramo-card');
     let subeSugerido = '';
@@ -214,8 +170,8 @@ function addTramo(containerId, rutaId = '') {
         bajaSugerido = selDestRuta ? selDestRuta.value : '';
     }
 
-    const opcionesOrigen = generarOpcionesParadasCorredor(idCorredor, subeSugerido, '-- Sube en --');
-    const opcionesDestino = generarOpcionesParadasCorredor(idCorredor, bajaSugerido, '-- Baja en --');
+    const opcionesOrigen = generarOpcionesCiudades(subeSugerido, '-- Sube en --');
+    const opcionesDestino = generarOpcionesCiudades(bajaSugerido, '-- Baja en --');
 
     let html = `
         <div class="card mb-2 border-secondary shadow-sm tramo-card" data-ruta-id="${rutaId}">
@@ -438,35 +394,19 @@ function aplicarFiltrosYPaginarRutas(nuevaPagina = 1) {
     const selectEstado = document.getElementById('filtroEstadoRutas');
     const fEstado = selectEstado ? selectEstado.value.trim().toLowerCase() : '';
 
-    const selectCorredor = document.getElementById('filtroCorredorRutas');
-    const fCorredor = selectCorredor ? selectCorredor.value.trim() : '';
+    const selectSentido = document.getElementById('filtroSentidoRutas');
+    const fSentido = selectSentido ? selectSentido.value.trim() : '';
 
     const selectLimite = document.getElementById('filtroLimiteRutas');
     const limiteVal = selectLimite ? selectLimite.value : '15';
 
-    // Sincronizar banner de generación de rutas con el corredor seleccionado
-    const genCorredorInput = document.getElementById('generador_id_corredor');
-    const genCorredorTexto = document.getElementById('textoNombreCorredorGenerar');
-    if (genCorredorInput) {
-        if (fCorredor) {
-            genCorredorInput.value = fCorredor;
-            if (genCorredorTexto && selectCorredor) {
-                const opt = selectCorredor.options[selectCorredor.selectedIndex];
-                if (opt) {
-                    const partes = opt.text.split('-');
-                    genCorredorTexto.textContent = partes[0].trim();
-                }
-            }
-        }
-    }
-
-    // Persistir corredor seleccionado en la URL sin recargar
+    // Persistir sentido seleccionado en la URL sin recargar
     try {
         const url = new URL(window.location.href);
-        if (fCorredor) {
-            url.searchParams.set('corredor_filtro', fCorredor);
+        if (fSentido) {
+            url.searchParams.set('sentido_filtro', fSentido);
         } else {
-            url.searchParams.delete('corredor_filtro');
+            url.searchParams.delete('sentido_filtro');
         }
         window.history.replaceState(null, '', url.toString());
     } catch(e) {}
@@ -476,7 +416,7 @@ function aplicarFiltrosYPaginarRutas(nuevaPagina = 1) {
 
     // Filtrar filas coincidentes
     const filasCoincidentes = todasLasFilas.filter(fila => {
-        const cCorredor = fila.getAttribute('data-corredor') || '';
+        const cSentido = fila.getAttribute('data-sentido') || '';
         const cOrigen = (fila.getAttribute('data-origen') || '').toLowerCase();
         const cDestino = (fila.getAttribute('data-destino') || '').toLowerCase();
         const cOperador = (fila.getAttribute('data-operador') || '').toLowerCase();
@@ -492,7 +432,7 @@ function aplicarFiltrosYPaginarRutas(nuevaPagina = 1) {
         if (fModalidad && cModalidad !== fModalidad) return false;
         if (fTipoViaje && cTipoViaje !== fTipoViaje) return false;
         if (fEstado && cEstado !== fEstado) return false;
-        if (fCorredor && cCorredor !== fCorredor) return false;
+        if (fSentido && cSentido !== fSentido) return false;
 
         return true;
     });
@@ -500,7 +440,7 @@ function aplicarFiltrosYPaginarRutas(nuevaPagina = 1) {
     const totalCoincidentes = filasCoincidentes.length;
 
     // Actualizar badge de filtros activos
-    actualizarBadgeFiltrosActivosRutas(query, fOrigen, fDestino, fOperador, fModalidad, fTipoViaje, fEstado, fCorredor);
+    actualizarBadgeFiltrosActivosRutas(query, fOrigen, fDestino, fOperador, fModalidad, fTipoViaje, fEstado, fSentido);
 
     // Calcular límites y páginas
     let rpp = (limiteVal === 'all') ? (totalCoincidentes || 1) : parseInt(limiteVal, 10);
@@ -541,7 +481,7 @@ function aplicarFiltrosYPaginarRutas(nuevaPagina = 1) {
     // Actualizar badge de total
     const badgeTotal = document.getElementById('badgeTotalRutas');
     if (badgeTotal) {
-        if (fCorredor || query || fOrigen || fDestino || fOperador || fModalidad || fTipoViaje || fEstado) {
+        if (fSentido || query || fOrigen || fDestino || fOperador || fModalidad || fTipoViaje || fEstado) {
             badgeTotal.textContent = `${totalCoincidentes} de ${todasLasFilas.length} rutas`;
         } else {
             badgeTotal.textContent = `${todasLasFilas.length} rutas`;
@@ -552,7 +492,7 @@ function aplicarFiltrosYPaginarRutas(nuevaPagina = 1) {
     renderizarBotonesPaginacionRutas(totalPaginas, totalCoincidentes);
 }
 
-function actualizarBadgeFiltrosActivosRutas(query, ori, des, op, mod, viaje, est, cor) {
+function actualizarBadgeFiltrosActivosRutas(query, ori, des, op, mod, viaje, est, sen) {
     const badge = document.getElementById('badgeFiltrosActivosRutas');
     if (!badge) return;
     
@@ -564,7 +504,7 @@ function actualizarBadgeFiltrosActivosRutas(query, ori, des, op, mod, viaje, est
     if (mod) activos.push(`Modalidad: ${mod.toUpperCase()}`);
     if (viaje) activos.push(`Viaje: ${viaje.toUpperCase()}`);
     if (est) activos.push(`Estado: ${est.toUpperCase()}`);
-    if (cor) activos.push(`Corredor #${cor}`);
+    if (sen) activos.push(`Sentido: ${sen}`);
 
     if (activos.length === 0) {
         badge.className = 'badge bg-secondary';
@@ -583,7 +523,7 @@ function limpiarTodosFiltrosRutas() {
     const selectModalidad = document.getElementById('filtroModalidadRutas');
     const selectTipoViaje = document.getElementById('filtroTipoViajeRutas');
     const selectEstado = document.getElementById('filtroEstadoRutas');
-    const selectCorredor = document.getElementById('filtroCorredorRutas');
+    const selectSentido = document.getElementById('filtroSentidoRutas');
     
     if (inputBuscador) inputBuscador.value = '';
     if (selectOrigen) selectOrigen.value = '';
@@ -592,7 +532,7 @@ function limpiarTodosFiltrosRutas() {
     if (selectModalidad) selectModalidad.value = '';
     if (selectTipoViaje) selectTipoViaje.value = '';
     if (selectEstado) selectEstado.value = '';
-    if (selectCorredor) selectCorredor.value = '';
+    if (selectSentido) selectSentido.value = '';
 
     // Desactivar tarjetas KPI
     document.querySelectorAll('.tarjeta-filtro-rapido-ruta').forEach(c => c.classList.remove('active'));
@@ -716,7 +656,7 @@ document.addEventListener("DOMContentLoaded", function() {
         inputBuscador.addEventListener('input', () => aplicarFiltrosYPaginarRutas(1));
     }
 
-    ['filtroOrigenRutas', 'filtroDestinoRutas', 'filtroOperadorRutas', 'filtroModalidadRutas', 'filtroTipoViajeRutas', 'filtroEstadoRutas', 'filtroCorredorRutas', 'filtroLimiteRutas'].forEach(id => {
+    ['filtroOrigenRutas', 'filtroDestinoRutas', 'filtroOperadorRutas', 'filtroModalidadRutas', 'filtroTipoViajeRutas', 'filtroEstadoRutas', 'filtroSentidoRutas', 'filtroLimiteRutas'].forEach(id => {
         const el = document.getElementById(id);
         if (el) el.addEventListener('change', () => aplicarFiltrosYPaginarRutas(1));
     });
@@ -742,7 +682,6 @@ document.addEventListener("DOMContentLoaded", function() {
     const urlParams = new URLSearchParams(window.location.search);
     let activeTab = urlParams.get('tab');
     if (activeTab === 'operadores') activeTab = 'buses';
-    if (activeTab === 'corredores') activeTab = 'corredor';
     if (activeTab) {
         const triggerEl = document.querySelector(`#flotaTabs button[data-bs-target="#tab-${activeTab}"]`);
         if (triggerEl) {
@@ -750,11 +689,11 @@ document.addEventListener("DOMContentLoaded", function() {
         }
     }
 
-    // Inicializar filtro de corredor y paginación en rutas
-    const filtroCorredorUrl = urlParams.get('corredor_filtro') || (activeTab === 'rutas' ? urlParams.get('corredor_id') : '');
-    const filtroSelect = document.getElementById('filtroCorredorRutas');
-    if (filtroSelect && filtroCorredorUrl) {
-        filtroSelect.value = filtroCorredorUrl;
+    // Inicializar filtro de sentido y paginación en rutas
+    const filtroSentidoUrl = urlParams.get('sentido_filtro') || '';
+    const filtroSelect = document.getElementById('filtroSentidoRutas');
+    if (filtroSelect && filtroSentidoUrl) {
+        filtroSelect.value = filtroSentidoUrl;
     }
     aplicarFiltrosYPaginarRutas(1);
 });
@@ -955,8 +894,11 @@ function actualizarFilaRutaEnDOM(ruta) {
 
     const origen = ruta.RUT_ORIGEN || '';
     const destino = ruta.RUT_DESTINO || '';
-    const idCorredor = ruta.ID_CORREDOR || '';
-    const nombreCorredor = ruta.NOMBRE_CORREDOR || '';
+    const sentido = ruta.SENTIDO || 'NORTE';
+    const nombreSentido = ruta.NOMBRE_SENTIDO || (sentido === 'SUR' ? 'Sentido Sur (Venezuela ➔ Ecuador)' : (sentido === 'NACIONAL' ? 'Trayecto Nacional' : 'Sentido Norte (Ecuador ➔ Venezuela)'));
+    const iconoSentido = ruta.ICONO_SENTIDO || (sentido === 'SUR' ? '🇻🇪➔🇪🇨' : (sentido === 'NACIONAL' ? '📍' : '🇪🇨➔🇻🇪'));
+    const badgeSentido = ruta.BADGE_SENTIDO || (sentido === 'SUR' ? 'bg-info text-dark' : (sentido === 'NACIONAL' ? 'bg-secondary text-white' : 'bg-primary text-white'));
+    const tagSentido = ruta.TAG_SENTIDO || (sentido === 'SUR' ? 'Hacia Ecuador' : (sentido === 'NACIONAL' ? 'Nacional' : 'Hacia Venezuela'));
     const mod = ruta.MODALIDAD || 'ESTANDAR';
     const tipoViaje = (ruta.TIPO_VIAJE || 'DIRECTO').toUpperCase();
     const idOperador = ruta.ID_OPERADOR || '';
@@ -1009,7 +951,7 @@ function actualizarFilaRutaEnDOM(ruta) {
     }
 
     // Actualizar atributos de datos de la fila para filtros y búsqueda
-    fila.setAttribute('data-corredor', idCorredor);
+    fila.setAttribute('data-sentido', sentido);
     fila.setAttribute('data-origen', origen.toLowerCase().trim());
     fila.setAttribute('data-destino', destino.toLowerCase().trim());
     fila.setAttribute('data-operador', operadorMostrar.toLowerCase().trim());
@@ -1017,7 +959,7 @@ function actualizarFilaRutaEnDOM(ruta) {
     fila.setAttribute('data-modalidad', mod.toLowerCase().trim());
     fila.setAttribute('data-tipo-viaje', tipoViaje.toLowerCase().trim());
     fila.setAttribute('data-estado', estado.toLowerCase().trim());
-    fila.setAttribute('data-search', `${origen} ${destino} ${nombreCorredor} #${idRuta} ${operadorMostrar} ${opsTramos.join(' ')} ${mod}`.toLowerCase());
+    fila.setAttribute('data-search', `${origen} ${destino} ${nombreSentido} #${idRuta} ${operadorMostrar} ${opsTramos.join(' ')} ${mod}`.toLowerCase());
 
     // Actualizar clase de fila activa o inactiva
     if (esActivo) {
@@ -1026,13 +968,11 @@ function actualizarFilaRutaEnDOM(ruta) {
         fila.classList.add('table-secondary', 'opacity-75');
     }
 
-    // Columna 1: Trayecto y Corredor
+    // Columna 1: Trayecto y Sentido
     const colTrayecto = fila.querySelector('.col-ruta-trayecto');
     if (colTrayecto) {
         let htmlTrayecto = `<div class="fw-bold text-dark fs-6">${escapeHtml(origen)} ➔ ${escapeHtml(destino)}</div>`;
-        if (nombreCorredor) {
-            htmlTrayecto += `<div class="mt-1"><span class="badge bg-light text-primary border" style="font-size: 0.75rem; font-weight: 500;">🛤️ ${escapeHtml(nombreCorredor)}</span></div>`;
-        }
+        htmlTrayecto += `<div class="mt-1"><span class="badge ${badgeSentido}" style="font-size: 0.75rem; font-weight: 500;">${iconoSentido} ${escapeHtml(tagSentido)}</span></div>`;
         colTrayecto.innerHTML = htmlTrayecto;
     }
 

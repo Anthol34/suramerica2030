@@ -13,45 +13,8 @@ class FlotaRepository {
     }
 
     // ==========================================
-    // SECCIÓN CORREDORES E ITINERARIOS MAESTROS
+    // SECCIÓN CIUDADES Y CATÁLOGO DE DOMINIO
     // ==========================================
-    public function obtenerCorredores() {
-        return $this->db->query("SELECT * FROM CORREDOR ORDER BY ID_CORREDOR ASC")->fetchAll(PDO::FETCH_ASSOC);
-    }
-
-    public function obtenerCorredorPorId($idCorredor) {
-        $stmt = $this->db->prepare("SELECT * FROM CORREDOR WHERE ID_CORREDOR = ?");
-        $stmt->execute([$idCorredor]);
-        return $stmt->fetch(PDO::FETCH_ASSOC);
-    }
-
-    public function obtenerParadas($idCorredor) {
-        $this->normalizarOrdenesParadas($idCorredor);
-        $stmt = $this->db->prepare("SELECT * FROM CORREDOR_PARADA WHERE ID_CORREDOR = ? ORDER BY ORDEN ASC");
-        $stmt->execute([$idCorredor]);
-        return $stmt->fetchAll(PDO::FETCH_ASSOC);
-    }
-
-    public function obtenerParadasDeTodosLosCorredores() {
-        $stmt = $this->db->query("SELECT * FROM CORREDOR_PARADA ORDER BY ID_CORREDOR ASC, ORDEN ASC");
-        $paradas = $stmt ? $stmt->fetchAll(PDO::FETCH_ASSOC) : [];
-        $res = [];
-        foreach ($paradas as $p) {
-            $res[$p['ID_CORREDOR']][] = $p;
-        }
-        return $res;
-    }
-
-    public function obtenerTramosOperativos($idCorredor) {
-        $query = "SELECT t.*, b.BUS_PLACA, b.BUS_MARCA, b.BUS_MODELO 
-                  FROM CORREDOR_TRAMO_OPERATIVO t 
-                  LEFT JOIN BUS b ON t.ID_BUS_DEFAULT = b.ID_BUS 
-                  WHERE t.ID_CORREDOR = ? 
-                  ORDER BY t.ORDEN_TRAMO ASC";
-        $stmt = $this->db->prepare($query);
-        $stmt->execute([$idCorredor]);
-        return $stmt->fetchAll(PDO::FETCH_ASSOC);
-    }
 
     public function obtenerCiudadesCatalogo() {
         return $this->db->query("SELECT * FROM CIUDAD WHERE ESTADO = 1 ORDER BY PAIS ASC, NOMBRE ASC")->fetchAll(PDO::FETCH_ASSOC);
@@ -60,11 +23,9 @@ class FlotaRepository {
     public function obtenerTodasLasCiudadesConEstadisticas() {
         $sql = "
             SELECT c.*,
-                   COUNT(DISTINCT CASE WHEN r.RUT_ORIGEN = c.NOMBRE OR r.RUT_DESTINO = c.NOMBRE THEN r.ID_RUTA END) as TOTAL_RUTAS,
-                   COUNT(DISTINCT CASE WHEN cp.CIUDAD = c.NOMBRE THEN cp.ID_CORREDOR END) as TOTAL_CORREDORES
+                   COUNT(DISTINCT CASE WHEN r.RUT_ORIGEN = c.NOMBRE OR r.RUT_DESTINO = c.NOMBRE THEN r.ID_RUTA END) as TOTAL_RUTAS
             FROM CIUDAD c
             LEFT JOIN RUTA r ON (r.RUT_ORIGEN = c.NOMBRE OR r.RUT_DESTINO = c.NOMBRE)
-            LEFT JOIN CORREDOR_PARADA cp ON cp.CIUDAD = c.NOMBRE
             GROUP BY c.ID_CIUDAD
             ORDER BY c.PAIS ASC, c.NOMBRE ASC
         ";
@@ -138,15 +99,15 @@ class FlotaRepository {
 
             $stmtUso = $this->db->prepare("SELECT COUNT(*) FROM RUTA WHERE RUT_ORIGEN = ? OR RUT_DESTINO = ?");
             $stmtUso->execute([$ciu['NOMBRE'], $ciu['NOMBRE']]);
-            $rutasUso = $stmtUso->fetchColumn();
+            $rutasUso = (int)$stmtUso->fetchColumn();
 
-            $stmtPar = $this->db->prepare("SELECT COUNT(*) FROM CORREDOR_PARADA WHERE CIUDAD = ?");
-            $stmtPar->execute([$ciu['NOMBRE']]);
-            $paradasUso = $stmtPar->fetchColumn();
+            $stmtTramo = $this->db->prepare("SELECT COUNT(*) FROM RUTA_TRAMO WHERE ORIGEN_TRAMO = ? OR DESTINO_TRAMO = ?");
+            $stmtTramo->execute([$ciu['NOMBRE'], $ciu['NOMBRE']]);
+            $tramosUso = (int)$stmtTramo->fetchColumn();
 
-            if ($rutasUso > 0 || $paradasUso > 0) {
+            if ($rutasUso > 0 || $tramosUso > 0) {
                 $this->db->prepare("UPDATE CIUDAD SET ESTADO = 0 WHERE ID_CIUDAD = ?")->execute([$idCiudad]);
-                return "La ciudad tiene {$rutasUso} rutas y {$paradasUso} paradas asociadas; ha sido marcada como INACTIVA para proteger el historial.";
+                return "La ciudad tiene {$rutasUso} rutas y {$tramosUso} tramos asociados; ha sido marcada como INACTIVA para proteger el historial.";
             }
 
             $stmtDel = $this->db->prepare("DELETE FROM CIUDAD WHERE ID_CIUDAD = ?");
@@ -199,635 +160,14 @@ class FlotaRepository {
         }
     }
 
-    public function crearCorredorBD($datos) {
-        try {
-            $this->db->beginTransaction();
-
-            $query = "INSERT INTO CORREDOR (CODIGO, NOMBRE, ORIGEN_CABECERA, DESTINO_TERMINAL, DIAS_SALIDA, HORA_SALIDA, ESTADO, LIMITE_EQUIPAJE_KG, PRECIO_SOBREPESO_KG, PRECIO_SOBRE, PRECIO_VOLUMEN, COMISION_VALOR, TIPO_UTILIDAD, UTILIDAD_PASAJE, UTILIDAD_ENCOMIENDA, UTILIDAD_VALORES) 
-                      VALUES (:codigo, :nombre, :origen, :destino, :dias, :hora, :estado, :limite_eq, :precio_s, :precio_sobre, :precio_vol, :comision_v, :t_util, :u_pasaje, :u_enc, :u_val)";
-            $stmt = $this->db->prepare($query);
-            $stmt->execute([
-                ':codigo' => $datos['codigo'],
-                ':nombre' => $datos['nombre'],
-                ':origen' => $datos['origen_cabecera'],
-                ':destino' => $datos['destino_terminal'],
-                ':dias' => $datos['dias_salida'],
-                ':hora' => $datos['hora_salida'],
-                ':estado' => $datos['estado'] ?? 'ACTIVO',
-                ':limite_eq' => $datos['limite_equipaje'],
-                ':precio_s' => $datos['precio_sobrepeso'],
-                ':precio_sobre' => $datos['precio_sobre'],
-                ':precio_vol' => $datos['precio_volumen'],
-                ':comision_v' => $datos['comision_valor'],
-                ':t_util' => $datos['tipo_utilidad'],
-                ':u_pasaje' => $datos['utilidad_pasaje'],
-                ':u_enc' => $datos['utilidad_encomienda'],
-                ':u_val' => $datos['utilidad_valores']
-            ]);
-            $idCorredor = $this->db->lastInsertId();
-
-            // Insertar automáticamente las paradas 1 (Cabecera) y 2 (Terminal)
-            $paisOrigen = $datos['pais_origen'] ?? 'ECUADOR';
-            $paisDestino = $datos['pais_destino'] ?? 'VENEZUELA';
-
-            $stmtParada = $this->db->prepare("INSERT INTO CORREDOR_PARADA (ID_CORREDOR, ORDEN, CIUDAD, PAIS, TIPO_PARADA, PERMITE_SUBIDA, PERMITE_BAJADA, TIEMPO_ESTIMADO_HORAS) VALUES (?, ?, ?, ?, ?, 1, 1, ?)");
-            $stmtParada->execute([$idCorredor, 1, $datos['origen_cabecera'], $paisOrigen, 'CABECERA', 0]);
-            $stmtParada->execute([$idCorredor, 2, $datos['destino_terminal'], $paisDestino, 'TERMINAL', 10]);
-
-            // Crear tramos operativos sugeridos si es internacional
-            if ($paisOrigen === 'ECUADOR' && $paisDestino === 'VENEZUELA') {
-                $stmtTop = $this->db->prepare("INSERT INTO CORREDOR_TRAMO_OPERATIVO (ID_CORREDOR, ORDEN_TRAMO, NOMBRE_TRAMO, ORIGEN_TRAMO, DESTINO_TRAMO, PAIS) VALUES (?, ?, ?, ?, ?, ?)");
-                $stmtTop->execute([$idCorredor, 1, 'Tramo Nacional Ecuador', $datos['origen_cabecera'], 'Tulcán', 'ECUADOR']);
-                $stmtTop->execute([$idCorredor, 2, 'Tramo Nacional Colombia', 'Ipiales', 'Cúcuta', 'COLOMBIA']);
-                $stmtTop->execute([$idCorredor, 3, 'Tramo Nacional Venezuela', 'San Cristóbal', $datos['destino_terminal'], 'VENEZUELA']);
-            } elseif ($paisOrigen === 'VENEZUELA' && $paisDestino === 'ECUADOR') {
-                $stmtTop = $this->db->prepare("INSERT INTO CORREDOR_TRAMO_OPERATIVO (ID_CORREDOR, ORDEN_TRAMO, NOMBRE_TRAMO, ORIGEN_TRAMO, DESTINO_TRAMO, PAIS) VALUES (?, ?, ?, ?, ?, ?)");
-                $stmtTop->execute([$idCorredor, 1, 'Tramo Nacional Venezuela', $datos['origen_cabecera'], 'San Cristóbal', 'VENEZUELA']);
-                $stmtTop->execute([$idCorredor, 2, 'Tramo Nacional Colombia', 'Cúcuta', 'Ipiales', 'COLOMBIA']);
-                $stmtTop->execute([$idCorredor, 3, 'Tramo Nacional Ecuador', 'Tulcán', $datos['destino_terminal'], 'ECUADOR']);
-            }
-
-            $this->db->commit();
-            return $idCorredor;
-        } catch (Exception $e) {
-            $this->db->rollBack();
-            return $e->getMessage();
-        }
-    }
-
-    public function eliminarCorredorBD($idCorredor) {
-        try {
-            $stmt = $this->db->prepare("DELETE FROM CORREDOR WHERE ID_CORREDOR = ?");
-            $stmt->execute([$idCorredor]);
-            return true;
-        } catch (Exception $e) {
-            return $e->getMessage();
-        }
-    }
-
-    public function actualizarCorredorBD($datos) {
-        try {
-            $query = "UPDATE CORREDOR SET 
-                        CODIGO = :codigo,
-                        NOMBRE = :nombre,
-                        ORIGEN_CABECERA = :origen,
-                        DESTINO_TERMINAL = :destino,
-                        DIAS_SALIDA = :dias,
-                        HORA_SALIDA = :hora,
-                        ESTADO = :estado,
-                        LIMITE_EQUIPAJE_KG = :limite_eq,
-                        PRECIO_SOBREPESO_KG = :precio_s,
-                        PRECIO_SOBRE = :precio_sobre,
-                        PRECIO_VOLUMEN = :precio_vol,
-                        COMISION_VALOR = :comision_v,
-                        TIPO_UTILIDAD = :t_util,
-                        UTILIDAD_PASAJE = :u_pasaje,
-                        UTILIDAD_ENCOMIENDA = :u_enc,
-                        UTILIDAD_VALORES = :u_val
-                      WHERE ID_CORREDOR = :id";
-            $stmt = $this->db->prepare($query);
-            return $stmt->execute([
-                ':codigo' => $datos['codigo'],
-                ':nombre' => $datos['nombre'],
-                ':origen' => $datos['origen_cabecera'],
-                ':destino' => $datos['destino_terminal'],
-                ':dias' => $datos['dias_salida'],
-                ':hora' => $datos['hora_salida'],
-                ':estado' => $datos['estado'] ?? 'ACTIVO',
-                ':limite_eq' => $datos['limite_equipaje'],
-                ':precio_s' => $datos['precio_sobrepeso'],
-                ':precio_sobre' => $datos['precio_sobre'],
-                ':precio_vol' => $datos['precio_volumen'],
-                ':comision_v' => $datos['comision_valor'],
-                ':t_util' => $datos['tipo_utilidad'],
-                ':u_pasaje' => $datos['utilidad_pasaje'],
-                ':u_enc' => $datos['utilidad_encomienda'],
-                ':u_val' => $datos['utilidad_valores'],
-                ':id' => $datos['id_corredor']
-            ]);
-        } catch (Exception $e) {
-            return $e->getMessage();
-        }
-    }
-
-    public function normalizarOrdenesParadas($idCorredor) {
-        try {
-            $stmt = $this->db->prepare("SELECT * FROM CORREDOR_PARADA WHERE ID_CORREDOR = ? ORDER BY ORDEN ASC, ID_CORREDOR_PARADA ASC");
-            $stmt->execute([$idCorredor]);
-            $todas = $stmt->fetchAll(PDO::FETCH_ASSOC);
-
-            if (empty($todas)) return true;
-
-            $cabecera = null;
-            $terminal = null;
-            $intermedias = [];
-
-            foreach ($todas as $p) {
-                if ($p['TIPO_PARADA'] === 'CABECERA' && $cabecera === null) {
-                    $cabecera = $p;
-                } elseif ($p['TIPO_PARADA'] === 'TERMINAL') {
-                    if ($terminal !== null) {
-                        $intermedias[] = $terminal;
-                    }
-                    $terminal = $p;
-                } else {
-                    $intermedias[] = $p;
-                }
-            }
-
-            $ordenado = [];
-            if ($cabecera) {
-                $ordenado[] = $cabecera;
-            }
-            foreach ($intermedias as $im) {
-                $ordenado[] = $im;
-            }
-            if ($terminal) {
-                $ordenado[] = $terminal;
-            }
-
-            $stmtUpdate = $this->db->prepare("UPDATE CORREDOR_PARADA SET ORDEN = ? WHERE ID_CORREDOR_PARADA = ?");
-            foreach ($ordenado as $idx => $par) {
-                $stmtUpdate->execute([$idx + 1, $par['ID_CORREDOR_PARADA']]);
-            }
-            return true;
-        } catch (Exception $e) {
-            return $e->getMessage();
-        }
-    }
-
-    public function agregarParadaBD($idCorredor, $ciudad, $pais, $tipoParada = 'ESCALA', $tiempoHoras = 0, $despuesDeOrden = null) {
-        try {
-            $this->db->beginTransaction();
-
-            $this->normalizarOrdenesParadas($idCorredor);
-
-            $stmt = $this->db->prepare("SELECT * FROM CORREDOR_PARADA WHERE ID_CORREDOR = ? ORDER BY ORDEN ASC");
-            $stmt->execute([$idCorredor]);
-            $paradas = $stmt->fetchAll(PDO::FETCH_ASSOC);
-
-            if ($despuesDeOrden !== null && is_numeric($despuesDeOrden) && intval($despuesDeOrden) > 0) {
-                $targetOrden = intval($despuesDeOrden) + 1;
-            } else {
-                // Por defecto: insertar antes del TERMINAL
-                $terminalOrden = null;
-                foreach ($paradas as $p) {
-                    if ($p['TIPO_PARADA'] === 'TERMINAL') {
-                        $terminalOrden = (int)$p['ORDEN'];
-                        break;
-                    }
-                }
-
-                if ($terminalOrden !== null) {
-                    $targetOrden = $terminalOrden;
-                } else {
-                    $targetOrden = count($paradas) + 1;
-                }
-            }
-
-            // Desplazar las paradas existentes que tengan ORDEN >= $targetOrden
-            $stmtShift = $this->db->prepare("UPDATE CORREDOR_PARADA SET ORDEN = ORDEN + 1 WHERE ID_CORREDOR = ? AND ORDEN >= ? ORDER BY ORDEN DESC");
-            $stmtShift->execute([$idCorredor, $targetOrden]);
-
-            // Insertar la nueva parada
-            $stmtIns = $this->db->prepare("INSERT INTO CORREDOR_PARADA (ID_CORREDOR, ORDEN, CIUDAD, PAIS, TIPO_PARADA, PERMITE_SUBIDA, PERMITE_BAJADA, TIEMPO_ESTIMADO_HORAS) 
-                                        VALUES (?, ?, ?, ?, ?, 1, 1, ?)");
-            $stmtIns->execute([$idCorredor, $targetOrden, trim($ciudad), trim($pais), $tipoParada, $tiempoHoras]);
-
-            // Auto-registrar en el catálogo de ciudades del dominio
-            $this->asegurarCiudadExiste(trim($ciudad), trim($pais));
-
-            $this->normalizarOrdenesParadas($idCorredor);
-
-            $this->db->commit();
-            return true;
-        } catch (Exception $e) {
-            $this->db->rollBack();
-            return $e->getMessage();
-        }
-    }
-
-    public function moverParadaBD($idParada, $direccion) {
-        try {
-            $this->db->beginTransaction();
-            $stmt = $this->db->prepare("SELECT * FROM CORREDOR_PARADA WHERE ID_CORREDOR_PARADA = ?");
-            $stmt->execute([$idParada]);
-            $parada = $stmt->fetch(PDO::FETCH_ASSOC);
-            if (!$parada || $parada['TIPO_PARADA'] === 'CABECERA' || $parada['TIPO_PARADA'] === 'TERMINAL') {
-                $this->db->rollBack();
-                return "No se puede mover esta parada fija.";
-            }
-
-            $idCorredor = (int)$parada['ID_CORREDOR'];
-            $this->normalizarOrdenesParadas($idCorredor);
-
-            // Re-obtener parada con orden normalizado
-            $stmt->execute([$idParada]);
-            $parada = $stmt->fetch(PDO::FETCH_ASSOC);
-            $ordenActual = (int)$parada['ORDEN'];
-
-            $stmtTerm = $this->db->prepare("SELECT ORDEN FROM CORREDOR_PARADA WHERE ID_CORREDOR = ? AND TIPO_PARADA = 'TERMINAL' LIMIT 1");
-            $stmtTerm->execute([$idCorredor]);
-            $ordenTerminal = (int)$stmtTerm->fetchColumn();
-
-            if ($direccion === 'subir') {
-                if ($ordenActual <= 2) {
-                    $this->db->rollBack();
-                    return true;
-                }
-                $targetOrden = $ordenActual - 1;
-            } elseif ($direccion === 'bajar') {
-                if ($ordenActual >= $ordenTerminal - 1) {
-                    $this->db->rollBack();
-                    return true;
-                }
-                $targetOrden = $ordenActual + 1;
-            } else {
-                $this->db->rollBack();
-                return "Dirección no válida.";
-            }
-
-            // Buscar la parada con la que se intercambia
-            $stmtAdy = $this->db->prepare("SELECT ID_CORREDOR_PARADA FROM CORREDOR_PARADA WHERE ID_CORREDOR = ? AND ORDEN = ?");
-            $stmtAdy->execute([$idCorredor, $targetOrden]);
-            $idAdyacente = $stmtAdy->fetchColumn();
-
-            if ($idAdyacente) {
-                $this->db->prepare("UPDATE CORREDOR_PARADA SET ORDEN = -999 WHERE ID_CORREDOR_PARADA = ?")->execute([$idParada]);
-                $this->db->prepare("UPDATE CORREDOR_PARADA SET ORDEN = ? WHERE ID_CORREDOR_PARADA = ?")->execute([$ordenActual, $idAdyacente]);
-                $this->db->prepare("UPDATE CORREDOR_PARADA SET ORDEN = ? WHERE ID_CORREDOR_PARADA = ?")->execute([$targetOrden, $idParada]);
-            }
-
-            $this->normalizarOrdenesParadas($idCorredor);
-            $this->db->commit();
-            return true;
-        } catch (Exception $e) {
-            $this->db->rollBack();
-            return $e->getMessage();
-        }
-    }
-
-    public function eliminarParadaBD($idParada) {
-        try {
-            $this->db->beginTransaction();
-            $stmtP = $this->db->prepare("SELECT ID_CORREDOR FROM CORREDOR_PARADA WHERE ID_CORREDOR_PARADA = ?");
-            $stmtP->execute([$idParada]);
-            $idCorredor = $stmtP->fetchColumn();
-
-            if (!$idCorredor) {
-                $this->db->rollBack();
-                return "Parada no encontrada.";
-            }
-
-            $this->db->prepare("DELETE FROM CORREDOR_PARADA WHERE ID_CORREDOR_PARADA = ?")->execute([$idParada]);
-            $this->normalizarOrdenesParadas($idCorredor);
-
-            $this->db->commit();
-            return true;
-        } catch (Exception $e) {
-            $this->db->rollBack();
-            return $e->getMessage();
-        }
-    }
-
-    public function actualizarBusTramoOperativoBD($idTramo, $idBus) {
-        try {
-            $busVal = empty($idBus) ? null : intval($idBus);
-            $stmt = $this->db->prepare("UPDATE CORREDOR_TRAMO_OPERATIVO SET ID_BUS_DEFAULT = ? WHERE ID_CORREDOR_TRAMO = ?");
-            return $stmt->execute([$busVal, $idTramo]);
-        } catch (Exception $e) {
-            return $e->getMessage();
-        }
-    }
-
-    public function actualizarTarifaRapidaBD($idRuta, $precioPasaje, $precioEncomienda, $estado = 'ACTIVO') {
-        try {
-            $stmt = $this->db->prepare("UPDATE RUTA SET PRECIO_PASAJE = ?, PRECIO_ENCOMIENDA_KG = ?, ESTADO = ? WHERE ID_RUTA = ?");
-            return $stmt->execute([floatval($precioPasaje), floatval($precioEncomienda), $estado, intval($idRuta)]);
-        } catch (Exception $e) {
-            return $e->getMessage();
-        }
-    }
-
-    private function detectarCiudadesFrontera($paradas, $esRetorno = false) {
-        $fronteras = [
-            'ecuador' => 'Tulcán',
-            'colombia_sur' => 'Ipiales',
-            'colombia_norte' => 'Cúcuta',
-            'venezuela' => 'San Cristóbal'
-        ];
-
-        $colombiaTransbordos = [];
-        foreach ($paradas as $p) {
-            $pais = mb_strtoupper(trim($p['PAIS']));
-            $tipo = trim($p['TIPO_PARADA']);
-            $ciudad = trim($p['CIUDAD']);
-
-            if ($tipo === 'TRANSBORDO_FRONTERA') {
-                if ($pais === 'ECUADOR') {
-                    $fronteras['ecuador'] = $ciudad;
-                } elseif ($pais === 'VENEZUELA') {
-                    $fronteras['venezuela'] = $ciudad;
-                } elseif ($pais === 'COLOMBIA') {
-                    $colombiaTransbordos[] = $ciudad;
-                }
-            }
-        }
-
-        if (count($colombiaTransbordos) >= 2) {
-            if (!$esRetorno) {
-                $fronteras['colombia_sur'] = $colombiaTransbordos[0];
-                $fronteras['colombia_norte'] = $colombiaTransbordos[count($colombiaTransbordos) - 1];
-            } else {
-                $fronteras['colombia_norte'] = $colombiaTransbordos[0];
-                $fronteras['colombia_sur'] = $colombiaTransbordos[count($colombiaTransbordos) - 1];
-            }
-        }
-
-        return $fronteras;
-    }
-
-    public function resolverTramosViaje($idCorredor, $origen, $destino) {
-        $stmt = $this->db->prepare("SELECT * FROM CORREDOR_PARADA WHERE ID_CORREDOR = ? ORDER BY ORDEN ASC");
-        $stmt->execute([$idCorredor]);
-        $paradas = $stmt->fetchAll(PDO::FETCH_ASSOC);
-
-        $paradasIdx = [];
-        foreach ($paradas as $p) {
-            $paradasIdx[mb_strtoupper(trim($p['CIUDAD']))] = $p;
-        }
-
-        $origNorm = mb_strtoupper(trim($origen));
-        $destNorm = mb_strtoupper(trim($destino));
-
-        if (!isset($paradasIdx[$origNorm]) || !isset($paradasIdx[$destNorm])) {
-            return ['tipo_viaje' => 'DIRECTO', 'tramos' => []];
-        }
-
-        $pOrig = $paradasIdx[$origNorm];
-        $pDest = $paradasIdx[$destNorm];
-
-        if ($pOrig['ORDEN'] >= $pDest['ORDEN']) {
-            return ['tipo_viaje' => 'DIRECTO', 'tramos' => []];
-        }
-
-        if ($pOrig['PAIS'] === $pDest['PAIS']) {
-            return [
-                'tipo_viaje' => 'DIRECTO',
-                'tramos' => []
-            ];
-        }
-
-        // Determinar sentido del corredor
-        $ordenEcuador = null;
-        $ordenVenezuela = null;
-        foreach ($paradas as $p) {
-            if ($p['PAIS'] === 'ECUADOR' && $ordenEcuador === null) $ordenEcuador = (int)$p['ORDEN'];
-            if ($p['PAIS'] === 'VENEZUELA' && $ordenVenezuela === null) $ordenVenezuela = (int)$p['ORDEN'];
-        }
-        $esRetorno = ($ordenVenezuela !== null && $ordenEcuador !== null && $ordenVenezuela < $ordenEcuador);
-
-        // Detectar ciudades de frontera / transbordo
-        $fronteras = $this->detectarCiudadesFrontera($paradas, $esRetorno);
-        $eqFrontera = $fronteras['ecuador'];
-        $colSurFrontera = $fronteras['colombia_sur'];
-        $colNorteFrontera = $fronteras['colombia_norte'];
-        $venFrontera = $fronteras['venezuela'];
-
-        $tramos = [];
-        $ordenTramo = 1;
-
-        if (!$esRetorno) {
-            // Sentido Norte: Ecuador -> Colombia -> Venezuela
-            // Tramo 1: Ecuador
-            if ($pOrig['PAIS'] === 'ECUADOR') {
-                $destEcuador = ($pDest['PAIS'] === 'ECUADOR') ? $pDest['CIUDAD'] : $eqFrontera;
-                if (mb_strtoupper(trim($pOrig['CIUDAD'])) !== mb_strtoupper(trim($destEcuador))) {
-                    $tramos[] = [
-                        'orden' => $ordenTramo++,
-                        'origen' => $pOrig['CIUDAD'],
-                        'destino' => $destEcuador
-                    ];
-                }
-            }
-
-            // Tramo 2: Colombia
-            if ($pOrig['PAIS'] === 'ECUADOR' && ($pDest['PAIS'] === 'COLOMBIA' || $pDest['PAIS'] === 'VENEZUELA')) {
-                $destCol = ($pDest['PAIS'] === 'COLOMBIA') ? $pDest['CIUDAD'] : $colNorteFrontera;
-                if (mb_strtoupper(trim($colSurFrontera)) !== mb_strtoupper(trim($destCol))) {
-                    $tramos[] = [
-                        'orden' => $ordenTramo++,
-                        'origen' => $colSurFrontera,
-                        'destino' => $destCol
-                    ];
-                }
-            } elseif ($pOrig['PAIS'] === 'COLOMBIA' && $pDest['PAIS'] === 'VENEZUELA') {
-                if (mb_strtoupper(trim($pOrig['CIUDAD'])) !== mb_strtoupper(trim($colNorteFrontera))) {
-                    $tramos[] = [
-                        'orden' => $ordenTramo++,
-                        'origen' => $pOrig['CIUDAD'],
-                        'destino' => $colNorteFrontera
-                    ];
-                }
-            }
-
-            // Tramo 3: Venezuela
-            if ($pDest['PAIS'] === 'VENEZUELA' && $pOrig['PAIS'] !== 'VENEZUELA') {
-                if (mb_strtoupper(trim($venFrontera)) !== mb_strtoupper(trim($pDest['CIUDAD']))) {
-                    $tramos[] = [
-                        'orden' => $ordenTramo++,
-                        'origen' => $venFrontera,
-                        'destino' => $pDest['CIUDAD']
-                    ];
-                }
-            }
-        } else {
-            // Sentido Sur (Retorno): Venezuela -> Colombia -> Ecuador
-            // Tramo 1: Venezuela
-            if ($pOrig['PAIS'] === 'VENEZUELA') {
-                $destVen = ($pDest['PAIS'] === 'VENEZUELA') ? $pDest['CIUDAD'] : $venFrontera;
-                if (mb_strtoupper(trim($pOrig['CIUDAD'])) !== mb_strtoupper(trim($destVen))) {
-                    $tramos[] = [
-                        'orden' => $ordenTramo++,
-                        'origen' => $pOrig['CIUDAD'],
-                        'destino' => $destVen
-                    ];
-                }
-            }
-
-            // Tramo 2: Colombia
-            if ($pOrig['PAIS'] === 'VENEZUELA' && ($pDest['PAIS'] === 'COLOMBIA' || $pDest['PAIS'] === 'ECUADOR')) {
-                $destCol = ($pDest['PAIS'] === 'COLOMBIA') ? $pDest['CIUDAD'] : $colSurFrontera;
-                if (mb_strtoupper(trim($colNorteFrontera)) !== mb_strtoupper(trim($destCol))) {
-                    $tramos[] = [
-                        'orden' => $ordenTramo++,
-                        'origen' => $colNorteFrontera,
-                        'destino' => $destCol
-                    ];
-                }
-            } elseif ($pOrig['PAIS'] === 'COLOMBIA' && $pDest['PAIS'] === 'ECUADOR') {
-                if (mb_strtoupper(trim($pOrig['CIUDAD'])) !== mb_strtoupper(trim($colSurFrontera))) {
-                    $tramos[] = [
-                        'orden' => $ordenTramo++,
-                        'origen' => $pOrig['CIUDAD'],
-                        'destino' => $colSurFrontera
-                    ];
-                }
-            }
-
-            // Tramo 3: Ecuador
-            if ($pDest['PAIS'] === 'ECUADOR' && $pOrig['PAIS'] !== 'ECUADOR') {
-                if (mb_strtoupper(trim($eqFrontera)) !== mb_strtoupper(trim($pDest['CIUDAD']))) {
-                    $tramos[] = [
-                        'orden' => $ordenTramo++,
-                        'origen' => $eqFrontera,
-                        'destino' => $pDest['CIUDAD']
-                    ];
-                }
-            }
-        }
-
-        return [
-            'tipo_viaje' => count($tramos) > 1 ? 'CONEXION' : 'DIRECTO',
-            'tramos' => $tramos
-        ];
-    }
-
-    public function generarRutasComercialesDelCorredor($idCorredor) {
-        try {
-            $this->db->beginTransaction();
-
-            $stmtC = $this->db->prepare("SELECT * FROM CORREDOR WHERE ID_CORREDOR = ?");
-            $stmtC->execute([$idCorredor]);
-            $corredor = $stmtC->fetch(PDO::FETCH_ASSOC);
-
-            if (!$corredor) {
-                $this->db->rollBack();
-                return "Corredor no encontrado.";
-            }
-
-            $stmtP = $this->db->prepare("SELECT * FROM CORREDOR_PARADA WHERE ID_CORREDOR = ? ORDER BY ORDEN ASC");
-            $stmtP->execute([$idCorredor]);
-            $paradas = $stmtP->fetchAll(PDO::FETCH_ASSOC);
-
-            $total = count($paradas);
-            if ($total < 2) {
-                $this->db->rollBack();
-                return "El corredor debe tener al menos 2 paradas.";
-            }
-
-            // Mapear rutas existentes para no sobreescribir precios manuales
-            $stmtExistentes = $this->db->prepare("SELECT ID_RUTA, RUT_ORIGEN, RUT_DESTINO, PRECIO_PASAJE, PRECIO_ENCOMIENDA_KG FROM RUTA WHERE ID_CORREDOR = ?");
-            $stmtExistentes->execute([$idCorredor]);
-            $rutasExistentes = [];
-            while ($row = $stmtExistentes->fetch(PDO::FETCH_ASSOC)) {
-                $clave = mb_strtoupper(trim($row['RUT_ORIGEN'])) . '||' . mb_strtoupper(trim($row['RUT_DESTINO']));
-                $rutasExistentes[$clave] = $row;
-            }
-
-            $stmtInsertRuta = $this->db->prepare("INSERT INTO RUTA (ID_CORREDOR, RUT_ORIGEN, RUT_DESTINO, TIPO_VIAJE, DIAS_SALIDA, RUT_SAHORA, PRECIO_PASAJE, PRECIO_ENCOMIENDA_KG, PRECIO_SOBRE, PRECIO_VOLUMEN, LIMITE_EQUIPAJE_KG, PRECIO_SOBREPESO_KG, COMISION_VALOR, TIPO_UTILIDAD, UTILIDAD_PASAJE, UTILIDAD_ENCOMIENDA, UTILIDAD_VALORES, ESTADO) 
-                                                  VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'ACTIVO')");
-
-            $stmtUpdateRuta = $this->db->prepare("UPDATE RUTA SET ID_CORREDOR = ?, TIPO_VIAJE = ?, DIAS_SALIDA = ?, RUT_SAHORA = ? WHERE ID_RUTA = ?");
-
-            $stmtDeleteTramos = $this->db->prepare("DELETE FROM RUTA_TRAMO WHERE ID_RUTA = ?");
-            $stmtInsertTramo = $this->db->prepare("INSERT INTO RUTA_TRAMO (ID_RUTA, ORDEN, ORIGEN_TRAMO, DESTINO_TRAMO, ID_OPERADOR, OPERADOR, PVP_TRAMO, COSTO_OPERADOR, UTILIDAD_AGENCIA) VALUES (?, ?, ?, ?, 1, 'EXPRESOS SURAMERICA 2030', 0.00, 0.00, 0.00)");
-
-            $creadas = 0;
-            $actualizadas = 0;
-
-            for ($i = 0; $i < $total; $i++) {
-                for ($j = $i + 1; $j < $total; $j++) {
-                    $pOrig = $paradas[$i];
-                    $pDest = $paradas[$j];
-                    $origen = $pOrig['CIUDAD'];
-                    $destino = $pDest['CIUDAD'];
-
-                    // Evitar rutas con mismo origen y destino (ej: Manta -> Manta)
-                    if (mb_strtoupper(trim($origen)) === mb_strtoupper(trim($destino))) {
-                        continue;
-                    }
-
-                    $clave = mb_strtoupper(trim($origen)) . '||' . mb_strtoupper(trim($destino));
-
-                    // Si la ruta ya existe, RESPETAR ÍNTEGRAMENTE sus tramos, operadores, precios y finanzas
-                    if (isset($rutasExistentes[$clave])) {
-                        $actualizadas++;
-                        continue;
-                    }
-
-                    // Resolver modalidad y tramos sugeridos solo para rutas NUEVAS
-                    $infoViaje = $this->resolverTramosViaje($idCorredor, $origen, $destino);
-                    $tipoViaje = $infoViaje['tipo_viaje'] ?? 'DIRECTO';
-                    $tramos = $infoViaje['tramos'] ?? [];
-
-                    // Calcular precio sugerido por países/distancia simétricamente
-                    $distanciaParadas = $j - $i;
-                    if (($pOrig['PAIS'] === 'ECUADOR' && $pDest['PAIS'] === 'VENEZUELA') || ($pOrig['PAIS'] === 'VENEZUELA' && $pDest['PAIS'] === 'ECUADOR')) {
-                        $precioPasajeSugerido = 190.00;
-                        $precioEncomiendaSugerido = 7.00;
-                    } elseif (($pOrig['PAIS'] === 'ECUADOR' && $pDest['PAIS'] === 'COLOMBIA') || ($pOrig['PAIS'] === 'COLOMBIA' && $pDest['PAIS'] === 'ECUADOR')) {
-                        $precioPasajeSugerido = 120.00;
-                        $precioEncomiendaSugerido = 5.00;
-                    } elseif (($pOrig['PAIS'] === 'COLOMBIA' && $pDest['PAIS'] === 'VENEZUELA') || ($pOrig['PAIS'] === 'VENEZUELA' && $pDest['PAIS'] === 'COLOMBIA')) {
-                        $precioPasajeSugerido = 60.00;
-                        $precioEncomiendaSugerido = 5.00;
-                    } else {
-                        // Nacional
-                        $precioPasajeSugerido = max(10.00, $distanciaParadas * 12.00);
-                        $precioEncomiendaSugerido = 2.00;
-                    }
-
-                    $stmtInsertRuta->execute([
-                        $idCorredor,
-                        $origen,
-                        $destino,
-                        $tipoViaje,
-                        $corredor['DIAS_SALIDA'],
-                        $corredor['HORA_SALIDA'],
-                        $precioPasajeSugerido,
-                        $precioEncomiendaSugerido,
-                        $corredor['PRECIO_SOBRE'],
-                        $corredor['PRECIO_VOLUMEN'],
-                        $corredor['LIMITE_EQUIPAJE_KG'],
-                        $corredor['PRECIO_SOBREPESO_KG'],
-                        $corredor['COMISION_VALOR'],
-                        $corredor['TIPO_UTILIDAD'],
-                        $corredor['UTILIDAD_PASAJE'],
-                        $corredor['UTILIDAD_ENCOMIENDA'],
-                        $corredor['UTILIDAD_VALORES']
-                    ]);
-                    $idRuta = $this->db->lastInsertId();
-                    $creadas++;
-
-                    // Sincronizar RUTA_TRAMO inicial ÚNICAMENTE para las rutas NUEVAS creadas
-                    if ($tipoViaje === 'CONEXION' && !empty($tramos)) {
-                        foreach ($tramos as $tr) {
-                            $stmtInsertTramo->execute([$idRuta, $tr['orden'], $tr['origen'], $tr['destino']]);
-                        }
-                    }
-                }
-            }
-
-            $this->db->commit();
-            return true;
-        } catch (Exception $e) {
-            $this->db->rollBack();
-            return $e->getMessage();
-        }
-    }
-
-    // ==========================================
-    // SECCIÓN RUTAS Y TARIFAS
-    // ==========================================
-    public function obtenerRutas($idCorredor = null) {
-        $where = $idCorredor ? "WHERE r.ID_CORREDOR = " . intval($idCorredor) : "";
-        $query = "SELECT r.*, c.NOMBRE as NOMBRE_CORREDOR,
+// ==========================================
+    public function obtenerRutas($sentido = null) {
+        $where = !empty($sentido) ? "WHERE r.SENTIDO = " . $this->db->quote($sentido) : "";
+        $query = "SELECT r.*,
                          op.NOMBRE_COMERCIAL as OPERADOR_NOMBRE, op.TIPO_OPERADOR as OPERADOR_TIPO,
                          op.BANCO as OPERADOR_BANCO, op.NUMERO_CUENTA as OPERADOR_CUENTA,
                          op.IDENTIFICACION as OPERADOR_DOC
                   FROM RUTA r 
-                  LEFT JOIN CORREDOR c ON r.ID_CORREDOR = c.ID_CORREDOR 
                   LEFT JOIN OPERADOR op ON r.ID_OPERADOR = op.ID_OPERADOR
                   $where 
                   ORDER BY CASE WHEN r.ESTADO = 'ACTIVO' THEN 1 ELSE 2 END, r.RUT_ORIGEN, r.RUT_DESTINO";
@@ -862,6 +202,16 @@ class FlotaRepository {
                 $tramos = $tramosPorRuta[$r['ID_RUTA']] ?? [];
                 $r['TRAMOS_DETALLE'] = $tramos;
                 $r['TRAMOS_JSON'] = json_encode($tramos);
+
+                // Sentido y orientación comercial
+                $sentidoVal = !empty($r['SENTIDO']) ? $r['SENTIDO'] : \Platform\Helpers\SentidoHelper::resolverSentido($r['RUT_ORIGEN'], $r['RUT_DESTINO']);
+                $r['SENTIDO'] = $sentidoVal;
+                $infoSentido = \Platform\Helpers\SentidoHelper::getInfoSentido($sentidoVal);
+                $r['NOMBRE_CORREDOR'] = $infoSentido['nombre']; // Compatibilidad con vistas
+                $r['NOMBRE_SENTIDO'] = $infoSentido['nombre'];
+                $r['ICONO_SENTIDO'] = $infoSentido['icono'];
+                $r['BADGE_SENTIDO'] = $infoSentido['badge_class'];
+                $r['TAG_SENTIDO'] = $infoSentido['tag'];
 
                 // Cálculo financiero de liquidación y margen comercial
                 $costoTotal = floatval($r['COSTO_TOTAL_RUTA'] ?? 0);
@@ -906,13 +256,14 @@ class FlotaRepository {
 
             $idOp = !empty($datos['id_operador']) ? intval($datos['id_operador']) : 1;
             $modalidad = !empty($datos['modalidad']) ? $datos['modalidad'] : (!empty($datos['operador']) ? $datos['operador'] : 'Propio Suramérica');
+            $sentido = !empty($datos['sentido']) ? $datos['sentido'] : \Platform\Helpers\SentidoHelper::resolverSentido($datos['origen'], $datos['destino']);
 
-            $camposInsert = "ID_CORREDOR, RUT_ORIGEN, RUT_DESTINO, TIPO_VIAJE, MODALIDAD" 
+            $camposInsert = "SENTIDO, RUT_ORIGEN, RUT_DESTINO, TIPO_VIAJE, MODALIDAD" 
                 . ($hasIdOperador ? ", ID_OPERADOR" : "") 
                 . ($hasAdmiteSp ? ", ADMITE_SOBREPESO" : "") 
                 . ($hasCostoTotal ? ", COSTO_TOTAL_RUTA" : "") 
                 . ", DIAS_SALIDA, RUT_SAHORA, PRECIO_PASAJE, PRECIO_ENCOMIENDA_KG, PRECIO_SOBRE, PRECIO_VOLUMEN, LIMITE_EQUIPAJE_KG, PRECIO_SOBREPESO_KG, COMISION_VALOR, TIPO_UTILIDAD, UTILIDAD_PASAJE, UTILIDAD_ENCOMIENDA, UTILIDAD_VALORES, ESTADO";
-            $valoresInsert = ":id_corredor, :origen, :destino, :tipo, :modalidad" 
+            $valoresInsert = ":sentido, :origen, :destino, :tipo, :modalidad" 
                 . ($hasIdOperador ? ", :id_operador" : "") 
                 . ($hasAdmiteSp ? ", :admite_sp" : "") 
                 . ($hasCostoTotal ? ", :costo_total" : "") 
@@ -921,7 +272,7 @@ class FlotaRepository {
             $query = "INSERT INTO RUTA ($camposInsert) VALUES ($valoresInsert)";
             $stmt = $this->db->prepare($query);
             $params = [
-                ':id_corredor' => !empty($datos['id_corredor']) ? $datos['id_corredor'] : 1,
+                ':sentido' => $sentido,
                 ':origen' => $datos['origen'], ':destino' => $datos['destino'], ':tipo' => $datos['tipo_viaje'], 
                 ':modalidad' => $modalidad,
                 ':dias' => $datos['dias_salida'], ':hora' => $datos['hora_salida'], 
@@ -1004,6 +355,7 @@ class FlotaRepository {
             $this->db->beginTransaction();
 
             $modalidad = !empty($datos['modalidad']) ? $datos['modalidad'] : (!empty($datos['operador']) ? $datos['operador'] : 'Propio Suramérica');
+            $sentido = !empty($datos['sentido']) ? $datos['sentido'] : \Platform\Helpers\SentidoHelper::resolverSentido($datos['origen'], $datos['destino']);
             $colsRuta = array_column($this->db->query("DESCRIBE RUTA")->fetchAll(PDO::FETCH_ASSOC), 'Field');
             $hasAdmiteSp = in_array('ADMITE_SOBREPESO', $colsRuta);
             $hasIdOperador = in_array('ID_OPERADOR', $colsRuta);
@@ -1012,10 +364,10 @@ class FlotaRepository {
             $setIdOperador = $hasIdOperador ? ", ID_OPERADOR = :id_operador" : "";
             $setCostoTotal = $hasCostoTotal ? ", COSTO_TOTAL_RUTA = :costo_total" : "";
 
-            $query = "UPDATE RUTA SET ID_CORREDOR = COALESCE(:id_corredor, ID_CORREDOR), RUT_ORIGEN = :origen, RUT_DESTINO = :destino, TIPO_VIAJE = :tipo, MODALIDAD = :modalidad $setIdOperador $setAdmiteSp $setCostoTotal, DIAS_SALIDA = :dias, RUT_SAHORA = :hora, PRECIO_PASAJE = :precio_p, PRECIO_ENCOMIENDA_KG = :precio_e, PRECIO_SOBRE = :precio_sobre, PRECIO_VOLUMEN = :precio_vol, LIMITE_EQUIPAJE_KG = :limite_eq, PRECIO_SOBREPESO_KG = :precio_s, COMISION_VALOR = :comision_v, TIPO_UTILIDAD = :t_util, UTILIDAD_PASAJE = :u_pasaje, UTILIDAD_ENCOMIENDA = :u_enc, UTILIDAD_VALORES = :u_val, ESTADO = :estado WHERE ID_RUTA = :id";
+            $query = "UPDATE RUTA SET SENTIDO = :sentido, RUT_ORIGEN = :origen, RUT_DESTINO = :destino, TIPO_VIAJE = :tipo, MODALIDAD = :modalidad $setIdOperador $setAdmiteSp $setCostoTotal, DIAS_SALIDA = :dias, RUT_SAHORA = :hora, PRECIO_PASAJE = :precio_p, PRECIO_ENCOMIENDA_KG = :precio_e, PRECIO_SOBRE = :precio_sobre, PRECIO_VOLUMEN = :precio_vol, LIMITE_EQUIPAJE_KG = :limite_eq, PRECIO_SOBREPESO_KG = :precio_s, COMISION_VALOR = :comision_v, TIPO_UTILIDAD = :t_util, UTILIDAD_PASAJE = :u_pasaje, UTILIDAD_ENCOMIENDA = :u_enc, UTILIDAD_VALORES = :u_val, ESTADO = :estado WHERE ID_RUTA = :id";
             $stmt = $this->db->prepare($query);
             $params = [
-                ':id_corredor' => $datos['id_corredor'],
+                ':sentido' => $sentido,
                 ':origen' => $datos['origen'], ':destino' => $datos['destino'], ':tipo' => $datos['tipo_viaje'], 
                 ':modalidad' => $modalidad,
                 ':dias' => $datos['dias_salida'], ':hora' => $datos['hora_salida'], 
@@ -1751,13 +1103,15 @@ class FlotaRepository {
             $costoTotalRuta = array_sum(array_column($tramos, 'costo'));
         }
 
-        $camposInsert = "ID_CORREDOR, RUT_ORIGEN, RUT_DESTINO, TIPO_VIAJE, MODALIDAD" 
+        $sentido = !empty($datos['sentido']) ? $datos['sentido'] : \Platform\Helpers\SentidoHelper::resolverSentido($datos['origen'], $datos['destino']);
+
+        $camposInsert = "SENTIDO, RUT_ORIGEN, RUT_DESTINO, TIPO_VIAJE, MODALIDAD" 
             . ($hasIdOperador ? ", ID_OPERADOR" : "") 
             . ($hasAdmiteSp ? ", ADMITE_SOBREPESO" : "") 
             . ($hasCostoTotal ? ", COSTO_TOTAL_RUTA" : "") 
             . ", DIAS_SALIDA, RUT_SAHORA, PRECIO_PASAJE, PRECIO_ENCOMIENDA_KG, PRECIO_SOBRE, PRECIO_VOLUMEN, LIMITE_EQUIPAJE_KG, PRECIO_SOBREPESO_KG, COMISION_VALOR, TIPO_UTILIDAD, UTILIDAD_PASAJE, UTILIDAD_ENCOMIENDA, UTILIDAD_VALORES, ESTADO";
         
-        $valoresInsert = ":id_corredor, :origen, :destino, :tipo, :modalidad" 
+        $valoresInsert = ":sentido, :origen, :destino, :tipo, :modalidad" 
             . ($hasIdOperador ? ", :id_operador" : "") 
             . ($hasAdmiteSp ? ", :admite_sp" : "") 
             . ($hasCostoTotal ? ", :costo_total" : "") 
@@ -1766,7 +1120,7 @@ class FlotaRepository {
         $query = "INSERT INTO RUTA ($camposInsert) VALUES ($valoresInsert)";
         $stmt = $this->db->prepare($query);
         $params = [
-            ':id_corredor' => !empty($datos['id_corredor']) ? intval($datos['id_corredor']) : 1,
+            ':sentido' => $sentido,
             ':origen' => $datos['origen'], 
             ':destino' => $datos['destino'], 
             ':tipo' => $datos['tipo_viaje'] ?? ((!empty($tramos) && count($tramos) > 1) ? 'CONEXION' : 'DIRECTO'), 

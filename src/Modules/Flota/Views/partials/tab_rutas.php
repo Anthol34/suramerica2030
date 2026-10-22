@@ -1,7 +1,8 @@
     <!-- ======================================================== -->
     <!-- PESTAÑA 2: RUTAS COMERCIALES Y MATRIZ DE TARIFAS        -->
     <!-- ======================================================== -->
-    <div class="tab-pane fade <?= (!in_array($tabActiva, ['flota', 'buses', 'operadores'])) ? 'show active' : '' ?>" id="tab-rutas">
+    <?php $mapaDias = $mapaDias ?? ['1'=>'Lun', '2'=>'Mar', '3'=>'Mié', '4'=>'Jue', '5'=>'Vie', '6'=>'Sáb', '7'=>'Dom']; ?>
+    <div class="tab-pane fade <?= (!in_array($tabActiva ?? '', ['flota', 'buses', 'operadores'])) ? 'show active' : '' ?>" id="tab-rutas">
         
         <!-- DATALIST GLOBAL DE CIUDADES PARA AUTOCOMPLETADO RÁPIDO -->
         <datalist id="listaCiudadesDatalist">
@@ -39,14 +40,6 @@
                                 ⚙️ Opciones
                             </button>
                             <ul class="dropdown-menu dropdown-menu-end shadow-sm border-0">
-                                <li>
-                                    <form action="/suramerica2030/flota/generarRutasCorredor" method="POST" onsubmit="return confirm('¿Deseas sincronizar todas las combinaciones comerciales del corredor seleccionado?');">
-                                        <input type="hidden" name="id_corredor" id="generador_id_corredor" value="<?= $corredorActivo['ID_CORREDOR'] ?? 1 ?>">
-                                        <button type="submit" class="dropdown-item py-2 fw-semibold text-success">
-                                            ⚡ Sincronizar Combinaciones del Corredor
-                                        </button>
-                                    </form>
-                                </li>
                                 <li>
                                     <button class="dropdown-item py-2 fw-semibold text-primary" onclick="window.location.reload();">
                                         🔄 Refrescar Listado
@@ -177,7 +170,7 @@
                     </div>
                 </div>
 
-                <!-- FILA 2: OPERADOR, MODALIDAD, TIPO DE VIAJE, ESTADO Y CORREDOR -->
+                <!-- FILA 2: OPERADOR, MODALIDAD, TIPO DE VIAJE Y ESTADO -->
                 <div class="row g-2 align-items-center">
                     <div class="col-6 col-md-3">
                         <div class="input-group input-group-sm">
@@ -223,18 +216,14 @@
                             </select>
                         </div>
                     </div>
-                    <div class="col-12 col-md-2">
+                    <div class="col-12 col-md-3">
                         <div class="input-group input-group-sm">
-                            <span class="input-group-text bg-white text-muted">🛤️ Corredor:</span>
-                            <select id="filtroCorredorRutas" class="form-select bg-white">
-                                <option value="">Todos</option>
-                                <?php foreach($corredores as $cor): 
-                                    $cant = $rutasPorCorredor[$cor['ID_CORREDOR']] ?? 0;
-                                ?>
-                                    <option value="<?= $cor['ID_CORREDOR'] ?>">
-                                        <?= htmlspecialchars($cor['CODIGO']) ?> (<?= $cant ?>)
-                                    </option>
-                                <?php endforeach; ?>
+                            <span class="input-group-text bg-white text-muted">🧭 Sentido:</span>
+                            <select id="filtroSentidoRutas" class="form-select bg-white">
+                                <option value="">Todos los Sentidos</option>
+                                <option value="NORTE">🇪🇨 ➔ 🇻🇪 Hacia Venezuela / Norte (<?= $rutasPorSentido['NORTE'] ?? 0 ?>)</option>
+                                <option value="SUR">🇻🇪 ➔ 🇪🇨 Hacia Ecuador / Sur (<?= $rutasPorSentido['SUR'] ?? 0 ?>)</option>
+                                <option value="NACIONAL">📍 Nacionales (<?= $rutasPorSentido['NACIONAL'] ?? 0 ?>)</option>
                             </select>
                         </div>
                     </div>
@@ -337,7 +326,7 @@
                         ?>
                             <tr class="fila-ruta <?= $esActivo ? '' : 'table-secondary opacity-75' ?>" 
                                 id="fila_ruta_<?= $r['ID_RUTA'] ?>"
-                                data-corredor="<?= $r['ID_CORREDOR'] ?? '' ?>" 
+                                data-sentido="<?= htmlspecialchars($r['SENTIDO'] ?? 'NORTE') ?>" 
                                 data-origen="<?= htmlspecialchars(mb_strtolower(trim($r['RUT_ORIGEN']))) ?>" 
                                 data-destino="<?= htmlspecialchars(mb_strtolower(trim($r['RUT_DESTINO']))) ?>" 
                                 data-operador="<?= htmlspecialchars(mb_strtolower(trim($operadorMostrar))) ?>" 
@@ -345,17 +334,15 @@
                                 data-modalidad="<?= htmlspecialchars(mb_strtolower(trim($r['MODALIDAD'] ?? 'estandar'))) ?>" 
                                 data-tipo-viaje="<?= htmlspecialchars(mb_strtolower($r['TIPO_VIAJE'] ?? 'directo')) ?>" 
                                 data-estado="<?= htmlspecialchars(mb_strtolower($r['ESTADO'] ?? 'activo')) ?>" 
-                                data-search="<?= strtolower(htmlspecialchars($r['RUT_ORIGEN'] . ' ' . $r['RUT_DESTINO'] . ' ' . ($r['NOMBRE_CORREDOR'] ?? '') . ' #' . $r['ID_RUTA'] . ' ' . $operadorMostrar . ' ' . implode(' ', $opsTramos) . ' ' . ($r['MODALIDAD'] ?? ''))) ?>">
+                                data-search="<?= strtolower(htmlspecialchars($r['RUT_ORIGEN'] . ' ' . $r['RUT_DESTINO'] . ' ' . ($r['NOMBRE_SENTIDO'] ?? '') . ' #' . $r['ID_RUTA'] . ' ' . $operadorMostrar . ' ' . implode(' ', $opsTramos) . ' ' . ($r['MODALIDAD'] ?? ''))) ?>">
                                 <td><span class="badge bg-secondary">#<?= $r['ID_RUTA'] ?></span></td>
                                 <td class="col-ruta-trayecto">
                                     <div class="fw-bold text-dark fs-6"><?= htmlspecialchars($r['RUT_ORIGEN']) ?> ➔ <?= htmlspecialchars($r['RUT_DESTINO']) ?></div>
-                                    <?php if(!empty($r['NOMBRE_CORREDOR'])): ?>
-                                        <div class="mt-1">
-                                            <span class="badge bg-light text-primary border" style="font-size: 0.75rem; font-weight: 500;">
-                                                🛤️ <?= htmlspecialchars($r['NOMBRE_CORREDOR']) ?>
-                                            </span>
-                                        </div>
-                                    <?php endif; ?>
+                                    <div class="mt-1">
+                                        <span class="badge <?= $r['BADGE_SENTIDO'] ?? 'bg-light text-primary border' ?>" style="font-size: 0.75rem; font-weight: 500;">
+                                            <?= $r['ICONO_SENTIDO'] ?? '🧭' ?> <?= htmlspecialchars($r['TAG_SENTIDO'] ?? $r['SENTIDO'] ?? 'Comercial') ?>
+                                        </span>
+                                    </div>
                                 </td>
                                 <td class="col-ruta-operador" data-search="<?= strtolower(htmlspecialchars($operadorMostrar . ' ' . implode(' ', $opsTramos) . ' ' . ($r['MODALIDAD'] ?? '') . ' ' . ($r['TIPO_VIAJE'] ?? ''))) ?>">
                                     <div class="d-flex flex-column gap-1">
@@ -434,7 +421,7 @@
                             <td colspan="10" class="text-center py-5 text-muted">
                                 <div class="fs-2 mb-2">🔍</div>
                                 <h6 class="fw-bold text-dark">No se encontraron rutas comerciales</h6>
-                                <p class="small text-secondary mb-0">No hay coincidencias con los filtros de corredor y búsqueda seleccionados.</p>
+                                <p class="small text-secondary mb-0">No hay coincidencias con los filtros de búsqueda o sentido seleccionados.</p>
                             </td>
                         </tr>
                     </tbody>
@@ -513,26 +500,16 @@
                                 <!-- BLOQUE 1: DATOS OPERATIVOS Y MODALIDAD -->
                                 <div class="bg-light p-3 rounded border mb-3">
                                     <div class="row g-2">
-                                        <div class="col-md-4">
-                                            <label class="form-label fw-bold">Corredor Asociado</label>
-                                            <select name="id_corredor" id="edit_corredor_<?= $r['ID_RUTA'] ?>" class="form-select border-primary fw-bold" onchange="alCambiarCorredorEnRuta('<?= $r['ID_RUTA'] ?>')">
-                                                <?php foreach($corredores as $cor): ?>
-                                                    <option value="<?= $cor['ID_CORREDOR'] ?>" <?= (($r['ID_CORREDOR'] ?? 0) == $cor['ID_CORREDOR']) ? 'selected' : '' ?>>
-                                                        <?= htmlspecialchars($cor['CODIGO'] . ' - ' . $cor['NOMBRE']) ?>
-                                                    </option>
-                                                <?php endforeach; ?>
-                                            </select>
-                                        </div>
-                                        <div class="col-md-4">
-                                            <label class="form-label fw-bold">Origen Cabecera</label>
+                                        <div class="col-md-6">
+                                            <label class="form-label fw-bold">📍 Origen de Ruta</label>
                                             <select name="origen" id="edit_origen_<?= $r['ID_RUTA'] ?>" class="form-select select-origen-ruta border-primary fw-bold" required onchange="alCambiarCabecerasRuta('<?= $r['ID_RUTA'] ?>')">
-                                                <?= $generarOpcionesCiudades($r['ID_CORREDOR'] ?? ($corredores[0]['ID_CORREDOR'] ?? 0), $r['RUT_ORIGEN'], '-- Seleccione Origen --') ?>
+                                                <?= $generarOpcionesCiudades(null, $r['RUT_ORIGEN'], '-- Seleccione Origen --') ?>
                                             </select>
                                         </div>
-                                        <div class="col-md-4">
-                                            <label class="form-label fw-bold">Destino Terminal</label>
+                                        <div class="col-md-6">
+                                            <label class="form-label fw-bold">🏁 Destino de Ruta</label>
                                             <select name="destino" id="edit_destino_<?= $r['ID_RUTA'] ?>" class="form-select select-destino-ruta border-primary fw-bold" required onchange="alCambiarCabecerasRuta('<?= $r['ID_RUTA'] ?>')">
-                                                <?= $generarOpcionesCiudades($r['ID_CORREDOR'] ?? ($corredores[0]['ID_CORREDOR'] ?? 0), $r['RUT_DESTINO'], '-- Seleccione Destino --') ?>
+                                                <?= $generarOpcionesCiudades(null, $r['RUT_DESTINO'], '-- Seleccione Destino --') ?>
                                             </select>
                                         </div>
                                     </div>
@@ -650,13 +627,13 @@ foreach($tramosList as $trIndex => $tramo):
                                                         <div class="col-md-4">
                                                             <label class="form-label small text-muted mb-0 fw-bold">Sube en (Origen)</label>
                                                             <select name="tramo_origen[]" class="form-select form-select-sm tramo-origen-select fw-bold" required onchange="actualizarTitulosTramos(this.closest('.tramo-card').parentElement)">
-                                                                <?= $generarOpcionesCiudades($r['ID_CORREDOR'] ?? ($corredores[0]['ID_CORREDOR'] ?? 0), $tOrigen, '-- Sube en --') ?>
+                                                                <?= $generarOpcionesCiudades(null, $tOrigen, '-- Sube en --') ?>
                                                             </select>
                                                         </div>
                                                         <div class="col-md-4">
                                                             <label class="form-label small text-muted mb-0 fw-bold">Baja en (Destino)</label>
                                                             <select name="tramo_destino[]" class="form-select form-select-sm tramo-destino-select fw-bold" required onchange="actualizarTitulosTramos(this.closest('.tramo-card').parentElement)">
-                                                                <?= $generarOpcionesCiudades($r['ID_CORREDOR'] ?? ($corredores[0]['ID_CORREDOR'] ?? 0), $tDestino, '-- Baja en --') ?>
+                                                                <?= $generarOpcionesCiudades(null, $tDestino, '-- Baja en --') ?>
                                                             </select>
                                                         </div>
                                                         <div class="col-md-4">
@@ -839,11 +816,11 @@ foreach($tramosList as $trIndex => $tramo):
                                 <input type="hidden" name="id_ruta" value="<?= $r['ID_RUTA'] ?>">
                                 <div class="fs-1 text-danger mb-2">⚠️</div>
                                 <h6 class="fw-bold mb-1"><?= htmlspecialchars($r['RUT_ORIGEN']) ?> ➔ <?= htmlspecialchars($r['RUT_DESTINO']) ?></h6>
-                                <?php if(!empty($r['NOMBRE_CORREDOR'])): ?>
-                                    <div class="mb-3">
-                                        <span class="badge bg-light text-secondary border">🛤️ <?= htmlspecialchars($r['NOMBRE_CORREDOR']) ?></span>
-                                    </div>
-                                <?php endif; ?>
+                                <div class="mb-3">
+                                    <span class="badge <?= $r['BADGE_SENTIDO'] ?? 'bg-light text-secondary border' ?>">
+                                        <?= $r['ICONO_SENTIDO'] ?? '🧭' ?> <?= htmlspecialchars($r['TAG_SENTIDO'] ?? 'Comercial') ?>
+                                    </span>
+                                </div>
                                 
                                 <div class="bg-light p-2 rounded text-start small text-muted border">
                                     <p class="mb-1"><strong>¿Cómo gestiona el sistema esta acción?</strong></p>
@@ -870,7 +847,6 @@ foreach($tramosList as $trIndex => $tramo):
             <div class="modal-dialog modal-xl modal-dialog-scrollable">
                 <form class="modal-content shadow-lg border-0" action="/suramerica2030/flota/crearRutaRapida" method="POST" id="formNuevaRutaComercial">
                     <input type="hidden" name="ajax" value="1">
-                    <input type="hidden" name="id_corredor" id="nueva_id_corredor" value="<?= $corredorActivo['ID_CORREDOR'] ?? 1 ?>">
                     <input type="hidden" name="costo_total_ruta" id="nueva_costo_total_hidden" value="0">
                     <input type="hidden" name="modalidad" value="AUTO">
 

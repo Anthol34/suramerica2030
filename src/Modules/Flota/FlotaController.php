@@ -20,109 +20,19 @@ class FlotaController {
     public function index() {
         $this->verificarPermiso();
 
-        $corredores = $this->repository->obtenerCorredores();
-        $idCorredorSeleccionado = isset($_GET['corredor_id']) ? intval($_GET['corredor_id']) : (!empty($corredores) ? $corredores[0]['ID_CORREDOR'] : 1);
-        $corredorActivo = null;
-        foreach ($corredores as $c) {
-            if ($c['ID_CORREDOR'] == $idCorredorSeleccionado) {
-                $corredorActivo = $c;
-                break;
-            }
-        }
-        if (!$corredorActivo && !empty($corredores)) {
-            $corredorActivo = $corredores[0];
-            $idCorredorSeleccionado = $corredorActivo['ID_CORREDOR'];
-        }
-
-        $paradas = $corredorActivo ? $this->repository->obtenerParadas($idCorredorSeleccionado) : [];
-        $paradasPorCorredor = $this->repository->obtenerParadasDeTodosLosCorredores();
-        $tramosOperativos = $corredorActivo ? $this->repository->obtenerTramosOperativos($idCorredorSeleccionado) : [];
         $ciudadesCatalogo = $this->repository->obtenerCiudadesCatalogo();
         $ciudadesCompletas = $this->repository->obtenerTodasLasCiudadesConEstadisticas();
         $rutas = $this->repository->obtenerRutas();
         $tramosCatalogo = $this->repository->obtenerTramosCatalogo(false);
         $buses = $this->repository->obtenerBusesConSocios();
         $operadores = $this->repository->obtenerOperadores(false);
-        
-        $titulo = "Gestión de Flota y Corredores - Suramerica 2030";
+
+        $titulo = "Gestión de Flota y Rutas Comerciales - Suramerica 2030";
         $vista = __DIR__ . '/Views/flota.php';
         require_once __DIR__ . '/../../Platform/Views/layout.php';
     }
 
-    // --- ACCIONES DE CORREDORES Y PARADAS ---
-    public function crearCorredor() {
-        $this->verificarPermiso();
-        if ($_SERVER['REQUEST_METHOD'] == 'POST') {
-            $resultado = $this->service->procesarCrearCorredor($_POST);
-            if (is_numeric($resultado)) {
-                \Platform\Helpers\LiveResponse::respond(true, "corredor&corredor_id={$resultado}", 'success', 'Nuevo corredor creado exitosamente.', ['id_corredor' => $resultado], '/suramerica2030/flota');
-            } else {
-                \Platform\Helpers\LiveResponse::respond(is_string($resultado) ? $resultado : 'Error al crear corredor', 'corredor', 'error', '', [], '/suramerica2030/flota');
-            }
-        }
-    }
-
-    public function eliminarCorredor() {
-        $this->verificarPermiso();
-        if ($_SERVER['REQUEST_METHOD'] == 'POST') {
-            $resultado = $this->service->procesarEliminarCorredor($_POST);
-            $this->redireccionar('corredor', $resultado, 'success_delete');
-        }
-    }
-
-    public function guardarCorredor() {
-        $this->verificarPermiso();
-        if ($_SERVER['REQUEST_METHOD'] == 'POST') {
-            $resultado = $this->service->procesarActualizarCorredor($_POST);
-            $idCorredor = intval($_POST['id_corredor'] ?? 1);
-            \Platform\Helpers\LiveResponse::respond($resultado, "corredor&corredor_id={$idCorredor}", 'success_edit', 'Políticas del corredor actualizadas correctamente.', ['id_corredor' => $idCorredor], '/suramerica2030/flota');
-        }
-    }
-
-    public function guardarParada() {
-        $this->verificarPermiso();
-        if ($_SERVER['REQUEST_METHOD'] == 'POST') {
-            $idCorredor = intval($_POST['id_corredor'] ?? 1);
-            $resultado = $this->service->procesarAgregarParada($_POST);
-            \Platform\Helpers\LiveResponse::respond($resultado, "corredor&corredor_id={$idCorredor}", 'success', 'Parada agregada al itinerario correctamente.', ['id_corredor' => $idCorredor], '/suramerica2030/flota');
-        }
-    }
-
-    public function eliminarParada() {
-        $this->verificarPermiso();
-        if ($_SERVER['REQUEST_METHOD'] == 'POST') {
-            $idCorredor = intval($_POST['id_corredor_retorno'] ?? 1);
-            $resultado = $this->service->procesarEliminarParada($_POST);
-            \Platform\Helpers\LiveResponse::respond($resultado, "corredor&corredor_id={$idCorredor}", 'success_delete', 'Parada eliminada del corredor.', ['id_corredor' => $idCorredor], '/suramerica2030/flota');
-        }
-    }
-
-    public function moverParada() {
-        $this->verificarPermiso();
-        if ($_SERVER['REQUEST_METHOD'] == 'POST') {
-            $idCorredor = intval($_POST['id_corredor_retorno'] ?? 1);
-            $resultado = $this->service->procesarMoverParada($_POST);
-            \Platform\Helpers\LiveResponse::respond($resultado, "corredor&corredor_id={$idCorredor}", 'success_edit', 'Orden de paradas actualizado.', ['id_corredor' => $idCorredor], '/suramerica2030/flota');
-        }
-    }
-
-    public function guardarBusTramo() {
-        $this->verificarPermiso();
-        if ($_SERVER['REQUEST_METHOD'] == 'POST') {
-            $idCorredor = intval($_POST['id_corredor'] ?? 1);
-            $resultado = $this->service->procesarActualizarBusTramo($_POST);
-            \Platform\Helpers\LiveResponse::respond($resultado, "corredor&corredor_id={$idCorredor}", 'success_edit', 'Bus y unidad operativa asignada al tramo.', ['id_corredor' => $idCorredor], '/suramerica2030/flota');
-        }
-    }
-
-    public function generarRutasCorredor() {
-        $this->verificarPermiso();
-        if ($_SERVER['REQUEST_METHOD'] == 'POST') {
-            $resultado = $this->service->procesarGenerarRutasCorredor($_POST);
-            $this->redireccionar('rutas', $resultado, 'success');
-        }
-    }
-
+    // --- ACCIONES DE RUTAS Y TARIFAS ---
     public function guardarTarifaRapida() {
         $this->verificarPermiso();
         if ($_SERVER['REQUEST_METHOD'] == 'POST') {

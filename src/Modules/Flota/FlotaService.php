@@ -145,7 +145,7 @@ class FlotaService {
 
         return [
             'id_ruta' => $datos['id_ruta'] ?? null,
-            'id_corredor' => !empty($datos['id_corredor']) ? intval($datos['id_corredor']) : null,
+            'sentido' => !empty($datos['sentido']) ? trim($datos['sentido']) : \Platform\Helpers\SentidoHelper::resolverSentido(trim($datos['origen'] ?? ''), trim($datos['destino'] ?? '')),
             'id_operador' => $idOperador,
             'origen' => trim($datos['origen']),
             'destino' => trim($datos['destino']),
@@ -258,106 +258,7 @@ class FlotaService {
 
     // ==========================================
     // SECCIÓN CORREDORES Y PARADAS
-    // ==========================================
-    public function procesarCrearCorredor($postData) {
-        $diasSalida = isset($postData['dias']) ? implode(',', $postData['dias']) : '2,5';
-        $origen = trim($postData['origen_cabecera'] ?? '');
-        $destino = trim($postData['destino_terminal'] ?? '');
-
-        if (empty($origen) || empty($destino)) {
-            return "Debe especificar la ciudad de origen y la ciudad de destino.";
-        }
-
-        $datos = [
-            'codigo' => trim($postData['codigo'] ?? 'COR-' . rand(10, 99)),
-            'nombre' => trim($postData['nombre'] ?? "$origen - $destino"),
-            'origen_cabecera' => $origen,
-            'destino_terminal' => $destino,
-            'pais_origen' => trim($postData['pais_origen'] ?? 'ECUADOR'),
-            'pais_destino' => trim($postData['pais_destino'] ?? 'VENEZUELA'),
-            'dias_salida' => $diasSalida,
-            'hora_salida' => $postData['hora_salida'] ?? '10:00:00',
-            'estado' => $postData['estado'] ?? 'ACTIVO',
-            'limite_equipaje' => floatval($postData['limite_equipaje'] ?? 35),
-            'precio_sobrepeso' => floatval($postData['precio_sobrepeso'] ?? 1),
-            'precio_sobre' => floatval($postData['precio_sobre'] ?? 5),
-            'precio_volumen' => floatval($postData['precio_volumen'] ?? 0),
-            'comision_valor' => floatval($postData['comision_valor'] ?? 10),
-            'tipo_utilidad' => $postData['tipo_utilidad'] ?? 'PORCENTAJE',
-            'utilidad_pasaje' => floatval($postData['utilidad_pasaje'] ?? 100),
-            'utilidad_encomienda' => floatval($postData['utilidad_encomienda'] ?? 100),
-            'utilidad_valores' => floatval($postData['utilidad_valores'] ?? 100)
-        ];
-        return $this->repository->crearCorredorBD($datos);
-    }
-
-    public function procesarEliminarCorredor($postData) {
-        $idCorredor = intval($postData['id_corredor']);
-        return $this->repository->eliminarCorredorBD($idCorredor);
-    }
-
-    public function procesarActualizarCorredor($postData) {
-        $diasSalida = isset($postData['dias']) ? implode(',', $postData['dias']) : '';
-        $datos = [
-            'id_corredor' => intval($postData['id_corredor']),
-            'codigo' => trim($postData['codigo'] ?? 'COR-01'),
-            'nombre' => trim($postData['nombre'] ?? 'Corredor Internacional'),
-            'origen_cabecera' => trim($postData['origen_cabecera']),
-            'destino_terminal' => trim($postData['destino_terminal']),
-            'dias_salida' => $diasSalida,
-            'hora_salida' => $postData['hora_salida'] ?? '10:00:00',
-            'estado' => $postData['estado'] ?? 'ACTIVO',
-            'limite_equipaje' => floatval($postData['limite_equipaje'] ?? 35),
-            'precio_sobrepeso' => floatval($postData['precio_sobrepeso'] ?? 1),
-            'precio_sobre' => floatval($postData['precio_sobre'] ?? 5),
-            'precio_volumen' => floatval($postData['precio_volumen'] ?? 0),
-            'comision_valor' => floatval($postData['comision_valor'] ?? 10),
-            'tipo_utilidad' => $postData['tipo_utilidad'] ?? 'PORCENTAJE',
-            'utilidad_pasaje' => floatval($postData['utilidad_pasaje'] ?? 100),
-            'utilidad_encomienda' => floatval($postData['utilidad_encomienda'] ?? 100),
-            'utilidad_valores' => floatval($postData['utilidad_valores'] ?? 100)
-        ];
-        return $this->repository->actualizarCorredorBD($datos);
-    }
-
-    public function procesarAgregarParada($postData) {
-        $idCorredor = intval($postData['id_corredor']);
-        $ciudad = trim($postData['ciudad'] ?? '');
-        $pais = trim($postData['pais'] ?? 'ECUADOR');
-        $tipo = trim($postData['tipo_parada'] ?? 'ESCALA');
-        $tiempo = intval($postData['tiempo_estimado_horas'] ?? 0);
-        $posicion = (isset($postData['posicion_insercion']) && $postData['posicion_insercion'] !== 'FINAL') ? intval($postData['posicion_insercion']) : null;
-
-        if (empty($ciudad)) {
-            return "Debe especificar el nombre de la ciudad o parada.";
-        }
-
-        return $this->repository->agregarParadaBD($idCorredor, $ciudad, $pais, $tipo, $tiempo, $posicion);
-    }
-
-    public function procesarMoverParada($postData) {
-        $idParada = intval($postData['id_parada'] ?? 0);
-        $direccion = trim($postData['direccion'] ?? 'subir');
-        return $this->repository->moverParadaBD($idParada, $direccion);
-    }
-
-    public function procesarEliminarParada($postData) {
-        $idParada = intval($postData['id_parada']);
-        return $this->repository->eliminarParadaBD($idParada);
-    }
-
-    public function procesarActualizarBusTramo($postData) {
-        $idTramo = intval($postData['id_tramo']);
-        $idBus = !empty($postData['id_bus']) ? intval($postData['id_bus']) : null;
-        return $this->repository->actualizarBusTramoOperativoBD($idTramo, $idBus);
-    }
-
-    public function procesarGenerarRutasCorredor($postData) {
-        $idCorredor = intval($postData['id_corredor']);
-        return $this->repository->generarRutasComercialesDelCorredor($idCorredor);
-    }
-
-    public function procesarActualizarTarifaRapida($postData) {
+        public function procesarActualizarTarifaRapida($postData) {
         $idRuta = intval($postData['id_ruta']);
         $precioPasaje = floatval($postData['precio_pasaje'] ?? 0);
         $precioEncomienda = floatval($postData['precio_encomienda'] ?? 0);

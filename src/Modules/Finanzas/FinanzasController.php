@@ -27,7 +27,7 @@ class FinanzasController {
         ];
 
         $data = $this->service->compilarDatosIniciales($filtros);
-        extract($data); // $sucursales, $rutas, $corredores, $operadores, $liquidacion
+        extract($data); // $sucursales, $operadores, $liquidacion
         
         $tabActivo = $_GET['tab'] ?? 'liquidaciones';
         $titulo = "Finanzas y Liquidación a Socios - Suramerica 2030";

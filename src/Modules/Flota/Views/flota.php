@@ -52,37 +52,21 @@ $vJs = @filemtime(__DIR__ . '/../../../../public/assets/js/flota.js') ?: time();
     $tabActiva = $_GET['tab'] ?? 'rutas';
     $esTabFlota = in_array($tabActiva, ['flota', 'buses', 'operadores']);
     $mapaDias = ['1'=>'Lun', '2'=>'Mar', '3'=>'Mié', '4'=>'Jue', '5'=>'Vie', '6'=>'Sáb', '7'=>'Dom'];
-    $rutasPorCorredor = [];
+    
+    $rutasPorSentido = [];
     foreach ($rutas as $r) {
-        $cid = $r['ID_CORREDOR'] ?? 0;
-        $rutasPorCorredor[$cid] = ($rutasPorCorredor[$cid] ?? 0) + 1;
+        $sentidoKey = $r['SENTIDO'] ?? 'NORTE';
+        $rutasPorSentido[$sentidoKey] = ($rutasPorSentido[$sentidoKey] ?? 0) + 1;
     }
 
-    $paradasPorCorredor = $paradasPorCorredor ?? [];
     $ciudadesCatalogo = $ciudadesCatalogo ?? [];
 
-    $generarOpcionesCiudades = function($idCorredor, $valorSeleccionado = '', $placeholder = '-- Seleccionar Ciudad --') use ($paradasPorCorredor, $ciudadesCatalogo) {
+    $generarOpcionesCiudades = function($idUnused = null, $valorSeleccionado = '', $placeholder = '-- Seleccionar Ciudad --') use ($ciudadesCatalogo) {
         $html = '<option value="">' . htmlspecialchars($placeholder) . '</option>';
-        $paradas = $paradasPorCorredor[$idCorredor] ?? [];
         $encontrado = false;
         $valNorm = mb_strtolower(trim((string)$valorSeleccionado));
 
-        $ciudadesYaEnParadas = [];
-        if (!empty($paradas)) {
-            $html .= '<optgroup label="📍 Paradas del Corredor (en orden de viaje)">';
-            foreach ($paradas as $idx => $p) {
-                $cNorm = mb_strtolower(trim($p['CIUDAD']));
-                $ciudadesYaEnParadas[$cNorm] = true;
-                $isSel = ($valNorm !== '' && $cNorm === $valNorm);
-                if ($isSel) $encontrado = true;
-                $tipo = !empty($p['TIPO_PARADA']) ? ' [' . str_replace('_', ' ', $p['TIPO_PARADA']) . ']' : '';
-                $html .= '<option value="' . htmlspecialchars($p['CIUDAD']) . '" ' . ($isSel ? 'selected' : '') . '>'
-                      . ($idx + 1) . '. ' . htmlspecialchars($p['CIUDAD']) . ' (' . htmlspecialchars($p['PAIS']) . ')' . htmlspecialchars($tipo) . '</option>';
-            }
-            $html .= '</optgroup>';
-        }
-
-        // Agrupar el catálogo del dominio por país para permitir seleccionar cualquier ciudad
+        // Agrupar catálogo de ciudades por país ordenado alfabéticamente
         if (!empty($ciudadesCatalogo)) {
             $porPais = [];
             foreach ($ciudadesCatalogo as $cd) {
@@ -94,14 +78,14 @@ $vJs = @filemtime(__DIR__ . '/../../../../public/assets/js/flota.js') ?: time();
 
             foreach ($porPais as $pais => $ciudades) {
                 $flag = $banderas[$pais] ?? '🌎';
-                $html .= '<optgroup label="' . $flag . ' Catálogo de Ciudades - ' . htmlspecialchars($pais) . '">';
+                $html .= '<optgroup label="' . $flag . ' ' . htmlspecialchars($pais) . '">';
+                sort($ciudades);
                 foreach ($ciudades as $nomCiu) {
                     $cNorm = mb_strtolower(trim($nomCiu));
                     $isSel = ($valNorm !== '' && $cNorm === $valNorm);
                     if ($isSel) $encontrado = true;
-                    $enCorredorTag = isset($ciudadesYaEnParadas[$cNorm]) ? ' (En corredor)' : '';
                     $html .= '<option value="' . htmlspecialchars($nomCiu) . '" ' . ($isSel ? 'selected' : '') . '>'
-                          . htmlspecialchars($nomCiu) . $enCorredorTag . '</option>';
+                          . htmlspecialchars($nomCiu) . '</option>';
                 }
                 $html .= '</optgroup>';
             }
@@ -115,6 +99,7 @@ $vJs = @filemtime(__DIR__ . '/../../../../public/assets/js/flota.js') ?: time();
 
         return $html;
     };
+
 
     $operadores = $operadores ?? [];
     $generarOpcionesOperadores = function($idSeleccionado = 1, $placeholder = null) use ($operadores) {
@@ -171,10 +156,9 @@ $vJs = @filemtime(__DIR__ . '/../../../../public/assets/js/flota.js') ?: time();
     <?php require __DIR__ . '/partials/tab_flota.php'; ?>
 </div>
 
-<!-- CONFIGURACIÓN DE CORREDORES Y SCRIPT MODULAR -->
+<!-- CONFIGURACIÓN Y SCRIPT MODULAR -->
 <script>
     const HTML_OPCIONES_OPERADORES = <?= json_encode($generarOpcionesOperadores(2)) ?>;
-    const PARADAS_POR_CORREDOR = <?= json_encode($paradasPorCorredor ?? [], JSON_UNESCAPED_UNICODE) ?>;
     const CIUDADES_CATALOGO = <?= json_encode($ciudadesCatalogo ?? [], JSON_UNESCAPED_UNICODE) ?>;
     const TRAMOS_CATALOGO = <?= json_encode($tramosCatalogo ?? [], JSON_UNESCAPED_UNICODE) ?>;
 </script>
