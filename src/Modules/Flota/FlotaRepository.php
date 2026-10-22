@@ -61,21 +61,12 @@ class FlotaRepository {
         $sql = "
             SELECT c.*,
                    COUNT(DISTINCT CASE WHEN r.RUT_ORIGEN = c.NOMBRE OR r.RUT_DESTINO = c.NOMBRE THEN r.ID_RUTA END) as TOTAL_RUTAS,
-                   COUNT(DISTINCT CASE WHEN cp.CIUDAD = c.NOMBRE THEN cp.ID_CORREDOR END) as TOTAL_CORREDORES,
-                   COALESCE(ventas.TOTAL_PASAJES, 0) as TOTAL_PASAJES
+                   COUNT(DISTINCT CASE WHEN cp.CIUDAD = c.NOMBRE THEN cp.ID_CORREDOR END) as TOTAL_CORREDORES
             FROM CIUDAD c
             LEFT JOIN RUTA r ON (r.RUT_ORIGEN = c.NOMBRE OR r.RUT_DESTINO = c.NOMBRE)
             LEFT JOIN CORREDOR_PARADA cp ON cp.CIUDAD = c.NOMBRE
-            LEFT JOIN (
-                SELECT r2.RUT_DESTINO as CIUDAD, COUNT(p.ID_PASAJE) as TOTAL_PASAJES
-                FROM PASAJE p
-                JOIN FACTURA f ON p.ID_FACTURA = f.ID_FACTURA
-                JOIN RUTA r2 ON f.ID_RUTA = r2.ID_RUTA
-                WHERE COALESCE(p.ESTADO, '') != 'ANULADO'
-                GROUP BY r2.RUT_DESTINO
-            ) ventas ON ventas.CIUDAD = c.NOMBRE
             GROUP BY c.ID_CIUDAD
-            ORDER BY TOTAL_PASAJES DESC, c.PAIS ASC, c.NOMBRE ASC
+            ORDER BY c.PAIS ASC, c.NOMBRE ASC
         ";
         return $this->db->query($sql)->fetchAll(PDO::FETCH_ASSOC);
     }

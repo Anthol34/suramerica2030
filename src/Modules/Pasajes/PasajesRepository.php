@@ -99,25 +99,11 @@ class PasajesRepository {
     }
 
     public function obtenerVentasPorDestino() {
-        $sql = "SELECT r.RUT_DESTINO, COUNT(p.ID_PASAJE) as TOTAL
-                FROM PASAJE p
-                JOIN FACTURA f ON p.ID_FACTURA = f.ID_FACTURA
-                JOIN RUTA r ON f.ID_RUTA = r.ID_RUTA
-                WHERE COALESCE(p.ESTADO, '') != 'ANULADO'
-                GROUP BY r.RUT_DESTINO
-                ORDER BY TOTAL DESC";
-        return $this->db->query($sql)->fetchAll(PDO::FETCH_KEY_PAIR) ?: [];
+        return [];
     }
 
     public function obtenerVentasPorOrigen() {
-        $sql = "SELECT r.RUT_ORIGEN, COUNT(p.ID_PASAJE) as TOTAL
-                FROM PASAJE p
-                JOIN FACTURA f ON p.ID_FACTURA = f.ID_FACTURA
-                JOIN RUTA r ON f.ID_RUTA = r.ID_RUTA
-                WHERE COALESCE(p.ESTADO, '') != 'ANULADO'
-                GROUP BY r.RUT_ORIGEN
-                ORDER BY TOTAL DESC";
-        return $this->db->query($sql)->fetchAll(PDO::FETCH_KEY_PAIR) ?: [];
+        return [];
     }
 
     public function obtenerKpisPasajes() {

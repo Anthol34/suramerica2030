@@ -207,33 +207,7 @@
     background-color: #e2e8f0;
 }
 
-/* Badge de Ventas / Popularidad */
-.searchable-select-sales-badge {
-    font-size: 10px;
-    font-weight: 600;
-    text-transform: none;
-    padding: 2px 6px;
-    border-radius: 10px;
-    background-color: #f8fafc;
-    border: 1px solid #cbd5e1;
-    color: #475569;
-    display: inline-flex;
-    align-items: center;
-    gap: 3px;
-    margin-left: 6px;
-}
 
-.searchable-select-option.is-selected .searchable-select-sales-badge {
-    background-color: rgba(255, 255, 255, 0.3);
-    border-color: rgba(255, 255, 255, 0.5);
-    color: #ffffff;
-}
-
-.searchable-select-badge-top {
-    background-color: #fee2e2;
-    border-color: #fca5a5;
-    color: #b91c1c;
-}
 
 /* Estado sin resultados */
 .searchable-select-no-results {

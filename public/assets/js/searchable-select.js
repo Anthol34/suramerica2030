@@ -14,9 +14,6 @@ class SearchableSelect {
         }
 
         this.options = Object.assign({
-            sortBySales: true,
-            salesData: {},          // Mapa { 'Caracas': 8, 'Cúcuta': 5, ... }
-            showBadges: true,
             placeholder: 'Seleccionar',
             uppercase: true,
             onSelect: null
@@ -142,25 +139,6 @@ class SearchableSelect {
             }
         });
 
-        // Ordenamiento: En función de cuántos pasajes están vendidos (DESCENDENTE)
-        if (this.options.sortBySales) {
-            const salesMap = this.options.salesData || {};
-            dataOptions.sort((a, b) => {
-                const normA = a.value.trim();
-                const normB = b.value.trim();
-                const cleanA = normA.replace(/^[📍🏁🚌\s]+/, '');
-                const cleanB = normB.replace(/^[📍🏁🚌\s]+/, '');
-
-                const salesA = salesMap[cleanA] || salesMap[normA] || parseInt(a.getAttribute('data-ventas') || '0', 10) || 0;
-                const salesB = salesMap[cleanB] || salesMap[normB] || parseInt(b.getAttribute('data-ventas') || '0', 10) || 0;
-
-                if (salesB !== salesA) {
-                    return salesB - salesA; // Más vendidos arriba
-                }
-                return cleanA.localeCompare(cleanB);
-            });
-        }
-
         const sortedOptions = [];
         if (placeholderOpt) sortedOptions.push(placeholderOpt);
         sortedOptions.push(...dataOptions);
@@ -190,18 +168,7 @@ class SearchableSelect {
             textSpan.textContent = displayText;
             li.appendChild(textSpan);
 
-            // Si tiene pasajes vendidos y no es placeholder, mostrar badge informativo
-            const salesMap = this.options.salesData || {};
-            const cleanKey = val.replace(/^[📍🏁🚌\s]+/, '');
-            const ventas = salesMap[cleanKey] || salesMap[val] || parseInt(opt.getAttribute('data-ventas') || '0', 10) || 0;
 
-            if (ventas > 0 && !isPlaceholder && this.options.showBadges) {
-                const badge = document.createElement('span');
-                badge.className = 'searchable-select-sales-badge' + (ventas >= 5 ? ' searchable-select-badge-top' : '');
-                badge.innerHTML = `&#128293; ${ventas} pasajes`;
-                badge.title = `${ventas} pasajes vendidos a este destino`;
-                li.appendChild(badge);
-            }
 
             li.addEventListener('click', (e) => {
                 e.stopPropagation();
@@ -214,7 +181,6 @@ class SearchableSelect {
                 value: val,
                 text: displayText,
                 normalized: SearchableSelect.normalize(displayText),
-                sales: ventas,
                 isPlaceholder: isPlaceholder
             });
         });

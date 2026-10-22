@@ -109,7 +109,6 @@ foreach ($ciudades as $cd) {
                         <th>Ciudad</th>
                         <th>País</th>
                         <th class="text-center">Operación / Rutas</th>
-                        <th class="text-center">Pasajes Vendidos</th>
                         <th class="text-center">Estado</th>
                         <th class="text-end" style="width: 140px;">Acciones</th>
                     </tr>
@@ -117,7 +116,7 @@ foreach ($ciudades as $cd) {
                 <tbody>
                     <?php if (empty($ciudades)): ?>
                         <tr>
-                            <td colspan="7" class="text-center py-4 text-muted">
+                            <td colspan="6" class="text-center py-4 text-muted">
                                 <em>No hay ciudades registradas. Haz clic en "Sincronizar Ciudades Maestras".</em>
                             </td>
                         </tr>
@@ -131,7 +130,6 @@ foreach ($ciudades as $cd) {
                             elseif ($pais === 'ECUADOR') { $bandera = '🇪🇨'; $badgePais = 'bg-success'; }
                             
                             $esActiva = (($c['ESTADO'] ?? 1) == 1);
-                            $totalVentas = (int)($c['TOTAL_PASAJES'] ?? 0);
                             $totalRutas = (int)($c['TOTAL_RUTAS'] ?? 0);
                         ?>
                             <tr class="fila-ciudad" data-pais="<?= htmlspecialchars($pais) ?>" data-nombre="<?= htmlspecialchars(mb_strtolower($c['NOMBRE'])) ?>">
@@ -154,15 +152,6 @@ foreach ($ciudades as $cd) {
                                         </span>
                                     <?php else: ?>
                                         <span class="badge bg-light text-muted border">Disponible para asociar</span>
-                                    <?php endif; ?>
-                                </td>
-                                <td class="text-center">
-                                    <?php if ($totalVentas > 0): ?>
-                                        <span class="badge bg-warning-subtle text-danger border border-warning fw-bold fs-6">
-                                            🔥 <?= $totalVentas ?> <?= $totalVentas == 1 ? 'boleto' : 'boletos' ?>
-                                        </span>
-                                    <?php else: ?>
-                                        <span class="text-muted small">0 ventas</span>
                                     <?php endif; ?>
                                 </td>
                                 <td class="text-center">

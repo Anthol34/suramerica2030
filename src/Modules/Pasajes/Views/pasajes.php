@@ -54,9 +54,7 @@ $vSearchSelectJs = @filemtime(__DIR__ . '/../../../../public/assets/js/searchabl
 <script>
 window.PASAJES_CONFIG = {
     rutas: <?= json_encode($rutas ?? []) ?>,
-    ciudadSucursal: <?= json_encode(strtoupper(trim($_SESSION['ciudad_sucursal'] ?? ''))) ?>,
-    ventasPorDestino: <?= json_encode($ventasPorDestino ?? []) ?>,
-    ventasPorOrigen: <?= json_encode($ventasPorOrigen ?? []) ?>
+    ciudadSucursal: <?= json_encode(strtoupper(trim($_SESSION['ciudad_sucursal'] ?? ''))) ?>
 };
 </script>
 <script src="/suramerica2030/public/assets/js/pasajes.js?v=<?= $vJs ?>"></script>

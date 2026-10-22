@@ -36,8 +36,6 @@ class PasajesService {
         return [
             'rutas' => $this->repository->obtenerRutas(),
             'buses' => $this->repository->obtenerBuses(),
-            'ventasPorDestino' => $this->repository->obtenerVentasPorDestino(),
-            'ventasPorOrigen' => $this->repository->obtenerVentasPorOrigen(),
             'pasajes' => $pasajes,
             'equipajesCentral' => $equipajesCentral,
             'kpisEquipaje' => $kpisEquipaje,
