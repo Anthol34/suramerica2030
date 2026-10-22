@@ -328,13 +328,13 @@ function seleccionarRutaEspecifica(rutaId) {
     let asientosInputs = document.querySelectorAll('input[name="asiento[]"]');
     
     if (esConexion) {
-        alertaTramos.classList.remove('d-none');
-        busIdSelect.required = false;
+        if (alertaTramos) alertaTramos.classList.remove('d-none');
+        if (busIdSelect) busIdSelect.required = false;
         asientosInputs.forEach(el => el.required = false);
     } else {
-        alertaTramos.classList.add('d-none');
+        if (alertaTramos) alertaTramos.classList.add('d-none');
         if (!document.getElementById('fecha_abierta').checked) {
-            busIdSelect.required = true;
+            if (busIdSelect) busIdSelect.required = true;
             asientosInputs.forEach(el => el.required = true);
         }
     }
@@ -344,21 +344,39 @@ function seleccionarRutaEspecifica(rutaId) {
 }
 
 function ponerPrecioDefault() {
-    let rutaId = document.getElementById('ruta_id_nuevo').value;
+    let rutaIdEl = document.getElementById('ruta_id_nuevo');
+    let rutaId = rutaIdEl ? rutaIdEl.value : '';
     let r = TODAS_LAS_RUTAS.find(x => x.ID_RUTA == rutaId);
     
+    let precioTotalEl = document.getElementById('precio_total');
+    let montoAbonarEl = document.getElementById('monto_abonar');
+    
     if (!r) {
-        document.getElementById('precio_total').value = '0.00';
-        document.getElementById('monto_abonar').value = '0.00';
+        if (precioTotalEl) precioTotalEl.value = '0.00';
+        if (montoAbonarEl) montoAbonarEl.value = '0.00';
         return;
     }
     
     let precioBase = parseFloat(r.PRECIO_PASAJE) || 0;
-    let cantPasajeros = document.querySelectorAll('.pasajero-row').length;
+    let cantPasajeros = document.querySelectorAll('.pasajero-row').length || 1;
     let totalGlobal = precioBase * cantPasajeros;
     
-    document.getElementById('precio_total').value = totalGlobal.toFixed(2);
-    document.getElementById('monto_abonar').value = totalGlobal.toFixed(2);
+    if (precioTotalEl) precioTotalEl.value = totalGlobal.toFixed(2);
+    if (montoAbonarEl) montoAbonarEl.value = totalGlobal.toFixed(2);
+
+    if (typeof balancearMixtoVenta === 'function') {
+        balancearMixtoVenta('total');
+    }
+}
+
+function alCambiarPrecioTotalManual() {
+    let precioTotalEl = document.getElementById('precio_total');
+    let montoAbonarEl = document.getElementById('monto_abonar');
+    if (!precioTotalEl || !montoAbonarEl) return;
+    montoAbonarEl.value = precioTotalEl.value;
+    if (typeof balancearMixtoVenta === 'function') {
+        balancearMixtoVenta('total');
+    }
 }
 
 function toggleItinerario() {

@@ -112,7 +112,7 @@
                         <div class="col-4">
                             <label class="fw-bold">Precio Total Global ($)</label>
                             <div class="input-group">
-                                <input type="number" step="0.01" name="precio_total" id="precio_total" class="form-control bg-white fw-bold" required <?= !$puedeEditarPrecios ? 'readonly' : '' ?>>
+                                <input type="number" step="0.01" name="precio_total" id="precio_total" class="form-control bg-white fw-bold" required oninput="alCambiarPrecioTotalManual()" <?= !$puedeEditarPrecios ? 'readonly' : '' ?>>
                                 <?php if($puedeEditarPrecios): ?>
                                     <button type="button" class="btn btn-outline-secondary" type="button" title="Restablecer precio oficial de la ruta" onclick="ponerPrecioDefault()">🔄</button>
                                 <?php endif; ?>
