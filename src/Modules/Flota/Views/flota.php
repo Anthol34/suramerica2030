@@ -149,7 +149,7 @@ $vJs = @filemtime(__DIR__ . '/../../../../public/assets/js/flota.js') ?: time();
     };
 ?>
 
-<ul class="nav nav-pills mb-4 bg-white p-2 rounded shadow-sm border" id="flotaTabs" role="tablist">
+<ul class="nav nav-pills mb-4 bg-white p-2 rounded shadow-sm border d-flex flex-wrap gap-2" id="flotaTabs" role="tablist">
     <li class="nav-item">
         <button class="nav-link fw-bold <?= ($tabActiva == 'rutas') ? 'active' : '' ?>" data-bs-toggle="tab" data-bs-target="#tab-rutas" type="button">
             🗺️ Rutas Comerciales y Tarifas <span class="badge bg-secondary ms-1"><?= count($rutas) ?></span>

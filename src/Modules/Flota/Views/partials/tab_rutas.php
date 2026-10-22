@@ -1019,7 +1019,6 @@
                 </form>
             </div>
         </div>
-    </div>
 
     <!-- ======================================================== -->
     <!-- MODAL: ASISTENTE INTELIGENTE DE RUTAS EN 3 CLICS         -->

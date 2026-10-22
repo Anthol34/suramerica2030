@@ -706,7 +706,9 @@ document.addEventListener("DOMContentLoaded", function() {
     });
 
     const urlParams = new URLSearchParams(window.location.search);
-    const activeTab = urlParams.get('tab');
+    let activeTab = urlParams.get('tab');
+    if (activeTab === 'operadores') activeTab = 'buses';
+    if (activeTab === 'corredores') activeTab = 'corredor';
     if (activeTab) {
         const triggerEl = document.querySelector(`#flotaTabs button[data-bs-target="#tab-${activeTab}"]`);
         if (triggerEl) {
