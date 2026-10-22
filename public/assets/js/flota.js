@@ -1183,3 +1183,40 @@ document.addEventListener('submit', function(e) {
         mostrarToastFlota('Ocurrió un error al procesar el guardado: ' + err.message, 'danger');
     });
 });
+
+// ========================================================
+// MANEJO DE PARÁMETROS URL PARA MODALES Y PESTAÑAS (COMPATIBILIDAD)
+// ========================================================
+document.addEventListener('DOMContentLoaded', function() {
+    const params = new URLSearchParams(window.location.search);
+    const tab = params.get('tab');
+    const openModal = params.get('openModal');
+
+    // Mapeo de parámetros heredados a modales satélites
+    if (tab === 'tramos' || openModal === 'tramos') {
+        const modalEl = document.getElementById('modalCatalogoTramos');
+        if (modalEl && window.bootstrap && bootstrap.Modal) {
+            const modal = new bootstrap.Modal(modalEl);
+            modal.show();
+        }
+    } else if (tab === 'corredor' || openModal === 'corredor') {
+        const modalEl = document.getElementById('modalItinerarioCorredor');
+        if (modalEl && window.bootstrap && bootstrap.Modal) {
+            const modal = new bootstrap.Modal(modalEl);
+            modal.show();
+        }
+    } else if (tab === 'ciudades' || openModal === 'ciudades') {
+        const modalEl = document.getElementById('modalCatalogoCiudades');
+        if (modalEl && window.bootstrap && bootstrap.Modal) {
+            const modal = new bootstrap.Modal(modalEl);
+            modal.show();
+        }
+    } else if (tab === 'buses' || tab === 'operadores' || tab === 'flota') {
+        const tabBtn = document.querySelector('button[data-bs-target="#tab-flota"]');
+        if (tabBtn && window.bootstrap && bootstrap.Tab) {
+            const tabObj = bootstrap.Tab.getOrCreateInstance(tabBtn);
+            tabObj.show();
+        }
+    }
+});
+

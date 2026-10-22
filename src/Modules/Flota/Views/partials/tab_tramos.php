@@ -26,13 +26,25 @@ $promedioMargenPct = ($promedioPvp > 0) ? round(($promedioUtilidad / $promedioPv
 ?>
 
 <!-- ======================================================== -->
-<!-- PESTAÑA: CATÁLOGO MAESTRO DE TRAMOS Y TARIFAS           -->
+<!-- MODAL XL: CATÁLOGO MAESTRO DE TRAMOS Y TARIFAS           -->
 <!-- ======================================================== -->
-<div class="tab-pane fade <?= ($tabActiva == 'tramos') ? 'show active' : '' ?>" id="tab-tramos">
-    
-    <!-- BANNER DE TRAMOS MAESTROS -->
-    <div class="card border-0 shadow-sm bg-gradient mb-4" style="background: linear-gradient(135deg, #e8f5e9 0%, #e3f2fd 100%); border-left: 5px solid #198754 !important;">
-        <div class="card-body d-flex flex-wrap justify-content-between align-items-center py-3">
+<div class="modal fade" id="modalCatalogoTramos" tabindex="-1" aria-labelledby="modalCatalogoTramosLabel" aria-hidden="true">
+    <div class="modal-dialog modal-xl modal-dialog-scrollable">
+        <div class="modal-content border-0 shadow-lg">
+            <div class="modal-header bg-success text-white py-3">
+                <div class="d-flex align-items-center gap-2">
+                    <span class="fs-4">🧩</span>
+                    <div>
+                        <h5 class="modal-title fw-bold mb-0 text-white" id="modalCatalogoTramosLabel">Catálogo Maestro de Tramos y Costos de Operadores</h5>
+                        <small class="text-white-50">Gestiona los bloques operacionales individuales y propaga costos a las rutas comerciales</small>
+                    </div>
+                </div>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+            </div>
+            <div class="modal-body p-3 p-md-4 bg-light">
+                <!-- BANNER DE TRAMOS MAESTROS -->
+                <div class="card border-0 shadow-sm bg-gradient mb-4" style="background: linear-gradient(135deg, #e8f5e9 0%, #e3f2fd 100%); border-left: 5px solid #198754 !important;">
+                    <div class="card-body d-flex flex-wrap justify-content-between align-items-center py-3">
             <div class="mb-2 mb-md-0">
                 <h5 class="fw-bold text-success mb-1">🧩 Catálogo Maestro de Tramos y Costos de Operadores</h5>
                 <p class="text-muted small mb-0">
@@ -253,6 +265,12 @@ $promedioMargenPct = ($promedioPvp > 0) ? round(($promedioUtilidad / $promedioPv
                     </tr>
                 </tbody>
             </table>
+        </div>
+    </div>
+            </div>
+            <div class="modal-footer bg-white py-2">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar Catálogo</button>
+            </div>
         </div>
     </div>
 </div>

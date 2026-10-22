@@ -50,6 +50,7 @@ $vJs = @filemtime(__DIR__ . '/../../../../public/assets/js/flota.js') ?: time();
 
 <?php 
     $tabActiva = $_GET['tab'] ?? 'rutas';
+    $esTabFlota = in_array($tabActiva, ['flota', 'buses', 'operadores']);
     $mapaDias = ['1'=>'Lun', '2'=>'Mar', '3'=>'Mié', '4'=>'Jue', '5'=>'Vie', '6'=>'Sáb', '7'=>'Dom'];
     $rutasPorCorredor = [];
     foreach ($rutas as $r) {
@@ -151,47 +152,23 @@ $vJs = @filemtime(__DIR__ . '/../../../../public/assets/js/flota.js') ?: time();
 
 <ul class="nav nav-pills mb-4 bg-white p-2 rounded shadow-sm border d-flex flex-wrap gap-2" id="flotaTabs" role="tablist">
     <li class="nav-item">
-        <button class="nav-link fw-bold <?= ($tabActiva == 'rutas') ? 'active' : '' ?>" data-bs-toggle="tab" data-bs-target="#tab-rutas" type="button">
-            🗺️ Rutas Comerciales y Tarifas <span class="badge bg-secondary ms-1"><?= count($rutas) ?></span>
+        <button class="nav-link fw-bold fs-6 px-4 py-2 <?= !$esTabFlota ? 'active' : '' ?>" data-bs-toggle="tab" data-bs-target="#tab-rutas" type="button" role="tab" aria-selected="<?= !$esTabFlota ? 'true' : 'false' ?>">
+            🗺️ Rutas Comerciales y Tarifario <span class="badge bg-secondary ms-1"><?= count($rutas) ?></span>
         </button>
     </li>
     <li class="nav-item">
-        <button class="nav-link fw-bold <?= ($tabActiva == 'tramos') ? 'active' : '' ?>" data-bs-toggle="tab" data-bs-target="#tab-tramos" type="button">
-            🧩 Tramos y Tarifas Maestras <span class="badge bg-secondary ms-1"><?= count($tramosCatalogo ?? []) ?></span>
-        </button>
-    </li>
-    <li class="nav-item">
-        <button class="nav-link fw-bold <?= ($tabActiva == 'buses' || $tabActiva == 'operadores') ? 'active' : '' ?>" data-bs-toggle="tab" data-bs-target="#tab-buses" type="button">
-            🚌 Buses y Operadores / Socios <span class="badge bg-secondary ms-1"><?= count($buses) ?> buses · <?= count($operadores) ?> operadores</span>
-        </button>
-    </li>
-    <li class="nav-item">
-        <button class="nav-link fw-bold <?= ($tabActiva == 'ciudades') ? 'active' : '' ?>" data-bs-toggle="tab" data-bs-target="#tab-ciudades" type="button">
-            🏙️ Dominio de Ciudades y Destinos <span class="badge bg-secondary ms-1"><?= count($ciudadesCompletas ?? $ciudadesCatalogo) ?></span>
-        </button>
-    </li>
-    <li class="nav-item">
-        <button class="nav-link fw-bold <?= ($tabActiva == 'corredor') ? 'active' : '' ?>" data-bs-toggle="tab" data-bs-target="#tab-corredor" type="button">
-            🌐 Corredor e Itinerario Troncal
+        <button class="nav-link fw-bold fs-6 px-4 py-2 <?= $esTabFlota ? 'active' : '' ?>" data-bs-toggle="tab" data-bs-target="#tab-flota" type="button" role="tab" aria-selected="<?= $esTabFlota ? 'true' : 'false' ?>">
+            🤝 Flota y Aliados Operadores <span class="badge bg-secondary ms-1"><?= count($buses) ?> buses · <?= count($operadores) ?> operadores</span>
         </button>
     </li>
 </ul>
 
 <div class="tab-content">
-    <!-- PESTAÑA 1: RUTAS COMERCIALES Y MATRIZ DE TARIFAS -->
+    <!-- ESPACIO DE TRABAJO 1: RUTAS COMERCIALES Y TARIFARIO (CON ASISTENTE Y CATÁLOGOS SATÉLITES) -->
     <?php require __DIR__ . '/partials/tab_rutas.php'; ?>
 
-    <!-- PESTAÑA 2: CATÁLOGO MAESTRO DE TRAMOS Y TARIFAS -->
-    <?php require __DIR__ . '/partials/tab_tramos.php'; ?>
-
-    <!-- PESTAÑA 3: FLOTA DE BUSES Y OPERADORES / SOCIOS -->
-    <?php require __DIR__ . '/partials/tab_buses.php'; ?>
-
-    <!-- PESTAÑA 4: GESTIÓN DE CIUDADES Y DOMINIO DE DESTINOS -->
-    <?php require __DIR__ . '/partials/tab_ciudades.php'; ?>
-
-    <!-- PESTAÑA 5: CORREDOR E ITINERARIO TRONCAL MAESTRO -->
-    <?php require __DIR__ . '/partials/tab_corredores.php'; ?>
+    <!-- ESPACIO DE TRABAJO 2: FLOTA Y ALIADOS OPERADORES (UNIFICADO) -->
+    <?php require __DIR__ . '/partials/tab_flota.php'; ?>
 </div>
 
 <!-- CONFIGURACIÓN DE CORREDORES Y SCRIPT MODULAR -->

@@ -227,6 +227,31 @@ class FlotaController {
         }
     }
 
+    public function actualizarPrecioRapido() {
+        $this->actualizarPrecioRapidoRuta();
+    }
+
+    public function actualizarPrecioRapidoRuta() {
+        $this->verificarPermiso();
+        header('Content-Type: application/json');
+        if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+            echo json_encode(['status' => 'error', 'mensaje' => 'Método HTTP no permitido.']);
+            exit();
+        }
+
+        $idRuta = intval($_POST['id_ruta'] ?? 0);
+        $precio = floatval($_POST['precio_pasaje'] ?? 0);
+
+        if ($idRuta <= 0 || $precio <= 0) {
+            echo json_encode(['status' => 'error', 'mensaje' => 'ID de ruta o tarifa inválida.']);
+            exit();
+        }
+
+        $resultado = $this->repository->actualizarPrecioRapidoRutaBD($idRuta, $precio);
+        echo json_encode($resultado);
+        exit();
+    }
+
     // --- ACCIONES DE BUSES ---
     public function guardarBus() {
         $this->verificarPermiso();

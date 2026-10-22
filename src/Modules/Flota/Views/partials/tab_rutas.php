@@ -1,28 +1,72 @@
     <!-- ======================================================== -->
     <!-- PESTAÑA 2: RUTAS COMERCIALES Y MATRIZ DE TARIFAS        -->
     <!-- ======================================================== -->
-    <div class="tab-pane fade <?= ($tabActiva == 'rutas') ? 'show active' : '' ?>" id="tab-rutas">
+    <div class="tab-pane fade <?= (!in_array($tabActiva, ['flota', 'buses', 'operadores'])) ? 'show active' : '' ?>" id="tab-rutas">
         
-        <!-- BANNER DE GENERACIÓN AUTOMÁTICA -->
-        <div class="card border-0 shadow-sm bg-gradient mb-4" style="background: linear-gradient(135deg, #e3f2fd 0%, #f1f8e9 100%); border-left: 5px solid #0d6efd !important;">
-            <div class="card-body d-flex flex-wrap justify-content-between align-items-center py-3">
-                <div class="mb-2 mb-md-0">
-                    <h5 class="fw-bold text-primary mb-1">⚡ Generador Inteligente de Rutas Comerciales</h5>
-                    <p class="text-muted small mb-0">Calcula automáticamente todas las combinaciones comerciales válidas, detecta tramos de transbordo fronterizo y aplica tarifas sugeridas sin borrar precios personalizados.</p>
-                </div>
-                <div class="d-flex gap-2">
-                    <button class="btn btn-primary fw-bold shadow-sm" data-bs-toggle="modal" data-bs-target="#modalCrearRutaRapida" onclick="abrirModalRutaRapida()">
-                        ⚡ Crear Ruta en 3 Clics
-                    </button>
-                    <button class="btn btn-outline-primary fw-bold" data-bs-toggle="modal" data-bs-target="#modalNuevaRutaManual">
-                        + Nueva Ruta Manual
-                    </button>
-                    <form action="/suramerica2030/flota/generarRutasCorredor" method="POST" onsubmit="return confirm('¿Deseas generar o sincronizar todas las combinaciones comerciales del corredor seleccionado? Los precios que ya hayas personalizado se respetarán.');">
-                        <input type="hidden" name="id_corredor" id="generador_id_corredor" value="<?= $corredorActivo['ID_CORREDOR'] ?? 1 ?>">
-                        <button type="submit" class="btn btn-outline-success fw-bold shadow-sm" id="btnGenerarRutas" title="Generar combinaciones del corredor">
-                            ⚙️ Generar del Corredor
+        <!-- EXECUTIVE TOOLBAR: RUTAS COMERCIALES, CORREDOR Y CATÁLOGOS MAESTROS -->
+        <div class="card border-0 shadow-sm mb-4 bg-white" style="border-radius: 12px; border-left: 5px solid #0d6efd !important;">
+            <div class="card-body py-3 px-4">
+                <div class="d-flex flex-wrap justify-content-between align-items-center gap-3">
+                    <!-- Selector de Corredor Activo -->
+                    <div class="d-flex align-items-center gap-2 flex-grow-1" style="min-width: 280px; max-width: 480px;">
+                        <span class="fs-4">🌐</span>
+                        <div>
+                            <small class="text-muted text-uppercase fw-bold d-block" style="font-size: 0.72rem; letter-spacing: 0.5px;">Corredor Activo</small>
+                            <select class="form-select form-select-sm fw-bold border-primary text-primary" onchange="window.location.href='/suramerica2030/flota?tab=rutas&corredor_id=' + this.value;">
+                                <?php foreach($corredores as $c): ?>
+                                    <option value="<?= $c['ID_CORREDOR'] ?>" <?= ($corredorActivo && $corredorActivo['ID_CORREDOR'] == $c['ID_CORREDOR']) ? 'selected' : '' ?>>
+                                        <?= htmlspecialchars($c['CODIGO'] ?? 'COR') ?> - <?= htmlspecialchars($c['NOMBRE']) ?> (<?= htmlspecialchars($c['ORIGEN_CABECERA']) ?> ➔ <?= htmlspecialchars($c['DESTINO_TERMINAL']) ?>)
+                                    </option>
+                                <?php endforeach; ?>
+                            </select>
+                        </div>
+                    </div>
+
+                    <!-- Botonera de Acciones Rápidas y Catálogos Satélites -->
+                    <div class="d-flex flex-wrap align-items-center gap-2">
+                        <!-- Botón Asistente 3 Clics -->
+                        <button class="btn btn-primary fw-bold shadow-sm px-3" data-bs-toggle="modal" data-bs-target="#modalCrearRutaRapida" onclick="abrirModalRutaRapida()">
+                            ⚡ Crear Ruta (3 Clics)
                         </button>
-                    </form>
+
+                        <!-- Botón Catálogo de Tramos Maestros -->
+                        <button class="btn btn-outline-secondary fw-bold" data-bs-toggle="modal" data-bs-target="#modalCatalogoTramos">
+                            🧩 Tramos y Costos
+                        </button>
+
+                        <!-- Botón Itinerario y Paradas Troncales -->
+                        <button class="btn btn-outline-secondary fw-bold" data-bs-toggle="modal" data-bs-target="#modalItinerarioCorredor">
+                            🌐 Itinerario Troncal
+                        </button>
+
+                        <!-- Botón Catálogo de Ciudades -->
+                        <button class="btn btn-outline-secondary fw-bold" data-bs-toggle="modal" data-bs-target="#modalCatalogoCiudades">
+                            🏙️ Ciudades
+                        </button>
+
+                        <!-- Dropdown de Acciones Avanzadas -->
+                        <div class="dropdown">
+                            <button class="btn btn-light border dropdown-toggle fw-bold" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+                                ⚙️ Más Opciones
+                            </button>
+                            <ul class="dropdown-menu dropdown-menu-end shadow-sm border-0">
+                                <li>
+                                    <button class="dropdown-item py-2 fw-semibold" data-bs-toggle="modal" data-bs-target="#modalNuevaRutaManual">
+                                        ➕ Nueva Ruta Manual Detallada
+                                    </button>
+                                </li>
+                                <li><hr class="dropdown-divider my-1"></li>
+                                <li>
+                                    <form action="/suramerica2030/flota/generarRutasCorredor" method="POST" onsubmit="return confirm('¿Deseas generar o sincronizar todas las combinaciones comerciales del corredor seleccionado? Los precios que ya hayas personalizado se respetarán.');">
+                                        <input type="hidden" name="id_corredor" id="generador_id_corredor" value="<?= $corredorActivo['ID_CORREDOR'] ?? 1 ?>">
+                                        <button type="submit" class="dropdown-item py-2 fw-semibold text-success">
+                                            ⚡ Sincronizar Combinaciones del Corredor
+                                        </button>
+                                    </form>
+                                </li>
+                            </ul>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -1372,5 +1416,188 @@
             });
         }
     });
+    </script>
+<!-- MODAL AJUSTE RÁPIDO DE PVP (FAIL-SAFE) -->
+    <div class="modal fade text-start" id="modalAjusteRapidoPvp" tabindex="-1" aria-labelledby="modalAjusteRapidoPvpLabel" aria-hidden="true" style="z-index: 1070;">
+        <div class="modal-dialog modal-dialog-centered" style="max-width: 440px;">
+            <div class="modal-content shadow-lg border-0" style="border-radius: 12px; overflow: hidden;">
+                <div class="modal-header bg-primary text-white py-3">
+                    <div class="d-flex align-items-center gap-2">
+                        <span class="fs-5">⚡</span>
+                        <h5 class="modal-title fw-bold mb-0" id="modalAjusteRapidoPvpLabel">Ajuste Rápido de Tarifa</h5>
+                    </div>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <form id="formAjusteRapidoPvp" onsubmit="guardarAjusteRapidoPvp(event)">
+                    <input type="hidden" id="ajuste_id_ruta" name="id_ruta" value="">
+                    <input type="hidden" id="ajuste_costo_base" value="0">
+                    <div class="modal-body p-4 bg-light">
+                        <!-- Ruta Title -->
+                        <div class="text-center mb-3">
+                            <span class="badge bg-white text-dark border px-3 py-1 mb-1 fs-6" id="ajuste_badge_ruta">Origen ➔ Destino</span>
+                            <div class="small text-muted" id="ajuste_subtitulo">Ajuste directo de precio al viajero</div>
+                        </div>
+
+                        <!-- Costo de Liquidación Base Card -->
+                        <div class="d-flex justify-content-between align-items-center bg-white border rounded p-3 mb-3">
+                            <div>
+                                <small class="text-muted text-uppercase fw-bold d-block" style="font-size: 0.72rem;">Costo Liquidación Operadores</small>
+                                <span class="text-danger fw-bold fs-5" id="ajuste_lbl_costo">$0.00</span>
+                            </div>
+                            <span class="badge bg-danger-subtle text-danger border border-danger-subtle px-2 py-1 small">Costo Mínimo Seguro</span>
+                        </div>
+
+                        <!-- Input Nuevo PVP -->
+                        <div class="mb-3">
+                            <label class="form-label fw-bold text-dark mb-1">Nuevo Precio al Público ($)</label>
+                            <div class="input-group input-group-lg shadow-sm">
+                                <span class="input-group-text bg-white fw-bold text-primary">$</span>
+                                <input type="number" step="0.50" min="0" id="ajuste_input_pvp" name="precio_pasaje" class="form-control fw-bold text-primary fs-4" placeholder="0.00" required oninput="recalcularAjusteRapidoPvp()">
+                            </div>
+                        </div>
+
+                        <!-- Alerta de Pérdida (Fail-Safe) -->
+                        <div class="alert alert-danger py-2 px-3 mb-3 d-none" id="ajuste_alerta_perdida">
+                            <div class="d-flex align-items-center gap-2">
+                                <span class="fs-5">⛔</span>
+                                <div class="small" id="ajuste_alerta_texto">El precio es inferior al costo de operadores. No se puede guardar con pérdida.</div>
+                            </div>
+                        </div>
+
+                        <!-- Ganancia & Margen Estimado -->
+                        <div class="bg-white border rounded p-3">
+                            <div class="d-flex justify-content-between align-items-center mb-1">
+                                <small class="text-muted fw-bold">Utilidad Neta por Pasaje:</small>
+                                <span class="fw-bold fs-5 text-success" id="ajuste_lbl_utilidad">$0.00</span>
+                            </div>
+                            <div class="progress mb-1" style="height: 6px;">
+                                <div class="progress-bar bg-success" id="ajuste_barra_margen" style="width: 0%;"></div>
+                            </div>
+                            <div class="d-flex justify-content-between">
+                                <small class="text-muted" style="font-size: 0.72rem;">Rentabilidad comercial</small>
+                                <small class="fw-bold text-success" id="ajuste_lbl_margen_pct">0.0% margen</small>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="modal-footer bg-white border-top p-3 d-flex justify-content-between">
+                        <button type="button" class="btn btn-outline-secondary fw-semibold" data-bs-dismiss="modal">Cancelar</button>
+                        <button type="submit" class="btn btn-primary fw-bold px-4" id="btnGuardarAjustePvp">
+                            💾 Guardar Tarifa
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- SATELLITE CATALOG MODALS EMBEDDED IN WORKSPACE 1 -->
+    <?php require __DIR__ . '/tab_tramos.php'; ?>
+    <?php require __DIR__ . '/tab_corredores.php'; ?>
+    <?php require __DIR__ . '/tab_ciudades.php'; ?>
+
+    <script>
+    function abrirModalAjustePvp(idRuta, origen, destino, pvpActual, costoTotal) {
+        document.getElementById('ajuste_id_ruta').value = idRuta;
+        document.getElementById('ajuste_costo_base').value = costoTotal;
+        document.getElementById('ajuste_badge_ruta').innerText = origen + ' ➔ ' + destino;
+        document.getElementById('ajuste_lbl_costo').innerText = '$' + Number(costoTotal).toFixed(2);
+        document.getElementById('ajuste_input_pvp').value = Number(pvpActual).toFixed(2);
+        
+        recalcularAjusteRapidoPvp();
+        
+        const modalEl = document.getElementById('modalAjusteRapidoPvp');
+        const modal = new bootstrap.Modal(modalEl);
+        modal.show();
+    }
+
+    function recalcularAjusteRapidoPvp() {
+        const costo = parseFloat(document.getElementById('ajuste_costo_base').value) || 0;
+        const pvp = parseFloat(document.getElementById('ajuste_input_pvp').value) || 0;
+        const btn = document.getElementById('btnGuardarAjustePvp');
+        const alerta = document.getElementById('ajuste_alerta_perdida');
+        const alertaTexto = document.getElementById('ajuste_alerta_texto');
+
+        if (costo > 0 && pvp < costo) {
+            const deficit = (costo - pvp).toFixed(2);
+            alertaTexto.innerText = `El precio configurado ($${pvp.toFixed(2)}) genera una pérdida de -$${deficit} frente al costo de liquidación ($${costo.toFixed(2)}). Corrija el precio para guardar.`;
+            alerta.classList.remove('d-none');
+            btn.disabled = true;
+
+            document.getElementById('ajuste_lbl_utilidad').innerText = '-$' + deficit;
+            document.getElementById('ajuste_lbl_utilidad').className = 'fw-bold fs-5 text-danger';
+            document.getElementById('ajuste_lbl_margen_pct').innerText = 'Pérdida';
+            document.getElementById('ajuste_lbl_margen_pct').className = 'fw-bold text-danger';
+            document.getElementById('ajuste_barra_margen').style.width = '0%';
+            document.getElementById('ajuste_barra_margen').className = 'progress-bar bg-danger';
+            return;
+        }
+
+        alerta.classList.add('d-none');
+        btn.disabled = false;
+
+        const utilidad = Math.max(0, pvp - costo);
+        const margenPct = (pvp > 0) ? ((utilidad / pvp) * 100).toFixed(1) : '0';
+
+        document.getElementById('ajuste_lbl_utilidad').innerText = '$' + utilidad.toFixed(2);
+        document.getElementById('ajuste_lbl_utilidad').className = 'fw-bold fs-5 text-success';
+        document.getElementById('ajuste_lbl_margen_pct').innerText = margenPct + '% margen';
+        document.getElementById('ajuste_lbl_margen_pct').className = 'fw-bold text-success';
+        document.getElementById('ajuste_barra_margen').style.width = Math.min(100, margenPct) + '%';
+        document.getElementById('ajuste_barra_margen').className = 'progress-bar bg-success';
+    }
+
+    function guardarAjusteRapidoPvp(e) {
+        e.preventDefault();
+        const btn = document.getElementById('btnGuardarAjustePvp');
+        btn.disabled = true;
+        btn.innerText = 'Guardando...';
+
+        const idRuta = document.getElementById('ajuste_id_ruta').value;
+        const precio = document.getElementById('ajuste_input_pvp').value;
+
+        const formData = new FormData();
+        formData.append('id_ruta', idRuta);
+        formData.append('precio_pasaje', precio);
+
+        fetch('/suramerica2030/flota/actualizarPrecioRapido', {
+            method: 'POST',
+            headers: { 'X-Requested-With': 'XMLHttpRequest' },
+            body: formData
+        })
+        .then(r => r.json())
+        .then(data => {
+            btn.disabled = false;
+            btn.innerText = '💾 Guardar Tarifa';
+
+            if (data.status === 'success') {
+                const modalEl = document.getElementById('modalAjusteRapidoPvp');
+                const modal = bootstrap.Modal.getInstance(modalEl);
+                if (modal) modal.hide();
+
+                const pvpValEl = document.getElementById('pvp_val_' + idRuta);
+                if (pvpValEl) {
+                    pvpValEl.innerText = '$' + Number(precio).toFixed(2);
+                }
+
+                const toastEl = document.getElementById('toastFlotaAjax');
+                if (toastEl) {
+                    document.getElementById('toastFlotaAjaxMsg').innerText = data.mensaje || 'Precio actualizado correctamente.';
+                    const toast = new bootstrap.Toast(toastEl, { delay: 3500 });
+                    toast.show();
+                }
+
+                setTimeout(() => {
+                    window.location.reload();
+                }, 600);
+            } else {
+                alert(data.mensaje || 'Error al actualizar el precio.');
+            }
+        })
+        .catch(err => {
+            btn.disabled = false;
+            btn.innerText = '💾 Guardar Tarifa';
+            alert('Error de conexión: ' + err.message);
+        });
+    }
     </script>
 </div>

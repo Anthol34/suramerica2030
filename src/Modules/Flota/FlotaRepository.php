@@ -1940,5 +1940,50 @@ class FlotaRepository {
             return ['status' => 'error', 'mensaje' => $e->getMessage()];
         }
     }
+
+    /**
+     * Actualiza rápidamente el precio comercial (PVP) de una ruta comercial
+     * Validando regla fail-safe (PVP >= COSTO_TOTAL_RUTA) y recalculando márgenes.
+     */
+    public function actualizarPrecioRapidoRutaBD($idRuta, $nuevoPrecio) {
+        try {
+            $stmt = $this->db->prepare("SELECT ID_RUTA, RUT_ORIGEN, RUT_DESTINO, COSTO_TOTAL_RUTA, PRECIO_PASAJE, UTILIDAD_PASAJE, TIPO_UTILIDAD FROM RUTA WHERE ID_RUTA = ?");
+            $stmt->execute([$idRuta]);
+            $ruta = $stmt->fetch(PDO::FETCH_ASSOC);
+
+            if (!$ruta) {
+                return ['status' => 'error', 'mensaje' => 'Ruta no encontrada en el sistema.'];
+            }
+
+            $costoTotal = floatval($ruta['COSTO_TOTAL_RUTA'] ?? 0);
+            $nuevoPrecio = floatval($nuevoPrecio);
+
+            // Regla fail-safe: PVP no puede ser menor al costo total de liquidación si costo > 0
+            if ($costoTotal > 0 && $nuevoPrecio < $costoTotal) {
+                return [
+                    'status' => 'error',
+                    'mensaje' => "⚠️ Bloqueo de Seguridad: La tarifa comercial ($" . number_format($nuevoPrecio, 2) . ") no puede ser inferior a los costos de liquidación de operadores ($" . number_format($costoTotal, 2) . ")."
+                ];
+            }
+
+            $utilidadMonto = max(0, $nuevoPrecio - $costoTotal);
+            $margenPct = ($nuevoPrecio > 0) ? round(($utilidadMonto / $nuevoPrecio) * 100, 1) : 0;
+
+            $upd = $this->db->prepare("UPDATE RUTA SET PRECIO_PASAJE = ?, UTILIDAD_PASAJE = ? WHERE ID_RUTA = ?");
+            $upd->execute([$nuevoPrecio, $utilidadMonto, $idRuta]);
+
+            return [
+                'status' => 'success',
+                'mensaje' => "Tarifa comercial de la ruta #{$idRuta} actualizada a $" . number_format($nuevoPrecio, 2),
+                'id_ruta' => $idRuta,
+                'nuevo_precio' => $nuevoPrecio,
+                'costo_total' => $costoTotal,
+                'utilidad' => $utilidadMonto,
+                'margen_pct' => $margenPct
+            ];
+        } catch (\Exception $e) {
+            return ['status' => 'error', 'mensaje' => 'Error al actualizar tarifa: ' . $e->getMessage()];
+        }
+    }
 }
 ?>

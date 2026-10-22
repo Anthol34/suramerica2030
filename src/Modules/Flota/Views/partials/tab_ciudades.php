@@ -25,9 +25,22 @@ foreach ($ciudades as $cd) {
 ?>
 
 <!-- ======================================================== -->
-<!-- PESTAÑA 4: DOMINIO DE CIUDADES Y RED REGIONAL DE DESTINOS -->
+<!-- MODAL XL: DOMINIO DE CIUDADES Y RED REGIONAL DE DESTINOS -->
 <!-- ======================================================== -->
-<div class="tab-pane fade <?= ($tabActiva == 'ciudades') ? 'show active' : '' ?>" id="tab-ciudades">
+<div class="modal fade" id="modalCatalogoCiudades" tabindex="-1" aria-labelledby="modalCatalogoCiudadesLabel" aria-hidden="true">
+    <div class="modal-dialog modal-xl modal-dialog-scrollable">
+        <div class="modal-content border-0 shadow-lg">
+            <div class="modal-header bg-success text-white py-3" style="background: #059669 !important;">
+                <div class="d-flex align-items-center gap-2">
+                    <span class="fs-4">🏙️</span>
+                    <div>
+                        <h5 class="modal-title fw-bold mb-0 text-white" id="modalCatalogoCiudadesLabel">Dominio Regional de Ciudades y Destinos</h5>
+                        <small class="text-white-50">Catálogo de ciudades para emisión directa o conexiones con asociaciones y operadores</small>
+                    </div>
+                </div>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+            </div>
+            <div class="modal-body p-3 p-md-4 bg-light">
 
     <!-- BANNER INFORMATIVO Y ACCIONES -->
     <div class="card border-0 shadow-sm mb-4" style="background: linear-gradient(135deg, #f0fdf4 0%, #e0f2fe 100%); border-left: 5px solid #059669 !important;">
@@ -188,6 +201,12 @@ foreach ($ciudades as $cd) {
                     <?php endif; ?>
                 </tbody>
             </table>
+        </div>
+    </div>
+            </div>
+            <div class="modal-footer bg-white py-2">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar Catálogo</button>
+            </div>
         </div>
     </div>
 </div>

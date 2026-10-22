@@ -29,3 +29,61 @@
 .fila-ruta-destacada {
     animation: highlightRowSuccess 2.5s ease-out forwards;
 }
+
+/* ======================================================== */
+/* ESTILOS DE UNIFICACIÓN Y GESTIÓN DE FLOTA Y RUTAS        */
+/* ======================================================== */
+
+/* Stacking de Modales Secundarios / Hijos sobre Modales Catálogo */
+#modalGuardarTramoCatalogo,
+#modalCrearCorredor,
+#modalEditarCorredor,
+#modalAgregarParada,
+#modalNuevaCiudad,
+#modalAjusteRapidoPvp {
+    z-index: 1070 !important;
+}
+
+/* Backdrops apilados de Bootstrap */
+.modal-backdrop.show:nth-of-type(even) {
+    z-index: 1065 !important;
+}
+
+/* Botonera de toolbar ejecutivo */
+.btn-outline-secondary:hover {
+    background-color: #f8f9fa;
+    color: #0d6efd;
+    border-color: #0d6efd;
+}
+
+/* Botón de ajuste rápido de precio en tabla */
+.btn-xs {
+    padding: 0.15rem 0.35rem;
+    font-size: 0.75rem;
+    line-height: 1;
+    border-radius: 0.25rem;
+}
+
+.btn-xs:hover {
+    transform: scale(1.15);
+    transition: transform 0.15s ease-in-out;
+}
+
+/* Píldoras de Navegación Principal */
+#flotaTabs .nav-link {
+    transition: all 0.2s ease-in-out;
+    border-radius: 8px;
+    color: #495057;
+}
+
+#flotaTabs .nav-link.active {
+    background-color: #0d6efd;
+    color: #ffffff;
+    box-shadow: 0 4px 10px rgba(13, 110, 253, 0.25);
+}
+
+#flotaTabs .nav-link:hover:not(.active) {
+    background-color: #f1f3f5;
+    color: #0d6efd;
+}
+
