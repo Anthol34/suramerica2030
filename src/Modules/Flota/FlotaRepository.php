@@ -845,6 +845,7 @@ class FlotaRepository {
                 $tr['origen'] = $tr['ORIGEN_TRAMO'];
                 $tr['destino'] = $tr['DESTINO_TRAMO'];
                 $tr['id_operador'] = intval($tr['ID_OPERADOR'] ?? 1);
+                $tr['id_tramo_catalogo'] = !empty($tr['ID_TRAMO_CATALOGO']) ? intval($tr['ID_TRAMO_CATALOGO']) : null;
                 $tr['operador'] = !empty($tr['OPERADOR_TRAMO_NOMBRE']) ? $tr['OPERADOR_TRAMO_NOMBRE'] : ($tr['OPERADOR'] ?? 'Propio');
                 $tr['pvp'] = floatval($tr['PVP_TRAMO'] ?? 0);
                 $tr['costo'] = floatval($tr['COSTO_OPERADOR'] ?? 0);
@@ -861,6 +862,32 @@ class FlotaRepository {
                 $tramos = $tramosPorRuta[$r['ID_RUTA']] ?? [];
                 $r['TRAMOS_DETALLE'] = $tramos;
                 $r['TRAMOS_JSON'] = json_encode($tramos);
+
+                // Cálculo financiero de liquidación y margen comercial
+                $costoTotal = floatval($r['COSTO_TOTAL_RUTA'] ?? 0);
+                if ($costoTotal <= 0 && !empty($tramos)) {
+                    $costoTotal = array_sum(array_column($tramos, 'costo'));
+                }
+                $pvp = floatval($r['PRECIO_PASAJE'] ?? 0);
+                $utilidad = max(0, $pvp - $costoTotal);
+                $margenPct = ($pvp > 0) ? round(($utilidad / $pvp) * 100, 1) : 0;
+
+                $r['COSTO_CALCULADO'] = $costoTotal;
+                $r['UTILIDAD_CALCULADA'] = $utilidad;
+                $r['MARGEN_PCT'] = $margenPct;
+
+                // Extraer operadores únicos involucrados en el servicio
+                $opsInvolucrados = [];
+                if (!empty($r['OPERADOR_NOMBRE'])) {
+                    $opsInvolucrados[] = $r['OPERADOR_NOMBRE'];
+                }
+                foreach ($tramos as $tr) {
+                    $opTr = trim($tr['operador'] ?? '');
+                    if (!empty($opTr) && !in_array($opTr, $opsInvolucrados)) {
+                        $opsInvolucrados[] = $opTr;
+                    }
+                }
+                $r['OPERADORES_INVOLUCRADOS'] = $opsInvolucrados;
             }
             unset($r);
         }
@@ -1316,6 +1343,601 @@ class FlotaRepository {
                 $this->db->rollBack();
             }
             return "Error al eliminar el operador: " . $e->getMessage();
+        }
+    }
+
+    // ==========================================
+    // SECCIÓN CATÁLOGO MAESTRO DE TRAMOS Y TARIFAS
+    // ==========================================
+
+    public function obtenerTramosCatalogo($soloActivos = false) {
+        $where = $soloActivos ? "WHERE tc.ESTADO = 'ACTIVO'" : "";
+        $sql = "
+            SELECT tc.*, 
+                   op.NOMBRE_COMERCIAL as OPERADOR_NOMBRE_OFICIAL,
+                   op.TIPO_OPERADOR as OPERADOR_TIPO,
+                   COUNT(DISTINCT rt.ID_RUTA) as TOTAL_RUTAS_USANDO
+            FROM tramo_catalogo tc
+            LEFT JOIN OPERADOR op ON tc.ID_OPERADOR = op.ID_OPERADOR
+            LEFT JOIN RUTA_TRAMO rt ON (rt.ID_TRAMO_CATALOGO = tc.ID_TRAMO_CATALOGO OR (LOWER(rt.ORIGEN_TRAMO) = LOWER(tc.ORIGEN_TRAMO) AND LOWER(rt.DESTINO_TRAMO) = LOWER(tc.DESTINO_TRAMO)))
+            $where
+            GROUP BY tc.ID_TRAMO_CATALOGO
+            ORDER BY tc.PAIS_TRAMO ASC, tc.ORIGEN_TRAMO ASC, tc.DESTINO_TRAMO ASC
+        ";
+        return $this->db->query($sql)->fetchAll(PDO::FETCH_ASSOC);
+    }
+
+    public function obtenerTramoCatalogoPorId($id) {
+        $stmt = $this->db->prepare("SELECT * FROM tramo_catalogo WHERE ID_TRAMO_CATALOGO = ?");
+        $stmt->execute([intval($id)]);
+        return $stmt->fetch(PDO::FETCH_ASSOC);
+    }
+
+    public function guardarTramoCatalogoBD($datos) {
+        try {
+            $id = !empty($datos['id_tramo_catalogo']) ? intval($datos['id_tramo_catalogo']) : 0;
+            $origen = trim($datos['origen_tramo'] ?? '');
+            $destino = trim($datos['destino_tramo'] ?? '');
+            $nombre = trim($datos['nombre_tramo'] ?? "$origen ➔ $destino");
+            $pais = strtoupper(trim($datos['pais_tramo'] ?? 'INTERNACIONAL'));
+            $idOperador = !empty($datos['id_operador']) ? intval($datos['id_operador']) : null;
+            $costo = floatval($datos['costo_operador'] ?? 0);
+            $pvp = floatval($datos['pvp_sugerido'] ?? 0);
+            $utilidad = max(0, $pvp - $costo);
+            $admiteSp = isset($datos['admite_sobrepeso']) ? intval($datos['admite_sobrepeso']) : 1;
+            $limiteEq = floatval($datos['limite_equipaje_kg'] ?? 35);
+            $precioSp = floatval($datos['precio_sobrepeso_kg'] ?? 1);
+            $costoSp = floatval($datos['costo_sobrepeso_kg'] ?? 0);
+            $estado = !empty($datos['estado']) ? $datos['estado'] : 'ACTIVO';
+            $observaciones = trim($datos['observaciones'] ?? '');
+
+            if (empty($origen) || empty($destino)) {
+                return "Debe especificar origen y destino del tramo.";
+            }
+
+            // Validar que PVP sea mayor o igual al costo
+            if ($pvp > 0 && $costo > $pvp) {
+                return "Error financiero: El PVP sugerido ($" . number_format($pvp, 2) . ") no puede ser menor al costo del operador ($" . number_format($costo, 2) . ").";
+            }
+
+            // Nombre comercial del operador
+            $operadorNombre = '';
+            if ($idOperador) {
+                $stmtOp = $this->db->prepare("SELECT NOMBRE_COMERCIAL FROM OPERADOR WHERE ID_OPERADOR = ?");
+                $stmtOp->execute([$idOperador]);
+                $operadorNombre = $stmtOp->fetchColumn() ?: '';
+            }
+
+            // Asegurar ciudades en el dominio
+            $this->asegurarCiudadExiste($origen);
+            $this->asegurarCiudadExiste($destino);
+
+            if ($id > 0) {
+                $sql = "UPDATE tramo_catalogo SET 
+                    NOMBRE_TRAMO = ?, ORIGEN_TRAMO = ?, DESTINO_TRAMO = ?, PAIS_TRAMO = ?,
+                    ID_OPERADOR = ?, OPERADOR_NOMBRE = ?, COSTO_OPERADOR = ?, PVP_SUGERIDO = ?,
+                    UTILIDAD_AGENCIA = ?, ADMITE_SOBREPESO = ?, LIMITE_EQUIPAJE_KG = ?,
+                    PRECIO_SOBREPESO_KG = ?, COSTO_SOBREPESO_KG = ?, ESTADO = ?, OBSERVACIONES = ?
+                    WHERE ID_TRAMO_CATALOGO = ?";
+                $stmt = $this->db->prepare($sql);
+                $stmt->execute([
+                    $nombre, $origen, $destino, $pais,
+                    $idOperador, $operadorNombre, $costo, $pvp,
+                    $utilidad, $admiteSp, $limiteEq,
+                    $precioSp, $costoSp, $estado, $observaciones,
+                    $id
+                ]);
+            } else {
+                $codigo = 'TC-' . strtoupper(substr(preg_replace('/[^A-Za-z]/', '', $origen), 0, 3)) . '-' . strtoupper(substr(preg_replace('/[^A-Za-z]/', '', $destino), 0, 3));
+                $sql = "INSERT INTO tramo_catalogo (
+                    CODIGO, NOMBRE_TRAMO, ORIGEN_TRAMO, DESTINO_TRAMO, PAIS_TRAMO,
+                    ID_OPERADOR, OPERADOR_NOMBRE, COSTO_OPERADOR, PVP_SUGERIDO,
+                    UTILIDAD_AGENCIA, ADMITE_SOBREPESO, LIMITE_EQUIPAJE_KG,
+                    PRECIO_SOBREPESO_KG, COSTO_SOBREPESO_KG, ESTADO, OBSERVACIONES
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+                $stmt = $this->db->prepare($sql);
+                $stmt->execute([
+                    $codigo, $nombre, $origen, $destino, $pais,
+                    $idOperador, $operadorNombre, $costo, $pvp,
+                    $utilidad, $admiteSp, $limiteEq,
+                    $precioSp, $costoSp, $estado, $observaciones
+                ]);
+                $id = (int)$this->db->lastInsertId();
+            }
+
+            if (!empty($datos['sincronizar_rutas'])) {
+                $this->sincronizarTarifasTramosEnRutas($id);
+            }
+
+            return true;
+        } catch (Exception $e) {
+            return $e->getMessage();
+        }
+    }
+
+    public function cambiarEstadoTramoCatalogoBD($idTramo, $estado) {
+        try {
+            $estado = ($estado === 'ACTIVO' || $estado == 1) ? 'ACTIVO' : 'INACTIVO';
+            $stmt = $this->db->prepare("UPDATE tramo_catalogo SET ESTADO = ? WHERE ID_TRAMO_CATALOGO = ?");
+            $stmt->execute([$estado, intval($idTramo)]);
+            return true;
+        } catch (Exception $e) {
+            return $e->getMessage();
+        }
+    }
+
+    public function eliminarTramoCatalogoBD($idTramo) {
+        try {
+            $id = intval($idTramo);
+            // Validar si rutas comerciales activas lo usan
+            $stmt = $this->db->prepare("SELECT COUNT(*) FROM RUTA_TRAMO WHERE ID_TRAMO_CATALOGO = ?");
+            $stmt->execute([$id]);
+            $count = intval($stmt->fetchColumn());
+
+            if ($count > 0) {
+                $this->db->prepare("UPDATE tramo_catalogo SET ESTADO = 'INACTIVO' WHERE ID_TRAMO_CATALOGO = ?")->execute([$id]);
+                return "El tramo está vinculado a {$count} ruta(s) comercial(es). Se ha archivado como INACTIVO para proteger la integridad operativa.";
+            }
+
+            $this->db->prepare("DELETE FROM tramo_catalogo WHERE ID_TRAMO_CATALOGO = ?")->execute([$id]);
+            return true;
+        } catch (Exception $e) {
+            return $e->getMessage();
+        }
+    }
+
+    public function sincronizarTarifasTramosEnRutas($idTramoCatalogo = null) {
+        try {
+            $this->db->beginTransaction();
+
+            $whereTramo = $idTramoCatalogo ? "WHERE tc.ID_TRAMO_CATALOGO = " . intval($idTramoCatalogo) : "";
+            $sqlTramos = "SELECT * FROM tramo_catalogo tc $whereTramo";
+            $catalogo = $this->db->query($sqlTramos)->fetchAll(PDO::FETCH_ASSOC);
+
+            $stmtUpdateRt = $this->db->prepare("
+                UPDATE RUTA_TRAMO 
+                SET PVP_TRAMO = ?, COSTO_OPERADOR = ?, UTILIDAD_AGENCIA = ?, ID_TRAMO_CATALOGO = ?, ID_OPERADOR = COALESCE(?, ID_OPERADOR)
+                WHERE (ID_TRAMO_CATALOGO = ? OR (LOWER(ORIGEN_TRAMO) = LOWER(?) AND LOWER(DESTINO_TRAMO) = LOWER(?)))
+            ");
+
+            $rutasModificadas = [];
+
+            foreach ($catalogo as $tc) {
+                $stmtUpdateRt->execute([
+                    $tc['PVP_SUGERIDO'],
+                    $tc['COSTO_OPERADOR'],
+                    $tc['UTILIDAD_AGENCIA'],
+                    $tc['ID_TRAMO_CATALOGO'],
+                    $tc['ID_OPERADOR'],
+                    $tc['ID_TRAMO_CATALOGO'],
+                    $tc['ORIGEN_TRAMO'],
+                    $tc['DESTINO_TRAMO']
+                ]);
+
+                // Identificar rutas afectadas
+                $stmtRutas = $this->db->prepare("SELECT DISTINCT ID_RUTA FROM RUTA_TRAMO WHERE ID_TRAMO_CATALOGO = ? OR (LOWER(ORIGEN_TRAMO) = LOWER(?) AND LOWER(DESTINO_TRAMO) = LOWER(?))");
+                $stmtRutas->execute([$tc['ID_TRAMO_CATALOGO'], $tc['ORIGEN_TRAMO'], $tc['DESTINO_TRAMO']]);
+                foreach ($stmtRutas->fetchAll(PDO::FETCH_COLUMN) as $idR) {
+                    $rutasModificadas[intval($idR)] = true;
+                }
+            }
+
+            // Recalcular totales en cabecera RUTA para cada ruta afectada
+            $stmtSumas = $this->db->prepare("
+                SELECT SUM(PVP_TRAMO) as TOTAL_PVP, SUM(COSTO_OPERADOR) as TOTAL_COSTO, SUM(UTILIDAD_AGENCIA) as TOTAL_UTIL
+                FROM RUTA_TRAMO WHERE ID_RUTA = ?
+            ");
+            $stmtUpdateRuta = $this->db->prepare("
+                UPDATE RUTA 
+                SET PRECIO_PASAJE = ?, COSTO_TOTAL_RUTA = ?, UTILIDAD_PASAJE = ?
+                WHERE ID_RUTA = ? AND TIPO_VIAJE = 'CONEXION'
+            ");
+
+            foreach (array_keys($rutasModificadas) as $idRuta) {
+                $stmtSumas->execute([$idRuta]);
+                $sum = $stmtSumas->fetch(PDO::FETCH_ASSOC);
+                if ($sum && $sum['TOTAL_PVP'] > 0) {
+                    $totPvp = floatval($sum['TOTAL_PVP']);
+                    $totCosto = floatval($sum['TOTAL_COSTO']);
+                    $totUtil = max(0, $totPvp - $totCosto);
+                    $stmtUpdateRuta->execute([$totPvp, $totCosto, $totUtil, $idRuta]);
+                }
+            }
+
+            $this->db->commit();
+            return [
+                'status' => 'success',
+                'rutas_actualizadas' => count($rutasModificadas),
+                'mensaje' => "Sincronización completada: " . count($rutasModificadas) . " rutas comerciales actualizadas con las tarifas maestras."
+            ];
+        } catch (Exception $e) {
+            $this->db->rollBack();
+            return ['status' => 'error', 'mensaje' => $e->getMessage()];
+        }
+    }
+
+    // ==========================================
+    // AUTO-SUGERIDOR INTELIGENTE Y CREACIÓN EN 3 CLICS
+    // ==========================================
+
+    public function sugerirTramosParaRuta($origen, $destino, $modalidad = 'CONEXION_TRAMOS') {
+        $stmtCiu = $this->db->prepare("SELECT NOMBRE, PAIS FROM CIUDAD WHERE LOWER(NOMBRE) = LOWER(?) LIMIT 1");
+        $stmtCiu->execute([trim($origen)]);
+        $cOrig = $stmtCiu->fetch(PDO::FETCH_ASSOC);
+        
+        $stmtCiu->execute([trim($destino)]);
+        $cDest = $stmtCiu->fetch(PDO::FETCH_ASSOC);
+
+        $paisOrig = strtoupper(trim($cOrig['PAIS'] ?? 'ECUADOR'));
+        $paisDest = strtoupper(trim($cDest['PAIS'] ?? 'VENEZUELA'));
+
+        $paresSugeridos = [];
+
+        // Lógica de conectividad internacional inteligente
+        if ($paisOrig === 'VENEZUELA' && $paisDest === 'ECUADOR') {
+            if ($modalidad === 'PANAMERICANA') {
+                if (mb_strtoupper(trim($origen)) !== 'CARACAS') {
+                    $paresSugeridos[] = ['origen' => $origen, 'destino' => 'Caracas'];
+                }
+                $paresSugeridos[] = ['origen' => 'Caracas', 'destino' => 'San Cristóbal'];
+                $paresSugeridos[] = ['origen' => 'Cúcuta', 'destino' => $destino];
+            } else {
+                if (mb_strtoupper(trim($origen)) !== 'CARACAS') {
+                    $paresSugeridos[] = ['origen' => $origen, 'destino' => 'Caracas'];
+                }
+                $paresSugeridos[] = ['origen' => 'Caracas', 'destino' => 'San Cristóbal'];
+                $paresSugeridos[] = ['origen' => 'Cúcuta', 'destino' => 'Ipiales'];
+                if (mb_strtoupper(trim($destino)) !== 'TULCÁN') {
+                    $paresSugeridos[] = ['origen' => 'Tulcán', 'destino' => $destino];
+                }
+            }
+        } elseif ($paisOrig === 'ECUADOR' && $paisDest === 'VENEZUELA') {
+            if ($modalidad === 'PANAMERICANA') {
+                $paresSugeridos[] = ['origen' => $origen, 'destino' => 'Cúcuta'];
+                $paresSugeridos[] = ['origen' => 'San Cristóbal', 'destino' => 'Caracas'];
+                if (mb_strtoupper(trim($destino)) !== 'CARACAS') {
+                    $paresSugeridos[] = ['origen' => 'Caracas', 'destino' => $destino];
+                }
+            } else {
+                if (mb_strtoupper(trim($origen)) !== 'TULCÁN') {
+                    $paresSugeridos[] = ['origen' => $origen, 'destino' => 'Tulcán'];
+                }
+                $paresSugeridos[] = ['origen' => 'Ipiales', 'destino' => 'Cúcuta'];
+                $paresSugeridos[] = ['origen' => 'San Cristóbal', 'destino' => 'Caracas'];
+                if (mb_strtoupper(trim($destino)) !== 'CARACAS') {
+                    $paresSugeridos[] = ['origen' => 'Caracas', 'destino' => $destino];
+                }
+            }
+        } elseif ($paisOrig === 'COLOMBIA' && $paisDest === 'VENEZUELA') {
+            if (mb_strtoupper(trim($origen)) !== 'CÚCUTA') {
+                $paresSugeridos[] = ['origen' => $origen, 'destino' => 'Cúcuta'];
+            }
+            $paresSugeridos[] = ['origen' => 'San Cristóbal', 'destino' => 'Caracas'];
+            if (mb_strtoupper(trim($destino)) !== 'CARACAS') {
+                $paresSugeridos[] = ['origen' => 'Caracas', 'destino' => $destino];
+            }
+        } elseif ($paisOrig === 'VENEZUELA' && $paisDest === 'COLOMBIA') {
+            if (mb_strtoupper(trim($origen)) !== 'CARACAS') {
+                $paresSugeridos[] = ['origen' => $origen, 'destino' => 'Caracas'];
+            }
+            $paresSugeridos[] = ['origen' => 'Caracas', 'destino' => 'San Cristóbal'];
+            if (mb_strtoupper(trim($destino)) !== 'CÚCUTA') {
+                $paresSugeridos[] = ['origen' => 'Cúcuta', 'destino' => $destino];
+            }
+        } else {
+            $paresSugeridos[] = ['origen' => $origen, 'destino' => $destino];
+        }
+
+        // Resolver cada par contra tramo_catalogo
+        $stmtBuscaTramo = $this->db->prepare("SELECT * FROM tramo_catalogo WHERE LOWER(ORIGEN_TRAMO) = LOWER(?) AND LOWER(DESTINO_TRAMO) = LOWER(?) AND ESTADO = 'ACTIVO' LIMIT 1");
+
+        $tramosResueltos = [];
+        $totalCosto = 0;
+        $totalPvp = 0;
+
+        foreach ($paresSugeridos as $idx => $par) {
+            $stmtBuscaTramo->execute([trim($par['origen']), trim($par['destino'])]);
+            $row = $stmtBuscaTramo->fetch(PDO::FETCH_ASSOC);
+
+            if ($row) {
+                $costo = floatval($row['COSTO_OPERADOR']);
+                $pvp = floatval($row['PVP_SUGERIDO']);
+                $idCat = intval($row['ID_TRAMO_CATALOGO']);
+                $idOp = intval($row['ID_OPERADOR'] ?? 1);
+                $nomOp = $row['OPERADOR_NOMBRE'] ?: 'Aliado';
+                $nombreTramo = $row['NOMBRE_TRAMO'];
+                $admiteSp = intval($row['ADMITE_SOBREPESO'] ?? 1);
+                $limiteEq = floatval($row['LIMITE_EQUIPAJE_KG'] ?? 35);
+                $precioSp = floatval($row['PRECIO_SOBREPESO_KG'] ?? 1);
+            } else {
+                $costo = 20.00;
+                $pvp = 30.00;
+                $idCat = null;
+                $idOp = 1;
+                $nomOp = 'Expresos Suramérica 2030';
+                $nombreTramo = "{$par['origen']} ➔ {$par['destino']}";
+                $admiteSp = 1;
+                $limiteEq = 35.00;
+                $precioSp = 1.00;
+            }
+
+            $util = max(0, $pvp - $costo);
+            $totalCosto += $costo;
+            $totalPvp += $pvp;
+
+            $tramosResueltos[] = [
+                'orden' => $idx + 1,
+                'origen' => $par['origen'],
+                'destino' => $par['destino'],
+                'id_tramo_catalogo' => $idCat,
+                'nombre_tramo' => $nombreTramo,
+                'id_operador' => $idOp,
+                'operador' => $nomOp,
+                'costo' => $costo,
+                'pvp' => $pvp,
+                'utilidad' => $util,
+                'admite_sobrepeso' => $admiteSp,
+                'limite_equipaje' => $limiteEq,
+                'precio_sobrepeso' => $precioSp
+            ];
+        }
+
+        $totalUtilidad = max(0, $totalPvp - $totalCosto);
+        $margenPct = ($totalPvp > 0) ? round(($totalUtilidad / $totalPvp) * 100, 1) : 0;
+
+        return [
+            'origen' => $origen,
+            'destino' => $destino,
+            'modalidad' => $modalidad,
+            'pais_origen' => $paisOrig,
+            'pais_destino' => $paisDest,
+            'tramos' => $tramosResueltos,
+            'costo_total_operadores' => $totalCosto,
+            'pvp_sugerido' => $totalPvp,
+            'utilidad_agencia' => $totalUtilidad,
+            'margen_pct' => $margenPct
+        ];
+    }
+
+    public function insertarRutaIndividual($datos) {
+        $colsRuta = array_column($this->db->query("DESCRIBE RUTA")->fetchAll(PDO::FETCH_ASSOC), 'Field');
+        $hasAdmiteSp = in_array('ADMITE_SOBREPESO', $colsRuta);
+        $hasIdOperador = in_array('ID_OPERADOR', $colsRuta);
+        $hasCostoTotal = in_array('COSTO_TOTAL_RUTA', $colsRuta);
+
+        $idOp = !empty($datos['id_operador']) ? intval($datos['id_operador']) : 1;
+        $modalidad = !empty($datos['modalidad']) ? $datos['modalidad'] : 'CONEXION_TRAMOS';
+        $costoTotalRuta = floatval($datos['costo_total_ruta'] ?? 0);
+        $tramos = $datos['tramos'] ?? [];
+
+        if ($costoTotalRuta <= 0 && !empty($tramos)) {
+            $costoTotalRuta = array_sum(array_column($tramos, 'costo'));
+        }
+
+        $camposInsert = "ID_CORREDOR, RUT_ORIGEN, RUT_DESTINO, TIPO_VIAJE, MODALIDAD" 
+            . ($hasIdOperador ? ", ID_OPERADOR" : "") 
+            . ($hasAdmiteSp ? ", ADMITE_SOBREPESO" : "") 
+            . ($hasCostoTotal ? ", COSTO_TOTAL_RUTA" : "") 
+            . ", DIAS_SALIDA, RUT_SAHORA, PRECIO_PASAJE, PRECIO_ENCOMIENDA_KG, PRECIO_SOBRE, PRECIO_VOLUMEN, LIMITE_EQUIPAJE_KG, PRECIO_SOBREPESO_KG, COMISION_VALOR, TIPO_UTILIDAD, UTILIDAD_PASAJE, UTILIDAD_ENCOMIENDA, UTILIDAD_VALORES, ESTADO";
+        
+        $valoresInsert = ":id_corredor, :origen, :destino, :tipo, :modalidad" 
+            . ($hasIdOperador ? ", :id_operador" : "") 
+            . ($hasAdmiteSp ? ", :admite_sp" : "") 
+            . ($hasCostoTotal ? ", :costo_total" : "") 
+            . ", :dias, :hora, :precio_p, :precio_e, :precio_sobre, :precio_vol, :limite_eq, :precio_s, :comision_v, :t_util, :u_pasaje, :u_enc, :u_val, 'ACTIVO'";
+
+        $query = "INSERT INTO RUTA ($camposInsert) VALUES ($valoresInsert)";
+        $stmt = $this->db->prepare($query);
+        $params = [
+            ':id_corredor' => !empty($datos['id_corredor']) ? intval($datos['id_corredor']) : 1,
+            ':origen' => $datos['origen'], 
+            ':destino' => $datos['destino'], 
+            ':tipo' => $datos['tipo_viaje'] ?? ((!empty($tramos) && count($tramos) > 1) ? 'CONEXION' : 'DIRECTO'), 
+            ':modalidad' => $modalidad,
+            ':dias' => $datos['dias_salida'] ?? '1,2,3,4,5,6,7', 
+            ':hora' => $datos['hora_salida'] ?? '08:00:00', 
+            ':precio_p' => floatval($datos['precio_pasaje'] ?? 0), 
+            ':precio_e' => floatval($datos['precio_encomienda'] ?? 0), 
+            ':precio_sobre' => floatval($datos['precio_sobre'] ?? 5), 
+            ':precio_vol' => floatval($datos['precio_volumen'] ?? 0), 
+            ':limite_eq' => floatval($datos['limite_equipaje'] ?? 35), 
+            ':precio_s' => floatval($datos['precio_sobrepeso'] ?? 1), 
+            ':comision_v' => floatval($datos['comision_valor'] ?? 10), 
+            ':t_util' => $datos['tipo_utilidad'] ?? 'FIJO', 
+            ':u_pasaje' => floatval($datos['utilidad_pasaje'] ?? max(0, floatval($datos['precio_pasaje'] ?? 0) - $costoTotalRuta)), 
+            ':u_enc' => floatval($datos['utilidad_encomienda'] ?? 100), 
+            ':u_val' => floatval($datos['utilidad_valores'] ?? 100)
+        ];
+        if ($hasIdOperador) {
+            $params[':id_operador'] = $idOp;
+        }
+        if ($hasAdmiteSp) {
+            $params[':admite_sp'] = $datos['admite_sobrepeso'] ?? 1;
+        }
+        if ($hasCostoTotal) {
+            $params[':costo_total'] = $costoTotalRuta;
+        }
+        $stmt->execute($params);
+
+        $idRuta = (int)$this->db->lastInsertId();
+
+        $this->asegurarCiudadExiste($datos['origen']);
+        $this->asegurarCiudadExiste($datos['destino']);
+
+        if (!empty($tramos)) {
+            $colsTramo = array_column($this->db->query("DESCRIBE RUTA_TRAMO")->fetchAll(PDO::FETCH_ASSOC), 'Field');
+            $tramoHasIdOp = in_array('ID_OPERADOR', $colsTramo);
+            $tramoHasIdCat = in_array('ID_TRAMO_CATALOGO', $colsTramo);
+
+            $sqlTramo = "INSERT INTO RUTA_TRAMO 
+                (ID_RUTA, ORDEN, ORIGEN_TRAMO, DESTINO_TRAMO, OPERADOR" 
+                . ($tramoHasIdOp ? ", ID_OPERADOR" : "") 
+                . ($tramoHasIdCat ? ", ID_TRAMO_CATALOGO" : "") 
+                . ", PVP_TRAMO, COSTO_OPERADOR, UTILIDAD_AGENCIA, ADMITE_SOBREPESO, LIMITE_EQUIPAJE_KG, PRECIO_SOBREPESO_KG, COSTO_SOBREPESO_KG, UTILIDAD_SOBREPESO_KG) 
+                VALUES (?, ?, ?, ?, ?" 
+                . ($tramoHasIdOp ? ", ?" : "") 
+                . ($tramoHasIdCat ? ", ?" : "") 
+                . ", ?, ?, ?, ?, ?, ?, ?, ?)";
+            $stmtTramo = $this->db->prepare($sqlTramo);
+
+            foreach ($tramos as $i => $tramo) {
+                $this->asegurarCiudadExiste($tramo['origen']);
+                $this->asegurarCiudadExiste($tramo['destino']);
+                $vals = [
+                    $idRuta, 
+                    $i + 1, 
+                    $tramo['origen'], 
+                    $tramo['destino'],
+                    $tramo['operador'] ?? 'Aliado'
+                ];
+                if ($tramoHasIdOp) {
+                    $vals[] = !empty($tramo['id_operador']) ? intval($tramo['id_operador']) : 1;
+                }
+                if ($tramoHasIdCat) {
+                    $vals[] = !empty($tramo['id_tramo_catalogo']) ? intval($tramo['id_tramo_catalogo']) : null;
+                }
+                $vals = array_merge($vals, [
+                    floatval($tramo['pvp'] ?? 0.00),
+                    floatval($tramo['costo'] ?? 0.00),
+                    floatval($tramo['utilidad'] ?? 0.00),
+                    intval($tramo['admite_sobrepeso'] ?? 1),
+                    floatval($tramo['limite_equipaje'] ?? 35.00),
+                    floatval($tramo['precio_sobrepeso'] ?? 1.00),
+                    floatval($tramo['costo_sobrepeso'] ?? 0.00),
+                    floatval($tramo['utilidad_sobrepeso'] ?? 0.00)
+                ]);
+                $stmtTramo->execute($vals);
+            }
+        }
+
+        return $idRuta;
+    }
+
+    public function crearRutaRapidaBD($datos) {
+        try {
+            $this->db->beginTransaction();
+
+            $origen = trim($datos['origen'] ?? '');
+            $destino = trim($datos['destino'] ?? '');
+            $modalidad = trim($datos['modalidad'] ?? 'CONEXION_TRAMOS');
+            $diasSalida = !empty($datos['dias_salida']) ? (is_array($datos['dias_salida']) ? implode(',', $datos['dias_salida']) : $datos['dias_salida']) : '1,2,3,4,5,6,7';
+            $horaSalida = !empty($datos['hora_salida']) ? $datos['hora_salida'] : '08:00:00';
+            $precioPasaje = floatval($datos['precio_pasaje'] ?? 0);
+            $costoTotalRuta = floatval($datos['costo_total_ruta'] ?? 0);
+            $crearRetorno = !empty($datos['crear_retorno']);
+
+            if (empty($origen) || empty($destino)) {
+                throw new Exception("Debe especificar origen y destino.");
+            }
+
+            // Validar regla de integridad financiera
+            if ($costoTotalRuta > 0 && $precioPasaje < $costoTotalRuta) {
+                throw new Exception("Bloqueo de seguridad: El precio de venta al público ($" . number_format($precioPasaje, 2) . ") no puede ser menor al costo total de liquidación a operadores ($" . number_format($costoTotalRuta, 2) . "). La agencia no puede operar a pérdida.");
+            }
+
+            $tramos = $datos['tramos'] ?? [];
+            if (empty($tramos)) {
+                $sug = $this->sugerirTramosParaRuta($origen, $destino, $modalidad);
+                $tramos = $sug['tramos'] ?? [];
+                if ($costoTotalRuta <= 0) $costoTotalRuta = $sug['costo_total_operadores'];
+                if ($precioPasaje <= 0) $precioPasaje = $sug['pvp_sugerido'];
+            }
+
+            $utilidadAgencia = max(0, $precioPasaje - $costoTotalRuta);
+            $tipoViaje = (!empty($tramos) && count($tramos) > 1) ? 'CONEXION' : 'DIRECTO';
+
+            $idOperadorPrincipal = 1;
+            if ($modalidad === 'PANAMERICANA') {
+                $idOperadorPrincipal = 2;
+            }
+
+            // 1. Crear Ruta Ida
+            $idRutaIda = $this->insertarRutaIndividual([
+                'origen' => $origen,
+                'destino' => $destino,
+                'tipo_viaje' => $tipoViaje,
+                'modalidad' => $modalidad,
+                'id_operador' => $idOperadorPrincipal,
+                'dias_salida' => $diasSalida,
+                'hora_salida' => $horaSalida,
+                'precio_pasaje' => $precioPasaje,
+                'costo_total_ruta' => $costoTotalRuta,
+                'utilidad_pasaje' => $utilidadAgencia,
+                'tramos' => $tramos
+            ]);
+
+            $idRutaRetorno = null;
+            // 2. Crear Retorno Inverso si se seleccionó
+            if ($crearRetorno) {
+                $stmtBuscaCat = $this->db->prepare("SELECT ID_TRAMO_CATALOGO, ID_OPERADOR, OPERADOR_NOMBRE, COSTO_OPERADOR, PVP_SUGERIDO, ADMITE_SOBREPESO, LIMITE_EQUIPAJE_KG, PRECIO_SOBREPESO_KG FROM tramo_catalogo WHERE LOWER(ORIGEN_TRAMO) = LOWER(?) AND LOWER(DESTINO_TRAMO) = LOWER(?) AND ESTADO = 'ACTIVO' LIMIT 1");
+
+                $tramosInvertidos = [];
+                for ($i = count($tramos) - 1; $i >= 0; $i--) {
+                    $tr = $tramos[$i];
+                    $origInv = $tr['destino'];
+                    $destInv = $tr['origen'];
+
+                    $stmtBuscaCat->execute([$origInv, $destInv]);
+                    $catInv = $stmtBuscaCat->fetch(PDO::FETCH_ASSOC);
+
+                    if ($catInv) {
+                        $tramosInvertidos[] = [
+                            'origen' => $origInv,
+                            'destino' => $destInv,
+                            'operador' => $catInv['OPERADOR_NOMBRE'] ?: ($tr['operador'] ?? 'Aliado'),
+                            'id_operador' => intval($catInv['ID_OPERADOR'] ?? ($tr['id_operador'] ?? 1)),
+                            'id_tramo_catalogo' => intval($catInv['ID_TRAMO_CATALOGO']),
+                            'costo' => floatval($catInv['COSTO_OPERADOR']),
+                            'pvp' => floatval($catInv['PVP_SUGERIDO']),
+                            'utilidad' => max(0, floatval($catInv['PVP_SUGERIDO']) - floatval($catInv['COSTO_OPERADOR'])),
+                            'admite_sobrepeso' => intval($catInv['ADMITE_SOBREPESO'] ?? 1),
+                            'limite_equipaje' => floatval($catInv['LIMITE_EQUIPAJE_KG'] ?? 35),
+                            'precio_sobrepeso' => floatval($catInv['PRECIO_SOBREPESO_KG'] ?? 1)
+                        ];
+                    } else {
+                        $tramosInvertidos[] = [
+                            'origen' => $origInv,
+                            'destino' => $destInv,
+                            'operador' => $tr['operador'] ?? 'Aliado',
+                            'id_operador' => $tr['id_operador'] ?? 1,
+                            'id_tramo_catalogo' => null,
+                            'costo' => $tr['costo'] ?? 0,
+                            'pvp' => $tr['pvp'] ?? 0,
+                            'utilidad' => $tr['utilidad'] ?? 0,
+                            'admite_sobrepeso' => $tr['admite_sobrepeso'] ?? 1,
+                            'limite_equipaje' => $tr['limite_equipaje'] ?? 35,
+                            'precio_sobrepeso' => $tr['precio_sobrepeso'] ?? 1
+                        ];
+                    }
+                }
+
+                $idRutaRetorno = $this->insertarRutaIndividual([
+                    'origen' => $destino,
+                    'destino' => $origen,
+                    'tipo_viaje' => $tipoViaje,
+                    'modalidad' => $modalidad,
+                    'id_operador' => $idOperadorPrincipal,
+                    'dias_salida' => $diasSalida,
+                    'hora_salida' => $horaSalida,
+                    'precio_pasaje' => $precioPasaje,
+                    'costo_total_ruta' => $costoTotalRuta,
+                    'utilidad_pasaje' => $utilidadAgencia,
+                    'tramos' => $tramosInvertidos
+                ]);
+            }
+
+            $this->db->commit();
+            return [
+                'status' => 'success',
+                'id_ruta_ida' => $idRutaIda,
+                'id_ruta_retorno' => $idRutaRetorno,
+                'mensaje' => $crearRetorno 
+                    ? "¡Ruta de ida (#{$idRutaIda}) y retorno (#{$idRutaRetorno}) creadas exitosamente en 1 solo clic!"
+                    : "¡Ruta comercial #{$idRutaIda} creada exitosamente!"
+            ];
+        } catch (Exception $e) {
+            $this->db->rollBack();
+            return ['status' => 'error', 'mensaje' => $e->getMessage()];
         }
     }
 }

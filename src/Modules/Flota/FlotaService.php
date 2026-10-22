@@ -357,5 +357,59 @@ class FlotaService {
     public function procesarPrecargarCiudades() {
         return $this->repository->precargarCatalogoCompletoCiudades();
     }
+
+    // ==========================================
+    // SECCIÓN CATÁLOGO DE TRAMOS Y CREACIÓN RÁPIDA
+    // ==========================================
+    public function procesarGuardarTramoCatalogo($postData) {
+        $costo = floatval($postData['costo_operador'] ?? 0);
+        $pvp = floatval($postData['pvp_sugerido'] ?? 0);
+        if ($pvp > 0 && $costo > $pvp) {
+            return "El precio de venta sugerido ($" . number_format($pvp, 2) . ") no puede ser menor al costo del operador ($" . number_format($costo, 2) . ").";
+        }
+        return $this->repository->guardarTramoCatalogoBD($postData);
+    }
+
+    public function procesarCambiarEstadoTramoCatalogo($postData) {
+        $idTramo = intval($postData['id_tramo_catalogo'] ?? 0);
+        $estado = $postData['estado'] ?? 'ACTIVO';
+        return $this->repository->cambiarEstadoTramoCatalogoBD($idTramo, $estado);
+    }
+
+    public function procesarEliminarTramoCatalogo($postData) {
+        $idTramo = intval($postData['id_tramo_catalogo'] ?? 0);
+        return $this->repository->eliminarTramoCatalogoBD($idTramo);
+    }
+
+    public function procesarSincronizarTarifasTramos($postData) {
+        $idTramo = !empty($postData['id_tramo_catalogo']) ? intval($postData['id_tramo_catalogo']) : null;
+        return $this->repository->sincronizarTarifasTramosEnRutas($idTramo);
+    }
+
+    public function procesarCrearRutaRapida($postData) {
+        $origen = trim($postData['origen'] ?? '');
+        $destino = trim($postData['destino'] ?? '');
+        if (empty($origen) || empty($destino)) {
+            return "Debe seleccionar la ciudad de origen y la ciudad de destino.";
+        }
+        if (mb_strtolower($origen) === mb_strtolower($destino)) {
+            return "El origen y el destino no pueden ser la misma ciudad.";
+        }
+
+        $precioPasaje = floatval($postData['precio_pasaje'] ?? 0);
+        $costoTotal = floatval($postData['costo_total_ruta'] ?? 0);
+        if ($costoTotal > 0 && $precioPasaje < $costoTotal) {
+            return "Bloqueo de seguridad: El precio de venta al público ($" . number_format($precioPasaje, 2) . ") no puede ser menor al costo total de liquidación a operadores ($" . number_format($costoTotal, 2) . ").";
+        }
+
+        if (!empty($postData['tramos_json'])) {
+            $tramos = json_decode($postData['tramos_json'], true);
+            if (is_array($tramos)) {
+                $postData['tramos'] = $tramos;
+            }
+        }
+
+        return $this->repository->crearRutaRapidaBD($postData);
+    }
 }
 ?>

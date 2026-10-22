@@ -11,15 +11,18 @@
                     <p class="text-muted small mb-0">Calcula automáticamente todas las combinaciones comerciales válidas, detecta tramos de transbordo fronterizo y aplica tarifas sugeridas sin borrar precios personalizados.</p>
                 </div>
                 <div class="d-flex gap-2">
-                    <form action="/suramerica2030/flota/generarRutasCorredor" method="POST" onsubmit="return confirm('¿Deseas generar o sincronizar todas las combinaciones comerciales del corredor seleccionado? Los precios que ya hayas personalizado se respetarán.');">
-                        <input type="hidden" name="id_corredor" id="generador_id_corredor" value="<?= $corredorActivo['ID_CORREDOR'] ?? 1 ?>">
-                        <button type="submit" class="btn btn-success fw-bold shadow-sm" id="btnGenerarRutas">
-                            ⚡ Sincronizar / Generar Rutas (<span id="textoNombreCorredorGenerar"><?= htmlspecialchars($corredorActivo['CODIGO'] ?? 'Corredor') ?></span>)
-                        </button>
-                    </form>
+                    <button class="btn btn-primary fw-bold shadow-sm" data-bs-toggle="modal" data-bs-target="#modalCrearRutaRapida" onclick="abrirModalRutaRapida()">
+                        ⚡ Crear Ruta en 3 Clics
+                    </button>
                     <button class="btn btn-outline-primary fw-bold" data-bs-toggle="modal" data-bs-target="#modalNuevaRutaManual">
                         + Nueva Ruta Manual
                     </button>
+                    <form action="/suramerica2030/flota/generarRutasCorredor" method="POST" onsubmit="return confirm('¿Deseas generar o sincronizar todas las combinaciones comerciales del corredor seleccionado? Los precios que ya hayas personalizado se respetarán.');">
+                        <input type="hidden" name="id_corredor" id="generador_id_corredor" value="<?= $corredorActivo['ID_CORREDOR'] ?? 1 ?>">
+                        <button type="submit" class="btn btn-outline-success fw-bold shadow-sm" id="btnGenerarRutas" title="Generar combinaciones del corredor">
+                            ⚙️ Generar del Corredor
+                        </button>
+                    </form>
                 </div>
             </div>
         </div>
@@ -244,8 +247,10 @@
                             <th>Origen ➔ Destino</th>
                             <th>Operador / Modalidad</th>
                             <th>Días y Horarios</th>
-                            <th class="text-end">Tarifa Pasaje</th>
-                            <th class="text-end">Tarifa Encomienda/Kg</th>
+                            <th class="text-end">Costo Operadores</th>
+                            <th class="text-end">Tarifa Pasaje (PVP)</th>
+                            <th class="text-end">Ganancia Agencia</th>
+                            <th class="text-end">Encomienda</th>
                             <th class="text-center">Estado</th>
                             <th class="text-center" style="width: 140px;">Acciones</th>
                         </tr>
@@ -351,14 +356,20 @@
                                     <small class="d-block text-muted"><?= htmlspecialchars($strDias) ?></small>
                                     <small class="text-primary fw-bold">⏰ <?= $r['RUT_SAHORA'] ?></small>
                                 </td>
+                                <td class="col-ruta-costo text-end">
+                                    <span class="fs-6 fw-bold text-danger">$<?= number_format($r['COSTO_CALCULADO'] ?? $r['COSTO_TOTAL_RUTA'] ?? 0, 2) ?></span>
+                                    <small class="text-muted d-block" style="font-size: 0.68rem;">liquidación</small>
+                                </td>
                                 <td class="col-ruta-tarifa-pasaje text-end">
-                                    <span class="fs-6 fw-bold text-dark">$ <?= number_format($r['PRECIO_PASAJE'], 2) ?></span>
-                                    <small class="text-success d-block fw-bold" style="font-size: 0.72rem;" title="Retención de Utilidad de la Agencia">
-                                        💼 <?= ($r['TIPO_UTILIDAD'] ?? 'PORCENTAJE') === 'FIJO' ? '$' . number_format($r['UTILIDAD_PASAJE'] ?? 0, 2) : number_format($r['UTILIDAD_PASAJE'] ?? 100, 0) . '%' ?> util.
-                                    </small>
+                                    <span class="fs-6 fw-bold text-primary">$<?= number_format($r['PRECIO_PASAJE'], 2) ?></span>
+                                    <small class="text-muted d-block" style="font-size: 0.68rem;">precio viajero</small>
+                                </td>
+                                <td class="col-ruta-ganancia text-end">
+                                    <span class="fs-6 fw-bold text-success">$<?= number_format($r['UTILIDAD_CALCULADA'] ?? $r['UTILIDAD_PASAJE'] ?? 0, 2) ?></span>
+                                    <small class="text-success d-block fw-bold" style="font-size: 0.68rem;"><?= $r['MARGEN_PCT'] ?? 0 ?>% margen</small>
                                 </td>
                                 <td class="col-ruta-tarifa-encomienda text-end">
-                                    <span class="fs-6 fw-bold text-dark">$ <?= number_format($r['PRECIO_ENCOMIENDA_KG'], 2) ?></span>
+                                    <span class="fs-6 fw-bold text-dark">$<?= number_format($r['PRECIO_ENCOMIENDA_KG'], 2) ?></span>
                                 </td>
                                 <td class="col-ruta-estado text-center">
                                     <?php if($esActivo): ?>
@@ -388,7 +399,7 @@
                         
                         <!-- FILA SIN RESULTADOS -->
                         <tr id="filaSinRutas" style="display: none;">
-                            <td colspan="8" class="text-center py-5 text-muted">
+                            <td colspan="10" class="text-center py-5 text-muted">
                                 <div class="fs-2 mb-2">🔍</div>
                                 <h6 class="fw-bold text-dark">No se encontraron rutas comerciales</h6>
                                 <p class="small text-secondary mb-0">No hay coincidencias con los filtros de corredor y búsqueda seleccionados.</p>
@@ -1008,6 +1019,359 @@
                 </form>
             </div>
         </div>
-
     </div>
 
+    <!-- ======================================================== -->
+    <!-- MODAL: ASISTENTE INTELIGENTE DE RUTAS EN 3 CLICS         -->
+    <!-- ======================================================== -->
+    <div class="modal fade" id="modalCrearRutaRapida" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content shadow-lg border-0">
+                <form action="/suramerica2030/flota/crearRutaRapida" method="POST" id="formCrearRutaRapida">
+                    <input type="hidden" name="ajax" value="1">
+                    <input type="hidden" name="tramos_json" id="rapida_tramos_json" value="">
+                    <input type="hidden" name="costo_total_ruta" id="rapida_costo_total_hidden" value="0">
+
+                    <div class="modal-header bg-primary text-white py-3">
+                        <div class="d-flex align-items-center gap-2">
+                            <span class="fs-4">⚡</span>
+                            <div>
+                                <h5 class="modal-title fw-bold mb-0 text-white">Asistente de Creación de Rutas en 3 Clics</h5>
+                                <small class="text-white-50">Crea rutas comerciales en segundos con cálculo automático de tramos, costos y tarifas protegidas</small>
+                            </div>
+                        </div>
+                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+                    </div>
+
+                    <div class="modal-body p-4">
+                        <!-- PASO 1: ORIGEN Y DESTINO -->
+                        <div class="card border-0 bg-light p-3 mb-3">
+                            <div class="d-flex align-items-center gap-2 mb-2">
+                                <span class="badge bg-primary rounded-circle">1</span>
+                                <h6 class="fw-bold text-dark mb-0">Selecciona el Trayecto Comercial</h6>
+                            </div>
+                            <div class="row g-3">
+                                <div class="col-md-6">
+                                    <label class="form-label small fw-bold">🛫 Ciudad de Origen <span class="text-danger">*</span></label>
+                                    <input type="text" name="origen" id="rapida_origen" class="form-control form-control-lg fs-6 fw-bold" list="listaCiudadesRutaRapida" placeholder="Ej: Maturín, Quito o Caracas" required autocomplete="off" oninput="dispararSugerenciaRutaRapida()">
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label small fw-bold">🛬 Ciudad de Destino <span class="text-danger">*</span></label>
+                                    <input type="text" name="destino" id="rapida_destino" class="form-control form-control-lg fs-6 fw-bold" list="listaCiudadesRutaRapida" placeholder="Ej: Manta, Caracas o Cúcuta" required autocomplete="off" oninput="dispararSugerenciaRutaRapida()">
+                                </div>
+                            </div>
+                            <datalist id="listaCiudadesRutaRapida">
+                                <?php foreach ($ciudadesCatalogo ?? [] as $cd): ?>
+                                    <option value="<?= htmlspecialchars($cd['NOMBRE']) ?>"><?= htmlspecialchars($cd['PAIS']) ?></option>
+                                <?php endforeach; ?>
+                            </datalist>
+                        </div>
+
+                        <!-- PASO 2: MODALIDAD OPERATIVA Y RETORNO -->
+                        <div class="card border-0 bg-light p-3 mb-3">
+                            <div class="d-flex align-items-center gap-2 mb-2">
+                                <span class="badge bg-primary rounded-circle">2</span>
+                                <h6 class="fw-bold text-dark mb-0">Modalidad Operativa y Retorno</h6>
+                            </div>
+                            <div class="row g-3 align-items-center">
+                                <div class="col-md-6">
+                                    <label class="form-label small fw-bold">🤝 Modalidad de Alianza / Conexión</label>
+                                    <select name="modalidad" id="rapida_modalidad" class="form-select fw-bold" onchange="dispararSugerenciaRutaRapida()">
+                                        <option value="CONEXION_TRAMOS" selected>🔄 Suramérica Conexiones (Empresas Locales + Troncal)</option>
+                                        <option value="PANAMERICANA">⭐ Alianza Panamericana Internacional</option>
+                                        <option value="DIRECTO">➡️ Servicio Directo (Flota Propia)</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="form-check form-switch pt-2">
+                                        <input class="form-check-input" type="checkbox" name="crear_retorno" value="1" id="rapida_crear_retorno" checked>
+                                        <label class="form-check-label fw-bold text-primary" for="rapida_crear_retorno">
+                                            🔁 Crear Retorno Inverso Automáticamente
+                                        </label>
+                                        <small class="text-muted d-block" style="font-size: 11px;">
+                                            Genera en la misma transacción la ruta inversa (Destino ➔ Origen) con sus tramos ordenados al revés.
+                                        </small>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- PASO 3: REVISIÓN DE TRAMOS Y TARIFA SEGURA (FAIL-SAFE) -->
+                        <div class="card border shadow-sm p-3 mb-3 bg-white">
+                            <div class="d-flex align-items-center justify-content-between mb-2">
+                                <div class="d-flex align-items-center gap-2">
+                                    <span class="badge bg-primary rounded-circle">3</span>
+                                    <h6 class="fw-bold text-dark mb-0">Tramos Detectados y Tarifa Comercial</h6>
+                                </div>
+                                <span class="badge bg-light text-muted border" id="rapida_status_tramos">Esperando selección...</span>
+                            </div>
+
+                            <!-- CONTENEDOR DE TRAMOS DETECTADOS -->
+                            <div id="rapida_contenedor_tramos" class="p-2 mb-3 bg-light rounded border">
+                                <p class="text-muted small mb-0 text-center py-3">
+                                    👈 Escribe el origen y el destino para que el asistente calcule los tramos maestros y costos de operadores automáticamente.
+                                </p>
+                            </div>
+
+                            <!-- MATRIZ DE PRECIO Y MARGEN -->
+                            <div class="row g-3 align-items-center p-3 rounded" id="rapida_caja_precios" style="background: #f1f8e9;">
+                                <div class="col-md-4">
+                                    <label class="form-label small fw-bold text-danger mb-0">Costo Operadores (Liquidación):</label>
+                                    <div class="fs-4 fw-bold text-danger" id="rapida_lbl_costo_total">$0.00</div>
+                                    <small class="text-muted" style="font-size: 11px;">Total a pagar a transportistas</small>
+                                </div>
+                                <div class="col-md-4">
+                                    <label class="form-label small fw-bold text-primary mb-1">Precio Pasaje al Público ($):</label>
+                                    <div class="input-group">
+                                        <span class="input-group-text bg-primary text-white fw-bold">$</span>
+                                        <input type="number" step="0.50" min="0" name="precio_pasaje" id="rapida_input_pvp" class="form-control form-control-lg fw-bold text-primary" placeholder="0.00" required oninput="recalcularMargenRutaRapida()">
+                                    </div>
+                                    <small class="text-muted" style="font-size: 11px;">Tarifa final cobrada al pasajero</small>
+                                </div>
+                                <div class="col-md-4">
+                                    <label class="form-label small fw-bold text-success mb-0">Ganancia Agencia:</label>
+                                    <div class="fs-4 fw-bold text-success" id="rapida_lbl_ganancia">$0.00</div>
+                                    <div class="progress mt-1" style="height: 6px;">
+                                        <div id="rapida_barra_margen" class="progress-bar bg-success" role="progressbar" style="width: 0%;"></div>
+                                    </div>
+                                    <small class="text-success fw-bold d-block mt-1" id="rapida_lbl_margen_pct" style="font-size: 11px;">0% margen</small>
+                                </div>
+                            </div>
+
+                            <!-- ALERTA DE BLOQUEO POR PÉRDIDA (FAIL-SAFE) -->
+                            <div id="rapida_alerta_perdida" class="alert alert-danger d-none mt-3 mb-0 py-2 d-flex align-items-center gap-2">
+                                <span class="fs-4">⛔</span>
+                                <div>
+                                    <strong class="d-block">Bloqueo de Seguridad Activado</strong>
+                                    <span class="small" id="rapida_alerta_perdida_texto">El precio de venta no puede ser inferior a los costos de liquidación.</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- DÍAS Y HORARIO -->
+                        <div class="row g-3 align-items-center">
+                            <div class="col-md-7">
+                                <label class="form-label small fw-bold text-secondary mb-1">Días de Salida:</label>
+                                <div class="d-flex flex-wrap gap-1">
+                                    <?php foreach($mapaDias as $numDia => $txtDia): ?>
+                                        <label class="btn btn-outline-secondary btn-sm py-1 px-2" style="font-size: 11px;">
+                                            <input type="checkbox" name="dias_salida[]" value="<?= $numDia ?>" checked> <?= $txtDia ?>
+                                        </label>
+                                    <?php endforeach; ?>
+                                </div>
+                            </div>
+                            <div class="col-md-5">
+                                <label class="form-label small fw-bold text-secondary mb-1">Hora de Salida Fija:</label>
+                                <input type="time" name="hora_salida" class="form-control" value="08:00" required>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="modal-footer bg-light py-2">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                        <button type="submit" class="btn btn-primary fw-bold px-4" id="btnGuardarRutaRapida">
+                            🚀 Crear Ruta(s) Comerciales
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- SCRIPT DEL ASISTENTE DE RUTAS EN 3 CLICS -->
+    <script>
+    let timerSugerenciaRapida = null;
+    let tramosSugeridosActuales = [];
+
+    function abrirModalRutaRapida() {
+        document.getElementById('formCrearRutaRapida').reset();
+        document.getElementById('rapida_tramos_json').value = '';
+        document.getElementById('rapida_costo_total_hidden').value = '0';
+        document.getElementById('rapida_lbl_costo_total').innerText = '$0.00';
+        document.getElementById('rapida_input_pvp').value = '';
+        document.getElementById('rapida_lbl_ganancia').innerText = '$0.00';
+        document.getElementById('rapida_lbl_margen_pct').innerText = '0% margen';
+        document.getElementById('rapida_barra_margen').style.width = '0%';
+        document.getElementById('rapida_status_tramos').innerText = 'Esperando selección...';
+        document.getElementById('rapida_status_tramos').className = 'badge bg-light text-muted border';
+        document.getElementById('rapida_contenedor_tramos').innerHTML = `
+            <p class="text-muted small mb-0 text-center py-3">
+                👈 Escribe el origen y el destino para que el asistente calcule los tramos maestros y costos de operadores automáticamente.
+            </p>
+        `;
+        document.getElementById('rapida_alerta_perdida').classList.add('d-none');
+        document.getElementById('btnGuardarRutaRapida').disabled = false;
+    }
+
+    function dispararSugerenciaRutaRapida() {
+        clearTimeout(timerSugerenciaRapida);
+        const origen = (document.getElementById('rapida_origen').value || '').trim();
+        const destino = (document.getElementById('rapida_destino').value || '').trim();
+        const modalidad = (document.getElementById('rapida_modalidad').value || 'CONEXION_TRAMOS');
+
+        if (origen.length < 3 || destino.length < 3) {
+            return;
+        }
+
+        if (origen.toLowerCase() === destino.toLowerCase()) {
+            document.getElementById('rapida_contenedor_tramos').innerHTML = `
+                <div class="alert alert-warning py-2 mb-0 small text-center">
+                    ⚠️ El origen y el destino no pueden ser la misma ciudad.
+                </div>
+            `;
+            return;
+        }
+
+        document.getElementById('rapida_status_tramos').innerText = 'Calculando tramos...';
+        document.getElementById('rapida_status_tramos').className = 'badge bg-warning-subtle text-warning border border-warning-subtle';
+
+        timerSugerenciaRapida = setTimeout(() => {
+            fetch(`/suramerica2030/flota/sugerirTramosRuta?origen=${encodeURIComponent(origen)}&destino=${encodeURIComponent(destino)}&modalidad=${encodeURIComponent(modalidad)}`)
+                .then(res => res.json())
+                .then(res => {
+                    if (res.status === 'success' && res.data) {
+                        renderizarTramosSugeridosRapida(res.data);
+                    } else {
+                        document.getElementById('rapida_status_tramos').innerText = 'Error al calcular';
+                        document.getElementById('rapida_status_tramos').className = 'badge bg-danger-subtle text-danger border border-danger-subtle';
+                    }
+                })
+                .catch(err => {
+                    console.error('Error calculando sugerencia:', err);
+                });
+        }, 350);
+    }
+
+    function renderizarTramosSugeridosRapida(data) {
+        tramosSugeridosActuales = data.tramos || [];
+        document.getElementById('rapida_tramos_json').value = JSON.stringify(tramosSugeridosActuales);
+        document.getElementById('rapida_costo_total_hidden').value = data.costo_total_operadores || 0;
+        document.getElementById('rapida_lbl_costo_total').innerText = '$' + (data.costo_total_operadores || 0).toFixed(2);
+        
+        // Asignar PVP sugerido
+        const inputPvp = document.getElementById('rapida_input_pvp');
+        inputPvp.value = (data.pvp_sugerido || 0).toFixed(2);
+
+        document.getElementById('rapida_status_tramos').innerText = (tramosSugeridosActuales.length) + ' tramo(s) detectado(s)';
+        document.getElementById('rapida_status_tramos').className = 'badge bg-success-subtle text-success border border-success-subtle';
+
+        let html = '<div class="list-group list-group-flush">';
+        tramosSugeridosActuales.forEach((t, idx) => {
+            html += `
+                <div class="list-group-item d-flex justify-content-between align-items-center px-2 py-2 bg-white rounded mb-1 border shadow-xs">
+                    <div>
+                        <div class="fw-bold text-dark small">
+                            ${idx + 1}. ${t.origen} ➔ ${t.destino}
+                        </div>
+                        <small class="text-secondary" style="font-size: 11px;">
+                            🏢 ${t.operador}
+                        </small>
+                    </div>
+                    <div class="text-end">
+                        <span class="badge bg-danger-subtle text-danger border border-danger-subtle">
+                            Costo: $${parseFloat(t.costo).toFixed(2)}
+                        </span>
+                        <span class="badge bg-primary-subtle text-primary border border-primary-subtle ms-1">
+                            PVP: $${parseFloat(t.pvp).toFixed(2)}
+                        </span>
+                    </div>
+                </div>
+            `;
+        });
+        html += '</div>';
+
+        document.getElementById('rapida_contenedor_tramos').innerHTML = html;
+        recalcularMargenRutaRapida();
+    }
+
+    function recalcularMargenRutaRapida() {
+        const costoTotal = parseFloat(document.getElementById('rapida_costo_total_hidden').value) || 0;
+        const pvp = parseFloat(document.getElementById('rapida_input_pvp').value) || 0;
+        const btn = document.getElementById('btnGuardarRutaRapida');
+        const alertaPerdida = document.getElementById('rapida_alerta_perdida');
+        const alertaTexto = document.getElementById('rapida_alerta_perdida_texto');
+
+        if (costoTotal > 0 && pvp < costoTotal) {
+            // BLOQUEO POR PÉRDIDA (FAIL-SAFE)
+            const deficit = (costoTotal - pvp).toFixed(2);
+            alertaTexto.innerText = `El precio configurado ($${pvp.toFixed(2)}) genera una pérdida neta de -$${deficit} frente a la liquidación de operadores ($${costoTotal.toFixed(2)}). Corrija el precio para continuar.`;
+            alertaPerdida.classList.remove('d-none');
+            btn.disabled = true;
+
+            document.getElementById('rapida_lbl_ganancia').innerText = '-$' + deficit;
+            document.getElementById('rapida_lbl_ganancia').className = 'fs-4 fw-bold text-danger';
+            document.getElementById('rapida_lbl_margen_pct').innerText = 'Pérdida';
+            document.getElementById('rapida_lbl_margen_pct').className = 'text-danger fw-bold d-block mt-1';
+            document.getElementById('rapida_barra_margen').style.width = '0%';
+            document.getElementById('rapida_barra_margen').className = 'progress-bar bg-danger';
+            return;
+        }
+
+        alertaPerdida.classList.add('d-none');
+        btn.disabled = false;
+
+        const utilidad = Math.max(0, pvp - costoTotal);
+        const margenPct = (pvp > 0) ? ((utilidad / pvp) * 100).toFixed(1) : '0';
+
+        document.getElementById('rapida_lbl_ganancia').innerText = '$' + utilidad.toFixed(2);
+        document.getElementById('rapida_lbl_ganancia').className = 'fs-4 fw-bold text-success';
+        document.getElementById('rapida_lbl_margen_pct').innerText = margenPct + '% margen de rentabilidad';
+        document.getElementById('rapida_lbl_margen_pct').className = 'text-success fw-bold d-block mt-1';
+        document.getElementById('rapida_barra_margen').style.width = Math.min(100, margenPct) + '%';
+        document.getElementById('rapida_barra_margen').className = 'progress-bar bg-success';
+    }
+
+    // Manejar envío AJAX del formulario de Ruta Rápida
+    document.addEventListener('DOMContentLoaded', function() {
+        const formRapida = document.getElementById('formCrearRutaRapida');
+        if (formRapida) {
+            formRapida.addEventListener('submit', function(e) {
+                e.preventDefault();
+                const btn = document.getElementById('btnGuardarRutaRapida');
+                btn.disabled = true;
+                btn.innerText = '⏳ Creando Ruta(s)...';
+
+                const formData = new FormData(formRapida);
+
+                fetch(formRapida.action, {
+                    method: 'POST',
+                    headers: { 'X-Requested-With': 'XMLHttpRequest' },
+                    body: formData
+                })
+                .then(r => r.json())
+                .then(data => {
+                    btn.disabled = false;
+                    btn.innerText = '🚀 Crear Ruta(s) Comerciales';
+
+                    if (data.status === 'success') {
+                        // Cerrar modal
+                        const modalEl = document.getElementById('modalCrearRutaRapida');
+                        const modal = bootstrap.Modal.getInstance(modalEl);
+                        if (modal) modal.hide();
+
+                        // Mostrar Toast
+                        const toastEl = document.getElementById('toastFlotaAjax');
+                        if (toastEl) {
+                            document.getElementById('toastFlotaAjaxMsg').innerText = data.mensaje || 'Ruta creada exitosamente.';
+                            const toast = new bootstrap.Toast(toastEl, { delay: 4000 });
+                            toast.show();
+                        }
+
+                        // Recargar tab de rutas
+                        setTimeout(() => {
+                            window.location.href = '/suramerica2030/flota?tab=rutas&status=success';
+                        }, 800);
+                    } else {
+                        alert(data.mensaje || 'Error al crear la ruta.');
+                    }
+                })
+                .catch(err => {
+                    btn.disabled = false;
+                    btn.innerText = '🚀 Crear Ruta(s) Comerciales';
+                    alert('Error en la comunicación con el servidor: ' + err.message);
+                });
+            });
+        }
+    });
+    </script>
+</div>

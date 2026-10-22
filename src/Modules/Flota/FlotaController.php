@@ -40,6 +40,7 @@ class FlotaController {
         $ciudadesCatalogo = $this->repository->obtenerCiudadesCatalogo();
         $ciudadesCompletas = $this->repository->obtenerTodasLasCiudadesConEstadisticas();
         $rutas = $this->repository->obtenerRutas();
+        $tramosCatalogo = $this->repository->obtenerTramosCatalogo(false);
         $buses = $this->repository->obtenerBusesConSocios();
         $operadores = $this->repository->obtenerOperadores(false);
         
@@ -307,6 +308,110 @@ class FlotaController {
         if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             $resultado = $this->service->procesarPrecargarCiudades();
             $this->redireccionar('ciudades', $resultado, 'success');
+        }
+    }
+
+    // --- ACCIONES DE CATÁLOGO MAESTRO DE TRAMOS Y RUTA RÁPIDA ---
+    public function sugerirTramosRuta() {
+        $this->verificarPermiso();
+        header('Content-Type: application/json; charset=utf-8');
+        try {
+            $origen = trim($_GET['origen'] ?? $_POST['origen'] ?? '');
+            $destino = trim($_GET['destino'] ?? $_POST['destino'] ?? '');
+            $modalidad = trim($_GET['modalidad'] ?? $_POST['modalidad'] ?? 'CONEXION_TRAMOS');
+
+            if (empty($origen) || empty($destino)) {
+                echo json_encode(['status' => 'error', 'mensaje' => 'Origen y destino son requeridos']);
+                exit();
+            }
+
+            $sugerencia = $this->repository->sugerirTramosParaRuta($origen, $destino, $modalidad);
+            echo json_encode(['status' => 'success', 'data' => $sugerencia]);
+        } catch (\Exception $e) {
+            echo json_encode(['status' => 'error', 'mensaje' => $e->getMessage()]);
+        }
+        exit();
+    }
+
+    public function crearRutaRapida() {
+        $this->verificarPermiso();
+        if ($_SERVER['REQUEST_METHOD'] == 'POST') {
+            $resultado = $this->service->procesarCrearRutaRapida($_POST);
+
+            $esAjax = (!empty($_SERVER['HTTP_X_REQUESTED_WITH']) && strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) === 'xmlhttprequest') 
+                      || (isset($_SERVER['HTTP_ACCEPT']) && strpos($_SERVER['HTTP_ACCEPT'], 'application/json') !== false)
+                      || !empty($_POST['ajax']);
+
+            if ($esAjax) {
+                header('Content-Type: application/json; charset=utf-8');
+                if (is_array($resultado) && ($resultado['status'] ?? '') === 'success') {
+                    echo json_encode([
+                        'status' => 'success',
+                        'mensaje' => $resultado['mensaje'] ?? 'Ruta(s) creada(s) correctamente.',
+                        'resultado' => $resultado
+                    ]);
+                } else {
+                    echo json_encode([
+                        'status' => 'error',
+                        'mensaje' => is_string($resultado) ? $resultado : ($resultado['mensaje'] ?? 'Error al crear la ruta.')
+                    ]);
+                }
+                exit();
+            }
+
+            if (is_array($resultado) && ($resultado['status'] ?? '') === 'success') {
+                $this->redireccionar('rutas', true, 'success');
+            } else {
+                $this->redireccionar('rutas', is_string($resultado) ? $resultado : ($resultado['mensaje'] ?? 'Error'), 'error');
+            }
+        }
+    }
+
+    public function guardarTramoCatalogo() {
+        $this->verificarPermiso();
+        if ($_SERVER['REQUEST_METHOD'] == 'POST') {
+            $resultado = $this->service->procesarGuardarTramoCatalogo($_POST);
+            $token = !empty($_POST['id_tramo_catalogo']) ? 'success_edit' : 'success';
+            $this->redireccionar('tramos', $resultado, $token);
+        }
+    }
+
+    public function cambiarEstadoTramoCatalogo() {
+        $this->verificarPermiso();
+        if ($_SERVER['REQUEST_METHOD'] == 'POST') {
+            $resultado = $this->service->procesarCambiarEstadoTramoCatalogo($_POST);
+            $this->redireccionar('tramos', $resultado, 'success_edit');
+        }
+    }
+
+    public function eliminarTramoCatalogo() {
+        $this->verificarPermiso();
+        if ($_SERVER['REQUEST_METHOD'] == 'POST') {
+            $resultado = $this->service->procesarEliminarTramoCatalogo($_POST);
+            $this->redireccionar('tramos', $resultado, 'success_delete');
+        }
+    }
+
+    public function sincronizarTarifasTramos() {
+        $this->verificarPermiso();
+        if ($_SERVER['REQUEST_METHOD'] == 'POST') {
+            $resultado = $this->service->procesarSincronizarTarifasTramos($_POST);
+
+            $esAjax = (!empty($_SERVER['HTTP_X_REQUESTED_WITH']) && strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) === 'xmlhttprequest') 
+                      || (isset($_SERVER['HTTP_ACCEPT']) && strpos($_SERVER['HTTP_ACCEPT'], 'application/json') !== false)
+                      || !empty($_POST['ajax']);
+
+            if ($esAjax) {
+                header('Content-Type: application/json; charset=utf-8');
+                echo json_encode($resultado);
+                exit();
+            }
+
+            if (is_array($resultado) && ($resultado['status'] ?? '') === 'success') {
+                $this->redireccionar('tramos', true, 'success_edit');
+            } else {
+                $this->redireccionar('tramos', is_string($resultado) ? $resultado : ($resultado['mensaje'] ?? 'Error'), 'error');
+            }
         }
     }
     
