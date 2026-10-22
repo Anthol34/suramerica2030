@@ -65,10 +65,6 @@
 
                             <!-- Desglose interactivo de Tramos y Operadores -->
                             <div id="detalle_tramos_ruta" class="mt-2 d-none"></div>
-
-                            <small id="alerta_tramos" class="text-danger fw-bold d-none mt-2 d-block">
-                                ⚠️ Esta ruta es de conexiones / transbordo internacional. Los buses y asientos exactos por tramo se asignarán en el embarque (puedes dejarlos en blanco).
-                            </small>
                         </div>
                     </div>
 
