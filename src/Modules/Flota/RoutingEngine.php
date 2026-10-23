@@ -358,6 +358,42 @@ class RoutingEngine {
                     $pares[] = ['Quito', $destino, 3];
                 }
             }
+        } elseif ($paisOrig === 'ECUADOR' && $paisDest === 'COLOMBIA') {
+            $trDirectoPana = $this->buscarTramo($origen, $destino, 2);
+            if ($trDirectoPana) {
+                $pares[] = [$origen, $destino, 2];
+            } else {
+                $trPana = $this->buscarTramo($origen, 'Cúcuta', 2);
+                if ($trPana) {
+                    $pares[] = [$origen, 'Cúcuta', 2];
+                } else {
+                    if (strcasecmp($origen, 'Quito') !== 0) {
+                        $pares[] = [$origen, 'Quito', 3];
+                    }
+                    $pares[] = ['Quito', 'Cúcuta', 2];
+                }
+                if (strcasecmp($destino, 'Cúcuta') !== 0) {
+                    $pares[] = ['Cúcuta', $destino, 4];
+                }
+            }
+        } elseif ($paisOrig === 'COLOMBIA' && $paisDest === 'ECUADOR') {
+            $trDirectoPana = $this->buscarTramo($origen, $destino, 2);
+            if ($trDirectoPana) {
+                $pares[] = [$origen, $destino, 2];
+            } else {
+                if (strcasecmp($origen, 'Cúcuta') !== 0) {
+                    $pares[] = [$origen, 'Cúcuta', 4];
+                }
+                $trPana = $this->buscarTramo('Cúcuta', $destino, 2);
+                if ($trPana) {
+                    $pares[] = ['Cúcuta', $destino, 2];
+                } else {
+                    $pares[] = ['Cúcuta', 'Quito', 2];
+                    if (strcasecmp($destino, 'Quito') !== 0) {
+                        $pares[] = ['Quito', $destino, 3];
+                    }
+                }
+            }
         } else {
             // Panamericana no opera nacional o tramos locales no aplicables
             return null;
@@ -401,12 +437,14 @@ class RoutingEngine {
                 }
             }
 
-            if ($esTroncalDirecta) {
-                $pares[] = ['San Cristóbal', $destino, 1]; // Expresos Suramérica 2030 directo
-            } else {
-                $pares[] = ['San Cristóbal', 'Caracas', 1]; // Expresos Suramérica 2030 troncal
-                if (strcasecmp($destino, 'Caracas') !== 0 && strcasecmp($destino, 'San Cristóbal') !== 0) {
-                    $pares[] = ['Caracas', $destino, 5];     // Distribución con aliado local
+            if (strcasecmp($destino, 'San Cristóbal') !== 0) {
+                if ($esTroncalDirecta) {
+                    $pares[] = ['San Cristóbal', $destino, 1]; // Expresos Suramérica 2030 directo
+                } else {
+                    $pares[] = ['San Cristóbal', 'Caracas', 1]; // Expresos Suramérica 2030 troncal
+                    if (strcasecmp($destino, 'Caracas') !== 0) {
+                        $pares[] = ['Caracas', $destino, 5];     // Distribución con aliado local
+                    }
                 }
             }
         }
@@ -506,12 +544,14 @@ class RoutingEngine {
                 }
             }
 
-            if ($esTroncalDirecta) {
-                $pares[] = ['San Cristóbal', $destino, 1];
-            } else {
-                $pares[] = ['San Cristóbal', 'Caracas', 1];
-                if (strcasecmp($destino, 'Caracas') !== 0 && strcasecmp($destino, 'San Cristóbal') !== 0) {
-                    $pares[] = ['Caracas', $destino, 5];
+            if (strcasecmp($destino, 'San Cristóbal') !== 0) {
+                if ($esTroncalDirecta) {
+                    $pares[] = ['San Cristóbal', $destino, 1];
+                } else {
+                    $pares[] = ['San Cristóbal', 'Caracas', 1];
+                    if (strcasecmp($destino, 'Caracas') !== 0) {
+                        $pares[] = ['Caracas', $destino, 5];
+                    }
                 }
             }
         }
@@ -545,6 +585,38 @@ class RoutingEngine {
                 if (strcasecmp($destino, 'Quito') !== 0) {
                     $pares[] = ['Quito', $destino, 3];
                 }
+            }
+        } elseif ($paisOrig === 'COLOMBIA' && $paisDest === 'VENEZUELA') {
+            if (strcasecmp($origen, 'Cúcuta') !== 0) {
+                $pares[] = [$origen, 'Cúcuta', 4];
+            }
+            $pares[] = ['Cúcuta', 'San Cristóbal', 5];
+            if (strcasecmp($destino, 'San Cristóbal') !== 0) {
+                $ciudadesTroncales = ['Caracas', 'Valencia', 'Maracay', 'Barquisimeto', 'Maracaibo'];
+                $esTroncal = in_array(ucfirst(strtolower($destino)), $ciudadesTroncales);
+                if ($esTroncal) {
+                    $pares[] = ['San Cristóbal', $destino, 1];
+                } else {
+                    $pares[] = ['San Cristóbal', 'Caracas', 1];
+                    if (strcasecmp($destino, 'Caracas') !== 0) {
+                        $pares[] = ['Caracas', $destino, 5];
+                    }
+                }
+            }
+        } elseif ($paisOrig === 'VENEZUELA' && $paisDest === 'COLOMBIA') {
+            $ciudadesTroncales = ['Caracas', 'Valencia', 'Maracay', 'Barquisimeto', 'Maracaibo'];
+            $esTroncal = in_array(ucfirst(strtolower($origen)), $ciudadesTroncales);
+            if ($esTroncal) {
+                $pares[] = [$origen, 'San Cristóbal', 1];
+            } else {
+                if (strcasecmp($origen, 'San Cristóbal') !== 0) {
+                    $pares[] = [$origen, 'Caracas', 5];
+                    $pares[] = ['Caracas', 'San Cristóbal', 1];
+                }
+            }
+            $pares[] = ['San Cristóbal', 'Cúcuta', 5];
+            if (strcasecmp($destino, 'Cúcuta') !== 0) {
+                $pares[] = ['Cúcuta', $destino, 4];
             }
         } else {
             return null;
