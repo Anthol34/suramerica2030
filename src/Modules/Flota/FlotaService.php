@@ -11,11 +11,21 @@ class FlotaService {
     }
 
     public function procesarGuardarRuta($postData) {
-        return $this->repository->agregarRutaBD($this->formatearDatosRuta($postData));
+        $datos = $this->formatearDatosRuta($postData);
+        $val = $this->validarCoherenciaRutaYTramos($datos);
+        if ($val !== true) {
+            return $val;
+        }
+        return $this->repository->agregarRutaBD($datos);
     }
 
     public function procesarEditarRuta($postData) {
-        return $this->repository->actualizarRutaBD($this->formatearDatosRuta($postData));
+        $datos = $this->formatearDatosRuta($postData);
+        $val = $this->validarCoherenciaRutaYTramos($datos);
+        if ($val !== true) {
+            return $val;
+        }
+        return $this->repository->actualizarRutaBD($datos);
     }
 
     private function formatearDatosRuta($datos) {
@@ -369,7 +379,55 @@ class FlotaService {
             }
         }
 
+        $val = $this->validarCoherenciaRutaYTramos($postData);
+        if ($val !== true) {
+            return $val;
+        }
+
         return $this->repository->crearRutaRapidaBD($postData);
+    }
+
+    /**
+     * Valida la coherencia estricta entre el origen y destino general de la ruta
+     * y el primer y último tramo operativo configurado.
+     *
+     * @param array $datos
+     * @return true|string Retorna true si es válido o un mensaje descriptivo de error.
+     */
+    public function validarCoherenciaRutaYTramos(array $datos) {
+        $origenRuta = trim($datos['origen'] ?? '');
+        $destinoRuta = trim($datos['destino'] ?? '');
+        $tramos = $datos['tramos'] ?? [];
+
+        if (empty($origenRuta)) {
+            return "El origen de la ruta es obligatorio.";
+        }
+        if (empty($destinoRuta)) {
+            return "El destino de la ruta es obligatorio.";
+        }
+        if (mb_strtoupper($origenRuta) === mb_strtoupper($destinoRuta)) {
+            return "El origen y el destino de la ruta no pueden ser la misma ciudad ('{$origenRuta}').";
+        }
+
+        if (empty($tramos) || !is_array($tramos)) {
+            return "La ruta comercial debe contar con al menos un tramo operativo.";
+        }
+
+        $primerTramo = $tramos[0];
+        $ultimoTramo = $tramos[count($tramos) - 1];
+
+        $origenPrimerTramo = trim($primerTramo['origen'] ?? $primerTramo['ORIGEN_TRAMO'] ?? '');
+        $destinoUltimoTramo = trim($ultimoTramo['destino'] ?? $ultimoTramo['DESTINO_TRAMO'] ?? '');
+
+        if (mb_strtoupper($origenPrimerTramo) !== mb_strtoupper($origenRuta)) {
+            return "Inconsistencia de Origen: El primer tramo inicia en '{$origenPrimerTramo}', pero la ruta indica origen en '{$origenRuta}'. Ambos deben coincidir exactamente.";
+        }
+
+        if (mb_strtoupper($destinoUltimoTramo) !== mb_strtoupper($destinoRuta)) {
+            return "Inconsistencia de Destino: El último tramo finaliza en '{$destinoUltimoTramo}', pero la ruta indica destino final en '{$destinoRuta}'. Ambos deben coincidir exactamente.";
+        }
+
+        return true;
     }
 
     public function procesarGenerarRutasMultimodales($postData) {

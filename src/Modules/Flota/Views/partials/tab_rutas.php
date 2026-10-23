@@ -1525,6 +1525,29 @@ foreach($tramosList as $trIndex => $tramo):
             if (formNueva) {
                 formNueva.addEventListener('submit', function(e) {
                     e.preventDefault();
+                    const selOrig = formNueva.querySelector('[name="origen"]');
+                    const selDest = formNueva.querySelector('[name="destino"]');
+                    if (selOrig && selDest) {
+                        const origRuta = (selOrig.value || '').trim().toUpperCase();
+                        const destRuta = (selDest.value || '').trim().toUpperCase();
+                        const tramoOrigs = Array.from(formNueva.querySelectorAll('.tramo-origen-select')).map(s => (s.value || '').trim().toUpperCase());
+                        const tramoDests = Array.from(formNueva.querySelectorAll('.tramo-destino-select')).map(s => (s.value || '').trim().toUpperCase());
+
+                        if (tramoOrigs.length > 0 && tramoDests.length > 0) {
+                            const primerOrig = tramoOrigs[0];
+                            const ultimoDest = tramoDests[tramoDests.length - 1];
+
+                            if (primerOrig && origRuta && primerOrig !== origRuta) {
+                                alert(`❌ Inconsistencia: El primer tramo inicia en "${primerOrig}", pero la ruta parte de "${origRuta}". Deben coincidir exactamente.`);
+                                return;
+                            }
+                            if (ultimoDest && destRuta && ultimoDest !== destRuta) {
+                                alert(`❌ Inconsistencia: El último tramo finaliza en "${ultimoDest}", pero la ruta llega a "${destRuta}". Deben coincidir exactamente.`);
+                                return;
+                            }
+                        }
+                    }
+
                     const btn = document.getElementById('btnGuardarNuevaRutaComercial');
                     btn.disabled = true;
                     btn.innerText = '⏳ Creando Ruta Comercial...';

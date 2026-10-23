@@ -52,7 +52,7 @@ function alCambiarCabecerasRuta(rutaId) {
     const orig = selOrigen.value;
     const dest = selDestino.value;
 
-    // En nueva ruta manual o si solo hay 1 tramo y está vacío, auto-sincronizar Tramo 1
+    // Auto-sincronizar origen del primer tramo y destino del último tramo
     const containerId = rutaId ? 'lista_tramos_edit_' + rutaId : 'lista_tramos_nuevos';
     const container = document.getElementById(containerId);
     if (container) {
@@ -61,10 +61,10 @@ function alCambiarCabecerasRuta(rutaId) {
             const card1 = cards[0];
             const selOrigTramo = card1.querySelector('.tramo-origen-select');
             const selDestTramo = card1.querySelector('.tramo-destino-select');
-            if (selOrigTramo && (!selOrigTramo.value || !rutaId) && orig) {
+            if (selOrigTramo && orig) {
                 selOrigTramo.value = orig;
             }
-            if (selDestTramo && (!selDestTramo.value || !rutaId) && dest) {
+            if (selDestTramo && dest) {
                 selDestTramo.value = dest;
             }
             actualizarTitulosTramos(container);
@@ -93,6 +93,18 @@ function alCambiarCabecerasRuta(rutaId) {
                     recalcularFinanzasTramo(inpPvp || inpCosto, rutaId);
                 }
             }
+        } else if (cards.length > 1) {
+            const firstCard = cards[0];
+            const lastCard = cards[cards.length - 1];
+            const selOrigFirst = firstCard.querySelector('.tramo-origen-select');
+            const selDestLast = lastCard.querySelector('.tramo-destino-select');
+            if (selOrigFirst && orig) {
+                selOrigFirst.value = orig;
+            }
+            if (selDestLast && dest) {
+                selDestLast.value = dest;
+            }
+            actualizarTitulosTramos(container);
         }
     }
 }
@@ -1074,6 +1086,44 @@ document.addEventListener('submit', function(e) {
     if (!form) return;
     if (!form.classList.contains('form-tarifa-rapida-ajax') && !form.classList.contains('form-editar-ruta-ajax')) {
         return;
+    }
+
+    // Validación de coherencia estricta entre cabeceras de ruta y tramos operativos
+    if (form.classList.contains('form-editar-ruta-ajax')) {
+        const selOrig = form.querySelector('select[name="origen"]') || form.querySelector('input[name="origen"]');
+        const selDest = form.querySelector('select[name="destino"]') || form.querySelector('input[name="destino"]');
+        if (selOrig && selDest) {
+            const origRuta = (selOrig.value || '').trim().toUpperCase();
+            const destRuta = (selDest.value || '').trim().toUpperCase();
+
+            const tramoOrigs = Array.from(form.querySelectorAll('.tramo-origen-select')).map(s => (s.value || '').trim().toUpperCase());
+            const tramoDests = Array.from(form.querySelectorAll('.tramo-destino-select')).map(s => (s.value || '').trim().toUpperCase());
+
+            if (tramoOrigs.length > 0 && tramoDests.length > 0) {
+                const primerOrig = tramoOrigs[0];
+                const ultimoDest = tramoDests[tramoDests.length - 1];
+
+                if (primerOrig && origRuta && primerOrig !== origRuta) {
+                    e.preventDefault();
+                    if (typeof mostrarToastFlota === 'function') {
+                        mostrarToastFlota(`❌ Inconsistencia: El primer tramo inicia en "${primerOrig}", pero la ruta parte de "${origRuta}". Deben coincidir exactamente.`, 'danger');
+                    } else {
+                        alert(`❌ Inconsistencia: El primer tramo inicia en "${primerOrig}", pero la ruta parte de "${origRuta}". Deben coincidir exactamente.`);
+                    }
+                    return;
+                }
+
+                if (ultimoDest && destRuta && ultimoDest !== destRuta) {
+                    e.preventDefault();
+                    if (typeof mostrarToastFlota === 'function') {
+                        mostrarToastFlota(`❌ Inconsistencia: El último tramo finaliza en "${ultimoDest}", pero la ruta llega a "${destRuta}". Deben coincidir exactamente.`, 'danger');
+                    } else {
+                        alert(`❌ Inconsistencia: El último tramo finaliza en "${ultimoDest}", pero la ruta llega a "${destRuta}". Deben coincidir exactamente.`);
+                    }
+                    return;
+                }
+            }
+        }
     }
 
     e.preventDefault();
