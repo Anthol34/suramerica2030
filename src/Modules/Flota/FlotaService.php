@@ -372,5 +372,31 @@ class FlotaService {
 
         return $this->repository->crearRutaRapidaBD($postData);
     }
+
+    public function procesarGenerarRutasMultimodales($postData) {
+        $origen = trim($postData['origen'] ?? '');
+        $destino = trim($postData['destino'] ?? '');
+        if (empty($origen) || empty($destino)) {
+            return "Debe seleccionar ciudad de origen y destino.";
+        }
+        if (mb_strtolower($origen) === mb_strtolower($destino)) {
+            return "El origen y el destino no pueden ser la misma ciudad.";
+        }
+
+        $modalidades = $postData['modalidades'] ?? [];
+        if (!is_array($modalidades)) {
+            $modalidades = !empty($modalidades) ? [$modalidades] : [];
+        }
+
+        $opciones = [
+            'crear_retorno' => !empty($postData['crear_retorno']),
+            'dias_salida' => !empty($postData['dias_salida']) ? $postData['dias_salida'] : 'LUN,MIE,VIE',
+            'hora_salida' => !empty($postData['hora_salida']) ? $postData['hora_salida'] : '08:00',
+            'dias_retorno' => !empty($postData['dias_retorno']) ? $postData['dias_retorno'] : 'MAR,JUE,SAB',
+            'hora_retorno' => !empty($postData['hora_retorno']) ? $postData['hora_retorno'] : '08:00'
+        ];
+
+        return $this->repository->generarLoteRutasMultimodales($origen, $destino, $modalidades, $opciones);
+    }
 }
 ?>

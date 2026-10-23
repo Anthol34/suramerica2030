@@ -253,19 +253,59 @@ class FlotaController {
         try {
             $origen = trim($_GET['origen'] ?? $_POST['origen'] ?? '');
             $destino = trim($_GET['destino'] ?? $_POST['destino'] ?? '');
-            $modalidad = trim($_GET['modalidad'] ?? $_POST['modalidad'] ?? 'CONEXION_TRAMOS');
+            $modalidad = trim($_GET['modalidad'] ?? $_POST['modalidad'] ?? '');
+            $todas = !empty($_GET['todas']) || !empty($_POST['todas']) || empty($modalidad);
 
             if (empty($origen) || empty($destino)) {
                 echo json_encode(['status' => 'error', 'mensaje' => 'Origen y destino son requeridos']);
                 exit();
             }
 
-            $sugerencia = $this->repository->sugerirTramosParaRuta($origen, $destino, $modalidad);
-            echo json_encode(['status' => 'success', 'data' => $sugerencia]);
+            if ($todas) {
+                $sugerencias = $this->repository->sugerirTodasLasModalidadesRuta($origen, $destino);
+                echo json_encode(['status' => 'success', 'data' => $sugerencias, 'es_lote' => true]);
+            } else {
+                $sugerencia = $this->repository->sugerirTramosParaRuta($origen, $destino, $modalidad);
+                echo json_encode(['status' => 'success', 'data' => $sugerencia, 'es_lote' => false]);
+            }
         } catch (\Exception $e) {
             echo json_encode(['status' => 'error', 'mensaje' => $e->getMessage()]);
         }
         exit();
+    }
+
+    public function generarRutasMultimodales() {
+        $this->verificarPermiso();
+        if ($_SERVER['REQUEST_METHOD'] == 'POST') {
+            $resultado = $this->service->procesarGenerarRutasMultimodales($_POST);
+
+            $esAjax = (!empty($_SERVER['HTTP_X_REQUESTED_WITH']) && strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) === 'xmlhttprequest') 
+                      || (isset($_SERVER['HTTP_ACCEPT']) && strpos($_SERVER['HTTP_ACCEPT'], 'application/json') !== false)
+                      || !empty($_POST['ajax']);
+
+            if ($esAjax) {
+                header('Content-Type: application/json; charset=utf-8');
+                if (is_array($resultado) && ($resultado['status'] ?? '') === 'success') {
+                    echo json_encode([
+                        'status' => 'success',
+                        'mensaje' => $resultado['mensaje'] ?? 'Rutas generadas correctamente.',
+                        'rutas' => $resultado['rutas'] ?? []
+                    ]);
+                } else {
+                    echo json_encode([
+                        'status' => 'error',
+                        'mensaje' => is_string($resultado) ? $resultado : ($resultado['mensaje'] ?? 'Error al generar rutas.')
+                    ]);
+                }
+                exit();
+            }
+
+            if (is_array($resultado) && ($resultado['status'] ?? '') === 'success') {
+                $this->redireccionar('rutas', true, 'success');
+            } else {
+                $this->redireccionar('rutas', is_string($resultado) ? $resultado : ($resultado['mensaje'] ?? 'Error'), 'error');
+            }
+        }
     }
 
     public function crearRutaRapida() {

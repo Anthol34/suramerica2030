@@ -1001,143 +1001,19 @@ class FlotaRepository {
     // AUTO-SUGERIDOR INTELIGENTE Y CREACIÓN EN 3 CLICS
     // ==========================================
 
-    public function sugerirTramosParaRuta($origen, $destino, $modalidad = 'CONEXION_TRAMOS') {
-        $stmtCiu = $this->db->prepare("SELECT NOMBRE, PAIS FROM CIUDAD WHERE LOWER(NOMBRE) = LOWER(?) LIMIT 1");
-        $stmtCiu->execute([trim($origen)]);
-        $cOrig = $stmtCiu->fetch(PDO::FETCH_ASSOC);
-        
-        $stmtCiu->execute([trim($destino)]);
-        $cDest = $stmtCiu->fetch(PDO::FETCH_ASSOC);
+    public function sugerirTramosParaRuta($origen, $destino, $modalidad = 'CONEXIONES') {
+        $engine = new RoutingEngine($this->db);
+        return $engine->sugerirTramosParaModalidad($origen, $destino, $modalidad);
+    }
 
-        $paisOrig = strtoupper(trim($cOrig['PAIS'] ?? 'ECUADOR'));
-        $paisDest = strtoupper(trim($cDest['PAIS'] ?? 'VENEZUELA'));
+    public function sugerirTodasLasModalidadesRuta($origen, $destino) {
+        $engine = new RoutingEngine($this->db);
+        return $engine->sugerirTodasLasModalidades($origen, $destino);
+    }
 
-        $paresSugeridos = [];
-
-        // Lógica de conectividad internacional inteligente
-        if ($paisOrig === 'VENEZUELA' && $paisDest === 'ECUADOR') {
-            if ($modalidad === 'PANAMERICANA') {
-                if (mb_strtoupper(trim($origen)) !== 'CARACAS') {
-                    $paresSugeridos[] = ['origen' => $origen, 'destino' => 'Caracas'];
-                }
-                $paresSugeridos[] = ['origen' => 'Caracas', 'destino' => 'San Cristóbal'];
-                $paresSugeridos[] = ['origen' => 'Cúcuta', 'destino' => $destino];
-            } else {
-                if (mb_strtoupper(trim($origen)) !== 'CARACAS') {
-                    $paresSugeridos[] = ['origen' => $origen, 'destino' => 'Caracas'];
-                }
-                $paresSugeridos[] = ['origen' => 'Caracas', 'destino' => 'San Cristóbal'];
-                $paresSugeridos[] = ['origen' => 'Cúcuta', 'destino' => 'Ipiales'];
-                if (mb_strtoupper(trim($destino)) !== 'TULCÁN') {
-                    $paresSugeridos[] = ['origen' => 'Tulcán', 'destino' => $destino];
-                }
-            }
-        } elseif ($paisOrig === 'ECUADOR' && $paisDest === 'VENEZUELA') {
-            if ($modalidad === 'PANAMERICANA') {
-                $paresSugeridos[] = ['origen' => $origen, 'destino' => 'Cúcuta'];
-                $paresSugeridos[] = ['origen' => 'San Cristóbal', 'destino' => 'Caracas'];
-                if (mb_strtoupper(trim($destino)) !== 'CARACAS') {
-                    $paresSugeridos[] = ['origen' => 'Caracas', 'destino' => $destino];
-                }
-            } else {
-                if (mb_strtoupper(trim($origen)) !== 'TULCÁN') {
-                    $paresSugeridos[] = ['origen' => $origen, 'destino' => 'Tulcán'];
-                }
-                $paresSugeridos[] = ['origen' => 'Ipiales', 'destino' => 'Cúcuta'];
-                $paresSugeridos[] = ['origen' => 'San Cristóbal', 'destino' => 'Caracas'];
-                if (mb_strtoupper(trim($destino)) !== 'CARACAS') {
-                    $paresSugeridos[] = ['origen' => 'Caracas', 'destino' => $destino];
-                }
-            }
-        } elseif ($paisOrig === 'COLOMBIA' && $paisDest === 'VENEZUELA') {
-            if (mb_strtoupper(trim($origen)) !== 'CÚCUTA') {
-                $paresSugeridos[] = ['origen' => $origen, 'destino' => 'Cúcuta'];
-            }
-            $paresSugeridos[] = ['origen' => 'San Cristóbal', 'destino' => 'Caracas'];
-            if (mb_strtoupper(trim($destino)) !== 'CARACAS') {
-                $paresSugeridos[] = ['origen' => 'Caracas', 'destino' => $destino];
-            }
-        } elseif ($paisOrig === 'VENEZUELA' && $paisDest === 'COLOMBIA') {
-            if (mb_strtoupper(trim($origen)) !== 'CARACAS') {
-                $paresSugeridos[] = ['origen' => $origen, 'destino' => 'Caracas'];
-            }
-            $paresSugeridos[] = ['origen' => 'Caracas', 'destino' => 'San Cristóbal'];
-            if (mb_strtoupper(trim($destino)) !== 'CÚCUTA') {
-                $paresSugeridos[] = ['origen' => 'Cúcuta', 'destino' => $destino];
-            }
-        } else {
-            $paresSugeridos[] = ['origen' => $origen, 'destino' => $destino];
-        }
-
-        // Resolver cada par contra tramo_catalogo
-        $stmtBuscaTramo = $this->db->prepare("SELECT * FROM tramo_catalogo WHERE LOWER(ORIGEN_TRAMO) = LOWER(?) AND LOWER(DESTINO_TRAMO) = LOWER(?) AND ESTADO = 'ACTIVO' LIMIT 1");
-
-        $tramosResueltos = [];
-        $totalCosto = 0;
-        $totalPvp = 0;
-
-        foreach ($paresSugeridos as $idx => $par) {
-            $stmtBuscaTramo->execute([trim($par['origen']), trim($par['destino'])]);
-            $row = $stmtBuscaTramo->fetch(PDO::FETCH_ASSOC);
-
-            if ($row) {
-                $costo = floatval($row['COSTO_OPERADOR']);
-                $pvp = floatval($row['PVP_SUGERIDO']);
-                $idCat = intval($row['ID_TRAMO_CATALOGO']);
-                $idOp = intval($row['ID_OPERADOR'] ?? 1);
-                $nomOp = $row['OPERADOR_NOMBRE'] ?: 'Aliado';
-                $nombreTramo = $row['NOMBRE_TRAMO'];
-                $admiteSp = intval($row['ADMITE_SOBREPESO'] ?? 1);
-                $limiteEq = floatval($row['LIMITE_EQUIPAJE_KG'] ?? 35);
-                $precioSp = floatval($row['PRECIO_SOBREPESO_KG'] ?? 1);
-            } else {
-                $costo = 20.00;
-                $pvp = 30.00;
-                $idCat = null;
-                $idOp = 1;
-                $nomOp = 'Expresos Suramérica 2030';
-                $nombreTramo = "{$par['origen']} ➔ {$par['destino']}";
-                $admiteSp = 1;
-                $limiteEq = 35.00;
-                $precioSp = 1.00;
-            }
-
-            $util = max(0, $pvp - $costo);
-            $totalCosto += $costo;
-            $totalPvp += $pvp;
-
-            $tramosResueltos[] = [
-                'orden' => $idx + 1,
-                'origen' => $par['origen'],
-                'destino' => $par['destino'],
-                'id_tramo_catalogo' => $idCat,
-                'nombre_tramo' => $nombreTramo,
-                'id_operador' => $idOp,
-                'operador' => $nomOp,
-                'costo' => $costo,
-                'pvp' => $pvp,
-                'utilidad' => $util,
-                'admite_sobrepeso' => $admiteSp,
-                'limite_equipaje' => $limiteEq,
-                'precio_sobrepeso' => $precioSp
-            ];
-        }
-
-        $totalUtilidad = max(0, $totalPvp - $totalCosto);
-        $margenPct = ($totalPvp > 0) ? round(($totalUtilidad / $totalPvp) * 100, 1) : 0;
-
-        return [
-            'origen' => $origen,
-            'destino' => $destino,
-            'modalidad' => $modalidad,
-            'pais_origen' => $paisOrig,
-            'pais_destino' => $paisDest,
-            'tramos' => $tramosResueltos,
-            'costo_total_operadores' => $totalCosto,
-            'pvp_sugerido' => $totalPvp,
-            'utilidad_agencia' => $totalUtilidad,
-            'margen_pct' => $margenPct
-        ];
+    public function generarLoteRutasMultimodales($origen, $destino, array $modalidades = [], array $opciones = []) {
+        $engine = new RoutingEngine($this->db);
+        return $engine->generarLoteRutas($origen, $destino, $modalidades, $opciones);
     }
 
     public function insertarRutaIndividual($datos) {

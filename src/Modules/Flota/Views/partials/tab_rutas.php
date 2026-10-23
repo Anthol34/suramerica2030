@@ -1,7 +1,83 @@
     <!-- ======================================================== -->
     <!-- PESTAÑA 2: RUTAS COMERCIALES Y MATRIZ DE TARIFAS        -->
     <!-- ======================================================== -->
-    <?php $mapaDias = $mapaDias ?? ['1'=>'Lun', '2'=>'Mar', '3'=>'Mié', '4'=>'Jue', '5'=>'Vie', '6'=>'Sáb', '7'=>'Dom']; ?>
+    <?php 
+    $mapaDias = $mapaDias ?? ['1'=>'Lun', '2'=>'Mar', '3'=>'Mié', '4'=>'Jue', '5'=>'Vie', '6'=>'Sáb', '7'=>'Dom']; 
+    if (!isset($generarOpcionesCiudades) || !is_callable($generarOpcionesCiudades)) {
+        $generarOpcionesCiudades = function($idUnused = null, $valorSeleccionado = '', $placeholder = '-- Seleccionar Ciudad --') use (&$ciudadesCatalogo) {
+            $html = '<option value="">' . htmlspecialchars($placeholder) . '</option>';
+            $encontrado = false;
+            $valNorm = mb_strtolower(trim((string)$valorSeleccionado));
+
+            if (!empty($ciudadesCatalogo)) {
+                $porPais = [];
+                foreach ($ciudadesCatalogo as $cd) {
+                    $pais = strtoupper(trim($cd['PAIS'] ?? 'OTROS'));
+                    $porPais[$pais][] = $cd['NOMBRE'];
+                }
+                
+                $banderas = ['VENEZUELA' => '🇻🇪', 'COLOMBIA' => '🇨🇴', 'ECUADOR' => '🇪🇨', 'PERU' => '🇵🇪'];
+
+                foreach ($porPais as $pais => $ciudades) {
+                    $flag = $banderas[$pais] ?? '🌎';
+                    $html .= '<optgroup label="' . $flag . ' ' . htmlspecialchars($pais) . '">';
+                    sort($ciudades);
+                    foreach ($ciudades as $nomCiu) {
+                        $cNorm = mb_strtolower(trim($nomCiu));
+                        $isSel = ($valNorm !== '' && $cNorm === $valNorm);
+                        if ($isSel) $encontrado = true;
+                        $html .= '<option value="' . htmlspecialchars($nomCiu) . '" ' . ($isSel ? 'selected' : '') . '>'
+                              . htmlspecialchars($nomCiu) . '</option>';
+                    }
+                    $html .= '</optgroup>';
+                }
+            }
+
+            if ($valorSeleccionado !== '' && !$encontrado) {
+                $html .= '<optgroup label="⚠️ Ciudad Actual Configurada">';
+                $html .= '<option value="' . htmlspecialchars($valorSeleccionado) . '" selected>' . htmlspecialchars($valorSeleccionado) . '</option>';
+                $html .= '</optgroup>';
+            }
+
+            return $html;
+        };
+    }
+
+    if (!isset($generarOpcionesOperadores) || !is_callable($generarOpcionesOperadores)) {
+        $operadores = $operadores ?? [];
+        $generarOpcionesOperadores = function($idSeleccionado = 1, $placeholder = null) use (&$operadores) {
+            $html = '';
+            if ($placeholder) {
+                $html .= '<option value="">' . htmlspecialchars($placeholder) . '</option>';
+            }
+            $grupos = [
+                'PROPIO' => ['label' => '🏢 Flota Propia', 'items' => []],
+                'SOCIO_AFILIADO' => ['label' => '🤝 Socios Propietarios', 'items' => []],
+                'EMPRESA_ALIADA' => ['label' => '⭐ Empresas Aliadas', 'items' => []]
+            ];
+            foreach ($operadores as $op) {
+                $tipo = $op['TIPO_OPERADOR'] ?? 'SOCIO_AFILIADO';
+                if (!isset($grupos[$tipo])) {
+                    $grupos[$tipo] = ['label' => '📋 ' . ucfirst(strtolower($tipo)), 'items' => []];
+                }
+                $grupos[$tipo]['items'][] = $op;
+            }
+
+            foreach ($grupos as $g) {
+                if (empty($g['items'])) continue;
+                $html .= '<optgroup label="' . htmlspecialchars($g['label']) . '">';
+                foreach ($g['items'] as $op) {
+                    $isSel = ($idSeleccionado && intval($idSeleccionado) === intval($op['ID_OPERADOR']));
+                    $det = !empty($op['IDENTIFICACION']) ? ' [' . $op['IDENTIFICACION'] . ']' : '';
+                    $html .= '<option value="' . $op['ID_OPERADOR'] . '" ' . ($isSel ? 'selected' : '') . ' data-nombre="' . htmlspecialchars($op['NOMBRE_COMERCIAL']) . '">'
+                          . htmlspecialchars($op['NOMBRE_COMERCIAL']) . htmlspecialchars($det) . '</option>';
+                }
+                $html .= '</optgroup>';
+            }
+            return $html;
+        };
+    }
+    ?>
     <div class="tab-pane fade <?= (!in_array($tabActiva ?? '', ['flota', 'buses', 'operadores'])) ? 'show active' : '' ?>" id="tab-rutas">
         
         <!-- DATALIST GLOBAL DE CIUDADES PARA AUTOCOMPLETADO RÁPIDO -->
@@ -97,8 +173,10 @@
         // Extraer Modalidades Reales Únicas
         $modalidadesUnicas = array_values(array_unique(array_filter(array_map('trim', array_column($rutas, 'MODALIDAD')))));
         if (!in_array('ESTANDAR', $modalidadesUnicas)) $modalidadesUnicas[] = 'ESTANDAR';
+        if (!in_array('CONEXIONES', $modalidadesUnicas)) $modalidadesUnicas[] = 'CONEXIONES';
         if (!in_array('PANAMERICANA', $modalidadesUnicas)) $modalidadesUnicas[] = 'PANAMERICANA';
-        if (!in_array('CONEXION_TRAMOS', $modalidadesUnicas)) $modalidadesUnicas[] = 'CONEXION_TRAMOS';
+        if (!in_array('EXPRESOS_SURAMERICA', $modalidadesUnicas)) $modalidadesUnicas[] = 'EXPRESOS_SURAMERICA';
+        if (!in_array('PANA_EXPRESOS', $modalidadesUnicas)) $modalidadesUnicas[] = 'PANA_EXPRESOS';
         sort($modalidadesUnicas);
         ?>
 
@@ -848,7 +926,7 @@ foreach($tramosList as $trIndex => $tramo):
                 <form class="modal-content shadow-lg border-0" action="/suramerica2030/flota/crearRutaRapida" method="POST" id="formNuevaRutaComercial">
                     <input type="hidden" name="ajax" value="1">
                     <input type="hidden" name="costo_total_ruta" id="nueva_costo_total_hidden" value="0">
-                    <input type="hidden" name="modalidad" value="AUTO">
+                    <input type="hidden" name="modalidad" id="nueva_modalidad_hidden" value="CONEXIONES">
 
                     <div class="modal-header bg-primary text-white py-3">
                         <div class="d-flex align-items-center gap-2">
@@ -912,6 +990,29 @@ foreach($tramosList as $trIndex => $tramo):
                                         <input type="time" name="hora_salida" class="form-control" value="08:00" required>
                                     </div>
                                 </div>
+                            </div>
+                        </div>
+
+                        <!-- BLOQUE 1.5: MODALIDADES MULTIMODALES ESTRATÉGICAS (ROUTING ENGINE) -->
+                        <div class="card border-0 shadow-sm p-3 mb-3 bg-white" id="bloque_modalidades_multimodal" style="display: none;">
+                            <div class="d-flex justify-content-between align-items-center mb-2 pb-2 border-bottom flex-wrap gap-2">
+                                <div>
+                                    <div class="d-flex align-items-center gap-2">
+                                        <h6 class="fw-bold text-dark mb-0">🔀 Modalidades Estratégicas de Itinerario</h6>
+                                        <span class="badge bg-primary-subtle text-primary border border-primary-subtle" id="badgeTotalModalidadesDetectadas">0 opciones</span>
+                                    </div>
+                                    <small class="text-muted" style="font-size: 11px;">El Motor Multimodal analizó la red y propone estas alternativas de transporte:</small>
+                                </div>
+                                <div class="form-check form-switch bg-light px-3 py-1 rounded border">
+                                    <input class="form-check-input ms-0 me-2" type="checkbox" id="chkGenerarLoteModalidades" onchange="toggleModoLoteModalidades(this.checked)">
+                                    <label class="form-check-label small fw-bold text-primary" for="chkGenerarLoteModalidades" title="Genera todas las modalidades encontradas simultáneamente">
+                                        ⚡ Generar todas en 1 clic
+                                    </label>
+                                </div>
+                            </div>
+
+                            <div class="row g-2" id="contenedor_tarjetas_modalidad">
+                                <!-- Tarjetas inyectadas dinámicamente con JS -->
                             </div>
                         </div>
 
@@ -988,11 +1089,33 @@ foreach($tramosList as $trIndex => $tramo):
         <!-- SCRIPT UNIFICADO DE NUEVA RUTA COMERCIAL -->
         <script>
         let timerDeteccionNueva = null;
+        window.modalidadesDetectadasActuales = {};
+        window.modalidadSeleccionadaActual = '';
 
         function abrirModalNuevaRutaComercial() {
             const form = document.getElementById('formNuevaRutaComercial');
-            if (form) form.reset();
+            if (form) {
+                form.reset();
+                form.action = '/suramerica2030/flota/crearRutaRapida';
+            }
+            window.modalidadesDetectadasActuales = {};
+            window.modalidadSeleccionadaActual = '';
+
+            const chkLote = document.getElementById('chkGenerarLoteModalidades');
+            if (chkLote) chkLote.checked = false;
+
+            const bloqueMod = document.getElementById('bloque_modalidades_multimodal');
+            if (bloqueMod) bloqueMod.style.display = 'none';
+
+            const btnGuardar = document.getElementById('btnGuardarNuevaRutaComercial');
+            if (btnGuardar) {
+                btnGuardar.disabled = false;
+                btnGuardar.innerHTML = '🚀 Crear Ruta Comercial';
+                btnGuardar.className = 'btn btn-primary fw-bold px-4';
+            }
+
             document.getElementById('nueva_costo_total_hidden').value = '0';
+            document.getElementById('nueva_modalidad_hidden').value = 'CONEXIONES';
             document.getElementById('nueva_lbl_costo_total').innerText = '$0.00';
             document.getElementById('nueva_input_pvp').value = '';
             document.getElementById('nueva_lbl_ganancia').innerText = '$0.00';
@@ -1006,7 +1129,6 @@ foreach($tramosList as $trIndex => $tramo):
                 </div>
             `;
             document.getElementById('nueva_alerta_perdida').classList.add('d-none');
-            document.getElementById('btnGuardarNuevaRutaComercial').disabled = false;
         }
 
         function dispararDeteccionNuevaRuta() {
@@ -1021,15 +1143,30 @@ foreach($tramosList as $trIndex => $tramo):
                 return;
             }
 
-            document.getElementById('nueva_status_tramos').innerText = 'Detectando tramos...';
+            document.getElementById('nueva_status_tramos').innerText = 'Analizando red multimodal...';
             document.getElementById('nueva_status_tramos').className = 'badge bg-info-subtle text-info border';
 
             timerDeteccionNueva = setTimeout(() => {
                 fetch(`/suramerica2030/flota/sugerirTramosRuta?origen=${encodeURIComponent(orig)}&destino=${encodeURIComponent(dest)}`)
                     .then(r => r.json())
                     .then(res => {
-                        if (res.status === 'success' && res.data && res.data.tramos && res.data.tramos.length > 0) {
-                            renderizarTramosNuevaRuta(res.data);
+                        if (res.status === 'success' && res.data) {
+                            if (res.es_lote) {
+                                window.modalidadesDetectadasActuales = res.data;
+                                renderizarTarjetasModalidad(res.data);
+                                
+                                // Prioridad de selección automática: CONEXIONES o PANAMERICANA o primera
+                                const keys = Object.keys(res.data);
+                                let modSeleccion = keys[0];
+                                if (res.data['CONEXIONES']) modSeleccion = 'CONEXIONES';
+                                else if (res.data['PANAMERICANA']) modSeleccion = 'PANAMERICANA';
+
+                                if (modSeleccion) {
+                                    seleccionarModalidad(modSeleccion);
+                                }
+                            } else if (res.data.tramos && res.data.tramos.length > 0) {
+                                renderizarTramosNuevaRuta(res.data);
+                            }
                         } else {
                             document.getElementById('nueva_status_tramos').innerText = 'Sin tramos predefinidos';
                             document.getElementById('nueva_status_tramos').className = 'badge bg-secondary-subtle text-secondary border';
@@ -1047,6 +1184,112 @@ foreach($tramosList as $trIndex => $tramo):
             }, 300);
         }
 
+        function renderizarTarjetasModalidad(modalidades) {
+            const contenedor = document.getElementById('contenedor_tarjetas_modalidad');
+            const bloque = document.getElementById('bloque_modalidades_multimodal');
+            const badgeTotal = document.getElementById('badgeTotalModalidadesDetectadas');
+            if (!contenedor || !bloque) return;
+
+            contenedor.innerHTML = '';
+            const keys = Object.keys(modalidades);
+            if (keys.length === 0) {
+                bloque.style.display = 'none';
+                return;
+            }
+
+            bloque.style.display = 'block';
+            if (badgeTotal) badgeTotal.innerText = `${keys.length} opciones disponibles`;
+
+            const chkLote = document.getElementById('chkGenerarLoteModalidades');
+            const enLote = chkLote ? chkLote.checked : false;
+
+            keys.forEach(key => {
+                const it = modalidades[key];
+                const col = document.createElement('div');
+                col.className = 'col-12 col-md-6';
+                const isDisponible = it.disponible !== false;
+
+                col.innerHTML = `
+                    <div class="card h-100 p-2 tarjeta-modalidad-itinerario border ${isDisponible ? '' : 'opacity-75'}" 
+                         id="card_mod_${key}" 
+                         data-mod="${key}" 
+                         onclick="seleccionarModalidad('${key}')"
+                         style="cursor: pointer; transition: all 0.2s; border-radius: 8px;">
+                        <div class="d-flex justify-content-between align-items-start mb-1">
+                            <div class="d-flex align-items-center gap-2">
+                                <div class="form-check checkbox-lote-mod" style="display: ${enLote ? 'block' : 'none'};" onclick="event.stopPropagation();">
+                                    <input class="form-check-input chk-modalidad-item" type="checkbox" name="modalidades[]" value="${key}" checked>
+                                </div>
+                                <span class="badge ${it.badge_class || 'bg-secondary text-white'} px-2 py-1">
+                                    ${it.icono || '🔀'} ${it.nombre_modalidad || key}
+                                </span>
+                            </div>
+                            <span class="badge bg-light text-secondary border font-monospace" style="font-size: 11px;">
+                                ⏱️ ${it.tiempo_estimado_horas || 0}h
+                            </span>
+                        </div>
+                        <div class="small text-muted mb-1 text-truncate" style="font-size: 11px;" title="${it.itinerario_resumen || ''}">
+                            📍 ${it.itinerario_resumen || ''}
+                        </div>
+                        <div class="d-flex justify-content-between align-items-center pt-1 border-top" style="font-size: 12px;">
+                            <div>
+                                <span class="text-danger fw-bold">$${parseFloat(it.costo_total_operadores || 0).toFixed(2)}</span>
+                                <small class="text-muted" style="font-size: 10px;">costo</small>
+                            </div>
+                            <div>
+                                <span class="text-primary fw-bold">$${parseFloat(it.pvp_sugerido || 0).toFixed(2)}</span>
+                                <small class="text-muted" style="font-size: 10px;">PVP</small>
+                            </div>
+                            <div>
+                                <span class="text-success fw-bold">+$${parseFloat(it.utilidad_agencia || 0).toFixed(2)}</span>
+                                <small class="text-success" style="font-size: 10px;">(${it.margen_pct || 0}%)</small>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                contenedor.appendChild(col);
+            });
+        }
+
+        function seleccionarModalidad(key) {
+            if (!window.modalidadesDetectadasActuales || !window.modalidadesDetectadasActuales[key]) return;
+            window.modalidadSeleccionadaActual = key;
+
+            document.querySelectorAll('.tarjeta-modalidad-itinerario').forEach(c => {
+                c.classList.remove('border-primary', 'shadow-sm', 'bg-primary-subtle');
+                c.style.borderWidth = '1px';
+            });
+
+            const activeCard = document.getElementById('card_mod_' + key);
+            if (activeCard) {
+                activeCard.classList.add('border-primary', 'shadow-sm', 'bg-primary-subtle');
+                activeCard.style.borderWidth = '2px';
+            }
+
+            const hiddenMod = document.getElementById('nueva_modalidad_hidden');
+            if (hiddenMod) hiddenMod.value = key;
+
+            renderizarTramosNuevaRuta(window.modalidadesDetectadasActuales[key]);
+        }
+
+        function toggleModoLoteModalidades(activado) {
+            const form = document.getElementById('formNuevaRutaComercial');
+            const btn = document.getElementById('btnGuardarNuevaRutaComercial');
+            const chks = document.querySelectorAll('.checkbox-lote-mod');
+
+            if (activado) {
+                form.action = '/suramerica2030/flota/generarRutasMultimodales';
+                chks.forEach(c => c.style.display = 'block');
+                btn.innerHTML = '⚡ Generar Rutas Multimodales en Lote';
+                btn.className = 'btn btn-success fw-bold px-4';
+            } else {
+                form.action = '/suramerica2030/flota/crearRutaRapida';
+                chks.forEach(c => c.style.display = 'none');
+                btn.innerHTML = '🚀 Crear Ruta Comercial';
+                btn.className = 'btn btn-primary fw-bold px-4';
+            }
+        }
+
         function renderizarTramosNuevaRuta(data) {
             const tramos = data.tramos || [];
             const container = document.getElementById('lista_tramos_nueva_comercial');
@@ -1057,7 +1300,10 @@ foreach($tramosList as $trIndex => $tramo):
                 div.className = 'tramo-card card border p-3 mb-2 bg-light shadow-sm';
                 div.innerHTML = `
                     <div class="d-flex justify-content-between align-items-center mb-2">
-                        <span class="badge bg-primary px-2 py-1 tramo-badge-titulo">Tramo ${idx + 1}: ${t.origen} ➔ ${t.destino}</span>
+                        <div class="d-flex align-items-center gap-2">
+                            <span class="badge bg-primary px-2 py-1 tramo-badge-titulo">Tramo ${idx + 1}: ${t.origen} ➔ ${t.destino}</span>
+                            ${t.tiempo_estimado_horas ? `<span class="badge bg-light text-secondary border font-monospace" style="font-size:10px;">⏱️ ${t.tiempo_estimado_horas}h</span>` : ''}
+                        </div>
                         <button type="button" class="btn btn-outline-danger btn-sm py-0 px-2 fw-bold" onclick="eliminarTramoCardNueva(this)">✕ Quitar</button>
                     </div>
                     <div class="row g-2">
@@ -1100,7 +1346,7 @@ foreach($tramosList as $trIndex => $tramo):
             document.getElementById('nueva_status_tramos').innerText = `${tramos.length} tramo(s) detectado(s)`;
             document.getElementById('nueva_status_tramos').className = 'badge bg-success-subtle text-success border';
 
-            if (data.pvp_sugerido && (!document.getElementById('nueva_input_pvp').value || parseFloat(document.getElementById('nueva_input_pvp').value) === 0)) {
+            if (data.pvp_sugerido) {
                 document.getElementById('nueva_input_pvp').value = parseFloat(data.pvp_sugerido).toFixed(2);
             }
 

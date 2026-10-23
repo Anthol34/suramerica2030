@@ -19,53 +19,76 @@ class ModalidadHelper {
                 'badge_class' => 'bg-success text-white',
                 'descripcion' => 'Viaje directo operado por flota propia sin transbordos.'
             ],
+            'CONEXIONES' => [
+                'codigo' => 'CONEXIONES',
+                'nombre' => 'Conexiones Locales',
+                'icono' => '🔀',
+                'badge_class' => 'bg-secondary text-white',
+                'descripcion' => 'Viaje articulado mediante conexiones con aliados locales en cada país.'
+            ],
             'PANAMERICANA' => [
                 'codigo' => 'PANAMERICANA',
                 'nombre' => 'Vía Panamericana',
-                'icono' => '⭐',
-                'badge_class' => 'bg-primary text-white',
-                'descripcion' => 'Ruta directa o transbordo fronterizo en alianza con Panamericana.'
+                'icono' => '🚌',
+                'badge_class' => 'bg-warning-subtle text-dark border border-warning',
+                'descripcion' => 'Ruta directa binacional internacional en alianza con Panamericana.'
             ],
-            'CONEXION_TRAMOS' => [
-                'codigo' => 'CONEXION_TRAMOS',
-                'nombre' => 'Conexión por Tramos',
-                'icono' => '🔀',
-                'badge_class' => 'bg-secondary text-white',
-                'descripcion' => 'Viaje articulado mediante múltiples conexiones o transbordos.'
+            'EXPRESOS_SURAMERICA' => [
+                'codigo' => 'EXPRESOS_SURAMERICA',
+                'nombre' => 'Expresos Suramérica 2030',
+                'icono' => '🚍',
+                'badge_class' => 'bg-primary text-white',
+                'descripcion' => 'Ruta con tramo troncal venezolano operado por Expresos Suramérica 2030.'
+            ],
+            'PANA_EXPRESOS' => [
+                'codigo' => 'PANA_EXPRESOS',
+                'nombre' => 'Alianza Pana-Expresos',
+                'icono' => '⚡',
+                'badge_class' => 'bg-info-subtle text-info-emphasis border border-info-subtle',
+                'descripcion' => 'Combinación óptima: Salto internacional Panamericana + Troncal Expresos Suramérica.'
             ]
         ];
     }
 
     /**
      * Sugiere automáticamente la modalidad adecuada según el operador y los tramos.
-     * 
-     * Reglas condicionales:
-     * 1. Si el operador es Panamericana (ID 2 o nombre contiene Panamericana) o algún tramo lo es -> 'PANAMERICANA'.
-     * 2. Si tiene tramos o tipo de viaje es CONEXION y no es Panamericana -> 'CONEXION_TRAMOS'.
-     * 3. Si es viaje directo y operador propio -> 'ESTANDAR'.
      */
     public static function resolverModalidadAutomatica($idOperador, $tipoViaje, array $tramos = [], $operadorNombre = '') {
-        $esPanam = false;
+        $tienePanam = false;
+        $tieneSuramerica = false;
+        $tieneLocales = false;
 
         if (intval($idOperador) === 2 || stripos((string)$operadorNombre, 'PANAMERICANA') !== false) {
-            $esPanam = true;
+            $tienePanam = true;
+        }
+        if (intval($idOperador) === 1 || stripos((string)$operadorNombre, 'SURAMERICA') !== false) {
+            $tieneSuramerica = true;
         }
 
         foreach ($tramos as $tr) {
             $trIdOp = intval($tr['id_operador'] ?? ($tr['ID_OPERADOR'] ?? 0));
             $trOpNom = $tr['operador'] ?? ($tr['OPERADOR'] ?? ($tr['OPERADOR_TRAMO_NOMBRE'] ?? ''));
+
             if ($trIdOp === 2 || stripos((string)$trOpNom, 'PANAMERICANA') !== false) {
-                $esPanam = true;
-                break;
+                $tienePanam = true;
+            } elseif ($trIdOp === 1 || stripos((string)$trOpNom, 'SURAMERICA') !== false) {
+                $tieneSuramerica = true;
+            } else {
+                $tieneLocales = true;
             }
         }
 
-        if ($esPanam) {
+        if ($tienePanam && $tieneSuramerica) {
+            return 'PANA_EXPRESOS';
+        }
+        if ($tienePanam) {
             return 'PANAMERICANA';
         }
-
+        if ($tieneSuramerica && count($tramos) > 1) {
+            return 'EXPRESOS_SURAMERICA';
+        }
         if (strtoupper($tipoViaje) === 'CONEXION' || count($tramos) > 1) {
-            return 'CONEXION_TRAMOS';
+            return 'CONEXIONES';
         }
 
         return 'ESTANDAR';
@@ -77,20 +100,27 @@ class ModalidadHelper {
     public static function formatearEtiqueta($modalidad, $numTramos = 0, $nombreOperador = '') {
         $modUpper = strtoupper(trim((string)$modalidad));
 
-        if ($modUpper === 'PANAMERICANA') {
-            return '⭐ Vía Panamericana' . ($numTramos > 0 ? " ({$numTramos} Tramos)" : '');
+        if ($modUpper === 'PANA_EXPRESOS' || $modUpper === 'PANA-EXPRESOS') {
+            return '⚡ Alianza Pana-Expresos' . ($numTramos > 0 ? " ({$numTramos} Tramos)" : '');
         }
 
-        if ($modUpper === 'CONEXION_TRAMOS' || $modUpper === 'CONEXIÓN MULTITRAMO' || $modUpper === 'CONEXION MULTITRAMO') {
+        if ($modUpper === 'PANAMERICANA') {
+            return '🚌 Vía Panamericana' . ($numTramos > 0 ? " ({$numTramos} Tramos)" : '');
+        }
+
+        if ($modUpper === 'EXPRESOS_SURAMERICA' || $modUpper === 'SURAMERICA' || $modUpper === 'EXPRESOS SURAMERICA') {
+            return '🚍 Expresos Suramérica 2030' . ($numTramos > 0 ? " ({$numTramos} Tramos)" : '');
+        }
+
+        if ($modUpper === 'CONEXIONES' || $modUpper === 'CONEXION_TRAMOS' || $modUpper === 'CONEXIÓN MULTITRAMO' || $modUpper === 'CONEXION MULTITRAMO') {
             $txtTramos = $numTramos > 0 ? " ({$numTramos} Tramos)" : ' (Multitramo)';
-            return '🔀 Conexión por Tramos' . $txtTramos;
+            return '🔀 Conexiones Locales' . $txtTramos;
         }
 
         if ($modUpper === 'ESTANDAR') {
             return '➡️ Directo' . (!empty($nombreOperador) ? " ({$nombreOperador})" : ' Estándar');
         }
 
-        // Si es un nombre personalizado libre, devolverlo tal cual
         return !empty($modalidad) ? trim($modalidad) : 'Estándar';
     }
 
@@ -100,12 +130,23 @@ class ModalidadHelper {
     public static function renderBadge($modalidad, $numTramos = 0, $nombreOperador = '') {
         $modUpper = strtoupper(trim((string)$modalidad));
 
-        if ($modUpper === 'PANAMERICANA') {
-            return '<span class="badge bg-primary text-white"><i class="fas fa-star me-1"></i>Vía Panamericana</span>';
+        if ($modUpper === 'PANA_EXPRESOS' || $modUpper === 'PANA-EXPRESOS') {
+            $txt = $numTramos > 0 ? "⚡ Pana-Expresos ({$numTramos}T)" : '⚡ Pana-Expresos';
+            return '<span class="badge bg-info-subtle text-info-emphasis border border-info-subtle">' . htmlspecialchars($txt) . '</span>';
         }
 
-        if ($modUpper === 'CONEXION_TRAMOS' || $modUpper === 'CONEXIÓN MULTITRAMO' || $modUpper === 'CONEXION MULTITRAMO') {
-            $txt = $numTramos > 0 ? "🔀 {$numTramos} Tramos" : '🔀 Conexión Tramos';
+        if ($modUpper === 'PANAMERICANA') {
+            $txt = $numTramos > 0 ? "🚌 Panamericana ({$numTramos}T)" : '🚌 Panamericana';
+            return '<span class="badge bg-warning-subtle text-dark border border-warning">' . htmlspecialchars($txt) . '</span>';
+        }
+
+        if ($modUpper === 'EXPRESOS_SURAMERICA' || $modUpper === 'SURAMERICA' || $modUpper === 'EXPRESOS SURAMERICA') {
+            $txt = $numTramos > 0 ? "🚍 Suramérica ({$numTramos}T)" : '🚍 Suramérica 2030';
+            return '<span class="badge bg-primary text-white border-0">' . htmlspecialchars($txt) . '</span>';
+        }
+
+        if ($modUpper === 'CONEXIONES' || $modUpper === 'CONEXION_TRAMOS' || $modUpper === 'CONEXIÓN MULTITRAMO' || $modUpper === 'CONEXION MULTITRAMO') {
+            $txt = $numTramos > 0 ? "🔀 Conexiones ({$numTramos}T)" : '🔀 Conexiones Locales';
             return '<span class="badge bg-secondary text-white">' . htmlspecialchars($txt) . '</span>';
         }
 
@@ -113,6 +154,6 @@ class ModalidadHelper {
             return '<span class="badge bg-success text-white">➡️ Directo</span>';
         }
 
-        return '<span class="badge bg-info text-dark border">' . htmlspecialchars($modalidad) . '</span>';
+        return '<span class="badge bg-light text-dark border">' . htmlspecialchars($modalidad) . '</span>';
     }
 }
