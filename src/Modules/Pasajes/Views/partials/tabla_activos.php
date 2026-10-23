@@ -72,7 +72,8 @@
                             <small class="text-muted">CI: <?= htmlspecialchars($p['ID_CLIENTE']) ?></small>
                         </td>
                         <td>
-                            <strong><?= htmlspecialchars($p['RUT_ORIGEN'].' ➔ '.$p['RUT_DESTINO']) ?></strong><br>
+                            <strong><?= htmlspecialchars($p['RUT_ORIGEN'].' ➔ '.$p['RUT_DESTINO']) ?></strong>
+                            <?= \Platform\Helpers\ModalidadHelper::renderBadge($p['MODALIDAD'] ?? 'ESTANDAR') ?><br>
                             <?php if($p['ESTADO'] == 'DEVUELTO'): ?>
                                 <span class="badge bg-secondary text-decoration-line-through">Cancelado</span>
                             <?php elseif($p['FECHA_VIAJE']): ?>

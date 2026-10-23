@@ -44,12 +44,29 @@
                         <!-- ID_RUTA que se envía en el POST -->
                         <input type="hidden" name="ruta_id" id="ruta_id" value="" required>
 
+                        <!-- Selector y Cuadrícula Visual de Modalidades de Envío -->
+                        <div class="col-12 d-none" id="caja_multiple_modalidad_enc">
+                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                <label class="fw-bold text-primary small mb-0">
+                                    <i class="fas fa-layer-group me-1"></i> Seleccione la Modalidad de Despacho:
+                                </label>
+                                <span class="badge bg-light text-dark border small" id="lbl_conteo_modalidades_enc">0 opciones</span>
+                            </div>
+                            
+                            <!-- Cuadrícula de Tarjetas Interactivas de Modalidad -->
+                            <div id="grid_tarjetas_modalidad_enc" class="row g-2 mb-2">
+                                <!-- Tarjetas renderizadas dinámicamente por encomiendas.js -->
+                            </div>
+                        </div>
+
                         <!-- Ficha Resumen de Tarifas de la Ruta Seleccionada -->
                         <div class="col-12 mt-2 d-none" id="info_ruta_enc">
                             <div class="p-2 rounded bg-light border d-flex justify-content-between align-items-center flex-wrap gap-2">
                                 <div>
                                     <span id="badge_tipo_enc" class="badge bg-success fs-6">➡️ DIRECTO</span>
+                                    <span id="badge_modalidad_enc" class="badge bg-primary text-white fs-6 ms-1" style="display: none;"></span>
                                     <span id="badge_nombre_enc" class="fw-bold text-dark ms-2 small"></span>
+                                    <span id="lbl_duracion_enc" class="badge bg-light text-dark border ms-1 small"></span>
                                 </div>
                                 <div class="small">
                                     <span class="badge bg-primary">Tarifa Kg: $<span id="lbl_precio_kg">0.00</span></span>

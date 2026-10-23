@@ -2,6 +2,7 @@
 namespace Modules\Pasajes;
 
 use Platform\Storage\Database;
+use Platform\Helpers\ModalidadHelper;
 use PDO;
 use Exception;
 
@@ -29,9 +30,11 @@ class PasajesRepository {
             $ids = implode(',', array_map('intval', array_column($rutas, 'ID_RUTA')));
             $sqlTramos = "
                 SELECT rt.*,
-                       op.NOMBRE_COMERCIAL AS OPERADOR_TRAMO_NOMBRE
+                       op.NOMBRE_COMERCIAL AS OPERADOR_TRAMO_NOMBRE,
+                       COALESCE(tc.TIEMPO_ESTIMADO_HORAS, 0) AS TIEMPO_ESTIMADO_HORAS
                 FROM RUTA_TRAMO rt
                 LEFT JOIN OPERADOR op ON rt.ID_OPERADOR = op.ID_OPERADOR
+                LEFT JOIN tramo_catalogo tc ON rt.ID_TRAMO_CATALOGO = tc.ID_TRAMO_CATALOGO
                 WHERE rt.ID_RUTA IN ($ids)
                 ORDER BY rt.ID_RUTA, rt.ORDEN ASC
             ";
@@ -46,47 +49,55 @@ class PasajesRepository {
                 $r['TRAMOS'] = $tramos;
                 $r['NUM_TRAMOS'] = count($tramos);
 
-                $tienePanamericana = false;
-                if (strtoupper($r['MODALIDAD'] ?? '') === 'PANAMERICANA' ||
-                    stripos($r['OPERADOR_NOMBRE'] ?? '', 'PANAMERICANA') !== false) {
-                    $tienePanamericana = true;
-                }
+                // Calcular horas totales sumando tramos
+                $horasTotal = 0;
                 foreach ($tramos as $tr) {
-                    if (intval($tr['ID_OPERADOR'] ?? 0) === 2 ||
-                        stripos($tr['OPERADOR'] ?? '', 'PANAMERICANA') !== false ||
-                        stripos($tr['OPERADOR_TRAMO_NOMBRE'] ?? '', 'PANAMERICANA') !== false) {
-                        $tienePanamericana = true;
-                        break;
+                    $horasTotal += floatval($tr['TIEMPO_ESTIMADO_HORAS'] ?? 0);
+                }
+                $r['TIEMPO_ESTIMADO_HORAS'] = $horasTotal;
+                $r['DURACION_FORMATO'] = ($horasTotal > 0) ? "⏱️ {$horasTotal}h aprox." : "";
+
+                // Resolver modalidad comercial formal
+                $modRaw = strtoupper(trim($r['MODALIDAD'] ?? ''));
+                if (empty($modRaw) || $modRaw === 'AUTO') {
+                    $modCodigo = ModalidadHelper::resolverModalidadAutomatica(
+                        $r['ID_OPERADOR'],
+                        $r['TIPO_VIAJE'],
+                        $tramos,
+                        $r['OPERADOR_NOMBRE'] ?? ''
+                    );
+                } elseif ($modRaw === 'CONEXION_TRAMOS' || $modRaw === 'CONEXIÓN MULTITRAMO') {
+                    $modCodigo = 'CONEXIONES';
+                } else {
+                    $modCodigo = $modRaw;
+                }
+
+                $r['MODALIDAD_CODIGO'] = $modCodigo;
+                $r['MODALIDAD_NOMBRE'] = ModalidadHelper::formatearEtiqueta($modCodigo, count($tramos));
+                $r['MODALIDAD_BADGE_HTML'] = ModalidadHelper::renderBadge($modCodigo, count($tramos));
+                $r['TIENE_PANAMERICANA'] = ($modCodigo === 'PANAMERICANA' || $modCodigo === 'PANA_EXPRESOS');
+
+                // Lista de operadores intervinientes
+                $ops = [];
+                if (!empty($r['OPERADOR_NOMBRE'])) $ops[] = $r['OPERADOR_NOMBRE'];
+                foreach ($tramos as $tr) {
+                    $nomOp = $tr['OPERADOR_TRAMO_NOMBRE'] ?: ($tr['OPERADOR'] ?: '');
+                    if (!empty($nomOp) && !in_array($nomOp, $ops)) {
+                        $ops[] = $nomOp;
                     }
                 }
-                $r['TIENE_PANAMERICANA'] = $tienePanamericana;
+                $r['OPERADORES_LISTA'] = $ops;
+                $r['OPERADORES_RESUMEN'] = implode(', ', $ops);
 
+                // Itinerario y etiqueta legible
                 $ciudades = [];
                 foreach ($tramos as $tr) {
                     if (empty($ciudades)) $ciudades[] = $tr['ORIGEN_TRAMO'];
                     $ciudades[] = $tr['DESTINO_TRAMO'];
                 }
                 $rutaItinerarioStr = !empty($ciudades) ? implode(' ➔ ', $ciudades) : ($r['RUT_ORIGEN'] . ' ➔ ' . $r['RUT_DESTINO']);
-
-                if ($r['TIPO_VIAJE'] === 'CONEXION' || count($tramos) > 0) {
-                    if ($tienePanamericana) {
-                        $r['ETIQUETA_MODALIDAD'] = '⭐ Vía Panamericana (' . count($tramos) . ' Tramos: ' . $rutaItinerarioStr . ')';
-                        $r['ITINERARIO_TEXTO'] = $rutaItinerarioStr . ' (Vía Panamericana directo a Cúcuta)';
-                    } elseif (count($tramos) >= 3 || strtoupper($r['MODALIDAD'] ?? '') === 'CONEXION_TRAMOS') {
-                        $numTr = count($tramos) > 0 ? count($tramos) . ' Conexiones / Tramos' : 'Conexión por Tramos';
-                        $r['ETIQUETA_MODALIDAD'] = '🔀 ' . $numTr . ' (' . $rutaItinerarioStr . ')';
-                        $r['ITINERARIO_TEXTO'] = $rutaItinerarioStr . ' (Conexiones nacionales)';
-                    } elseif (count($tramos) > 0) {
-                        $r['ETIQUETA_MODALIDAD'] = '🔄 Conexión (' . count($tramos) . ' Tramos: ' . $rutaItinerarioStr . ')';
-                        $r['ITINERARIO_TEXTO'] = $rutaItinerarioStr;
-                    } else {
-                        $r['ETIQUETA_MODALIDAD'] = '🔄 Transbordo / Conexión';
-                        $r['ITINERARIO_TEXTO'] = 'Transbordo internacional';
-                    }
-                } else {
-                    $r['ETIQUETA_MODALIDAD'] = '➡️ Directo (' . ($r['OPERADOR_NOMBRE'] ?: 'Suramérica') . ')';
-                    $r['ITINERARIO_TEXTO'] = 'Viaje directo sin transbordo';
-                }
+                $r['ITINERARIO_TEXTO'] = $rutaItinerarioStr;
+                $r['ETIQUETA_MODALIDAD'] = $r['MODALIDAD_NOMBRE'] . ($horasTotal > 0 ? " ({$horasTotal}h)" : "");
             }
             unset($r);
         }

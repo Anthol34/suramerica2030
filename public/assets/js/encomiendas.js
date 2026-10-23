@@ -62,39 +62,144 @@ function alCambiarDestinoEnc() {
     let destino = document.getElementById('sel_destino_enc').value;
     let rutaIdInput = document.getElementById('ruta_id');
     let infoRuta = document.getElementById('info_ruta_enc');
+    let cajaMulti = document.getElementById('caja_multiple_modalidad_enc');
     
     if (!origen || !destino) {
         rutaIdInput.value = '';
         infoRuta.classList.add('d-none');
+        if (cajaMulti) cajaMulti.classList.add('d-none');
         calcularCobroEncomienda();
         return;
     }
     
-    let match = TODAS_LAS_RUTAS_ENC.find(r => r.RUT_ORIGEN === origen && r.RUT_DESTINO === destino);
-    if (match) {
-        rutaIdInput.value = match.ID_RUTA;
-        infoRuta.classList.remove('d-none');
-        
-        let badgeTipo = document.getElementById('badge_tipo_enc');
-        if (match.TIPO_VIAJE === 'CONEXION') {
-            badgeTipo.className = 'badge bg-warning text-dark fs-6';
-            badgeTipo.textContent = '🔄 CONEXIÓN';
-        } else {
-            badgeTipo.className = 'badge bg-success fs-6';
-            badgeTipo.textContent = '➡️ DIRECTO';
+    let matches = TODAS_LAS_RUTAS_ENC.filter(r => r.RUT_ORIGEN === origen && r.RUT_DESTINO === destino);
+    if (matches.length > 0) {
+        if (cajaMulti) {
+            cajaMulti.classList.remove('d-none');
+            let lblConteo = document.getElementById('lbl_conteo_modalidades_enc');
+            if (lblConteo) {
+                lblConteo.textContent = matches.length + (matches.length === 1 ? ' modalidad disponible' : ' modalidades disponibles');
+            }
+
+            let gridModalidades = document.getElementById('grid_tarjetas_modalidad_enc');
+            if (gridModalidades) {
+                gridModalidades.innerHTML = '';
+                matches.forEach(m => {
+                    let col = document.createElement('div');
+                    col.className = matches.length === 1 ? 'col-12' : 'col-md-6 col-12';
+                    
+                    let modBadgeHtml = m.MODALIDAD_BADGE_HTML || obtenerBadgeModalidadHtmlEnc(m.MODALIDAD_CODIGO || m.MODALIDAD, m.NUM_TRAMOS);
+                    let duracionTexto = m.DURACION_FORMATO || (m.TIEMPO_ESTIMADO_HORAS > 0 ? `⏱️ ${m.TIEMPO_ESTIMADO_HORAS}h aprox.` : '⏱️ Regular');
+                    let numTramosStr = (m.NUM_TRAMOS && m.NUM_TRAMOS > 1) ? `${m.NUM_TRAMOS} Tramos` : 'Directo';
+                    let operadoresStr = m.OPERADORES_RESUMEN || m.OPERADOR_NOMBRE || 'Suramérica 2030';
+                    let precioKg = parseFloat(m.PRECIO_ENCOMIENDA_KG || 0).toFixed(2);
+
+                    col.innerHTML = `
+                        <div class="card h-100 card-modalidad-enc p-2 border rounded shadow-sm bg-white" 
+                             id="card_mod_enc_${m.ID_RUTA}"
+                             style="cursor: pointer; transition: all 0.2s ease-in-out;"
+                             onclick="seleccionarRutaEspecificaEnc(${m.ID_RUTA})">
+                            <div class="d-flex justify-content-between align-items-center mb-1">
+                                <div class="d-flex align-items-center gap-1 flex-wrap">
+                                    ${modBadgeHtml}
+                                </div>
+                                <div class="text-end">
+                                    <span class="fs-6 fw-bold text-primary">$${precioKg} <small class="text-muted fw-normal" style="font-size:11px;">/ Kg</small></span>
+                                </div>
+                            </div>
+                            <div class="d-flex justify-content-between align-items-center mt-1 pt-1 border-top small text-muted">
+                                <span class="fw-semibold text-dark"><i class="far fa-clock me-1 text-primary"></i>${duracionTexto}</span>
+                                <span class="badge bg-light text-secondary border"><i class="fas fa-route me-1"></i>${numTramosStr}</span>
+                            </div>
+                            <div class="small text-truncate mt-1 text-secondary" title="${operadoresStr}">
+                                <i class="fas fa-truck-moving text-muted me-1"></i>${operadoresStr}
+                            </div>
+                        </div>
+                    `;
+                    gridModalidades.appendChild(col);
+                });
+            }
         }
         
-        document.getElementById('badge_nombre_enc').textContent = match.RUT_ORIGEN + ' ➔ ' + match.RUT_DESTINO;
-        document.getElementById('lbl_precio_kg').textContent = parseFloat(match.PRECIO_ENCOMIENDA_KG || 0).toFixed(2);
-        document.getElementById('lbl_precio_sobre').textContent = parseFloat(match.PRECIO_SOBRE || 0).toFixed(2);
-        document.getElementById('lbl_precio_vol').textContent = parseFloat(match.PRECIO_VOLUMEN || 0).toFixed(2);
-        
-        calcularCobroEncomienda();
+        seleccionarRutaEspecificaEnc(matches[0].ID_RUTA);
     } else {
         alert("No se encontró una ruta configurada para este trayecto.");
         rutaIdInput.value = '';
         infoRuta.classList.add('d-none');
+        if (cajaMulti) cajaMulti.classList.add('d-none');
     }
+}
+
+function obtenerBadgeModalidadHtmlEnc(modCodigo, numTramos = 0) {
+    let mod = (modCodigo || 'ESTANDAR').toUpperCase();
+    if (mod === 'PANA_EXPRESOS' || mod === 'PANA-EXPRESOS') {
+        let t = numTramos > 0 ? `⚡ Pana-Expresos (${numTramos}T)` : '⚡ Pana-Expresos';
+        return `<span class="badge bg-info-subtle text-info-emphasis border border-info-subtle fw-bold">${t}</span>`;
+    }
+    if (mod === 'PANAMERICANA') {
+        let t = numTramos > 0 ? `🚌 Panamericana (${numTramos}T)` : '🚌 Panamericana';
+        return `<span class="badge bg-warning-subtle text-dark border border-warning fw-bold">${t}</span>`;
+    }
+    if (mod === 'EXPRESOS_SURAMERICA' || mod === 'SURAMERICA' || mod === 'EXPRESOS SURAMERICA') {
+        let t = numTramos > 0 ? `🚍 Suramérica (${numTramos}T)` : '🚍 Suramérica 2030';
+        return `<span class="badge bg-primary text-white fw-bold">${t}</span>`;
+    }
+    if (mod === 'CONEXIONES' || mod === 'CONEXION_TRAMOS') {
+        let t = numTramos > 0 ? `🔀 Conexiones (${numTramos}T)` : '🔀 Conexiones Locales';
+        return `<span class="badge bg-secondary text-white fw-bold">${t}</span>`;
+    }
+    return `<span class="badge bg-success text-white fw-bold">➡️ Directo Estándar</span>`;
+}
+
+function seleccionarRutaEspecificaEnc(rutaId) {
+    let match = TODAS_LAS_RUTAS_ENC.find(r => r.ID_RUTA == rutaId);
+    if (!match) return;
+
+    let rutaIdInput = document.getElementById('ruta_id');
+    let infoRuta = document.getElementById('info_ruta_enc');
+
+    rutaIdInput.value = match.ID_RUTA;
+    infoRuta.classList.remove('d-none');
+
+    // Resaltar tarjeta seleccionada en encomiendas
+    document.querySelectorAll('.card-modalidad-enc').forEach(c => {
+        c.classList.remove('border-primary', 'bg-primary-subtle', 'border-2');
+        c.classList.add('bg-white');
+    });
+    let cardActiva = document.getElementById('card_mod_enc_' + rutaId);
+    if (cardActiva) {
+        cardActiva.classList.remove('bg-white');
+        cardActiva.classList.add('border-primary', 'bg-primary-subtle', 'border-2');
+    }
+    
+    let badgeTipo = document.getElementById('badge_tipo_enc');
+    if (match.TIPO_VIAJE === 'CONEXION' || (match.NUM_TRAMOS && match.NUM_TRAMOS > 1)) {
+        badgeTipo.className = 'badge bg-warning text-dark fs-6';
+        badgeTipo.textContent = '🔄 CONEXIÓN';
+    } else {
+        badgeTipo.className = 'badge bg-success fs-6';
+        badgeTipo.textContent = '➡️ DIRECTO';
+    }
+
+    let badgeModEnc = document.getElementById('badge_modalidad_enc');
+    if (badgeModEnc) {
+        let bHtml = match.MODALIDAD_BADGE_HTML || obtenerBadgeModalidadHtmlEnc(match.MODALIDAD_CODIGO || match.MODALIDAD, match.NUM_TRAMOS);
+        badgeModEnc.innerHTML = bHtml;
+        badgeModEnc.style.display = 'inline-block';
+    }
+
+    let lblDuracion = document.getElementById('lbl_duracion_enc');
+    if (lblDuracion) {
+        lblDuracion.textContent = match.DURACION_FORMATO || (match.TIEMPO_ESTIMADO_HORAS > 0 ? `⏱️ ${match.TIEMPO_ESTIMADO_HORAS}h` : '');
+        lblDuracion.style.display = lblDuracion.textContent ? 'inline-block' : 'none';
+    }
+    
+    document.getElementById('badge_nombre_enc').textContent = match.RUT_ORIGEN + ' ➔ ' + match.RUT_DESTINO;
+    document.getElementById('lbl_precio_kg').textContent = parseFloat(match.PRECIO_ENCOMIENDA_KG || 0).toFixed(2);
+    document.getElementById('lbl_precio_sobre').textContent = parseFloat(match.PRECIO_SOBRE || 0).toFixed(2);
+    document.getElementById('lbl_precio_vol').textContent = parseFloat(match.PRECIO_VOLUMEN || 0).toFixed(2);
+    
+    calcularCobroEncomienda();
 }
 
 document.getElementById('selectAll')?.addEventListener('change', function() {

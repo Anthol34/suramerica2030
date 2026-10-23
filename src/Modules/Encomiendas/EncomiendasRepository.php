@@ -2,6 +2,7 @@
 namespace Modules\Encomiendas;
 
 use Platform\Storage\Database;
+use Platform\Helpers\ModalidadHelper;
 use PDO;
 use Exception;
 
@@ -13,7 +14,90 @@ class EncomiendasRepository {
     }
 
     public function obtenerRutas() {
-        return $this->db->query("SELECT * FROM RUTA WHERE COALESCE(ESTADO, 'ACTIVO') = 'ACTIVO' ORDER BY RUT_ORIGEN, RUT_DESTINO")->fetchAll(PDO::FETCH_ASSOC);
+        $sql = "
+            SELECT r.*,
+                   r.RUT_SAHORA AS HORA_SALIDA,
+                   op.NOMBRE_COMERCIAL AS OPERADOR_NOMBRE,
+                   op.TIPO_OPERADOR AS OPERADOR_TIPO
+            FROM RUTA r
+            LEFT JOIN OPERADOR op ON r.ID_OPERADOR = op.ID_OPERADOR
+            WHERE COALESCE(r.ESTADO, 'ACTIVO') = 'ACTIVO'
+            ORDER BY r.RUT_ORIGEN, r.RUT_DESTINO, r.ID_RUTA
+        ";
+        $rutas = $this->db->query($sql)->fetchAll(PDO::FETCH_ASSOC);
+
+        if (!empty($rutas)) {
+            $ids = implode(',', array_map('intval', array_column($rutas, 'ID_RUTA')));
+            $sqlTramos = "
+                SELECT rt.*,
+                       op.NOMBRE_COMERCIAL AS OPERADOR_TRAMO_NOMBRE,
+                       COALESCE(tc.TIEMPO_ESTIMADO_HORAS, 0) AS TIEMPO_ESTIMADO_HORAS
+                FROM RUTA_TRAMO rt
+                LEFT JOIN OPERADOR op ON rt.ID_OPERADOR = op.ID_OPERADOR
+                LEFT JOIN tramo_catalogo tc ON rt.ID_TRAMO_CATALOGO = tc.ID_TRAMO_CATALOGO
+                WHERE rt.ID_RUTA IN ($ids)
+                ORDER BY rt.ID_RUTA, rt.ORDEN ASC
+            ";
+            $tramosRows = $this->db->query($sqlTramos)->fetchAll(PDO::FETCH_ASSOC);
+            $tramosPorRuta = [];
+            foreach ($tramosRows as $tr) {
+                $tramosPorRuta[$tr['ID_RUTA']][] = $tr;
+            }
+
+            foreach ($rutas as &$r) {
+                $tramos = $tramosPorRuta[$r['ID_RUTA']] ?? [];
+                $r['TRAMOS'] = $tramos;
+                $r['NUM_TRAMOS'] = count($tramos);
+
+                $horasTotal = 0;
+                foreach ($tramos as $tr) {
+                    $horasTotal += floatval($tr['TIEMPO_ESTIMADO_HORAS'] ?? 0);
+                }
+                $r['TIEMPO_ESTIMADO_HORAS'] = $horasTotal;
+                $r['DURACION_FORMATO'] = ($horasTotal > 0) ? "⏱️ {$horasTotal}h aprox." : "";
+
+                $modRaw = strtoupper(trim($r['MODALIDAD'] ?? ''));
+                if (empty($modRaw) || $modRaw === 'AUTO') {
+                    $modCodigo = ModalidadHelper::resolverModalidadAutomatica(
+                        $r['ID_OPERADOR'],
+                        $r['TIPO_VIAJE'],
+                        $tramos,
+                        $r['OPERADOR_NOMBRE'] ?? ''
+                    );
+                } elseif ($modRaw === 'CONEXION_TRAMOS' || $modRaw === 'CONEXIÓN MULTITRAMO') {
+                    $modCodigo = 'CONEXIONES';
+                } else {
+                    $modCodigo = $modRaw;
+                }
+
+                $r['MODALIDAD_CODIGO'] = $modCodigo;
+                $r['MODALIDAD_NOMBRE'] = ModalidadHelper::formatearEtiqueta($modCodigo, count($tramos));
+                $r['MODALIDAD_BADGE_HTML'] = ModalidadHelper::renderBadge($modCodigo, count($tramos));
+                $r['TIENE_PANAMERICANA'] = ($modCodigo === 'PANAMERICANA' || $modCodigo === 'PANA_EXPRESOS');
+
+                $ops = [];
+                if (!empty($r['OPERADOR_NOMBRE'])) $ops[] = $r['OPERADOR_NOMBRE'];
+                foreach ($tramos as $tr) {
+                    $nomOp = $tr['OPERADOR_TRAMO_NOMBRE'] ?: ($tr['OPERADOR'] ?: '');
+                    if (!empty($nomOp) && !in_array($nomOp, $ops)) {
+                        $ops[] = $nomOp;
+                    }
+                }
+                $r['OPERADORES_LISTA'] = $ops;
+                $r['OPERADORES_RESUMEN'] = implode(', ', $ops);
+
+                $ciudades = [];
+                foreach ($tramos as $tr) {
+                    if (empty($ciudades)) $ciudades[] = $tr['ORIGEN_TRAMO'];
+                    $ciudades[] = $tr['DESTINO_TRAMO'];
+                }
+                $r['ITINERARIO_TEXTO'] = !empty($ciudades) ? implode(' ➔ ', $ciudades) : ($r['RUT_ORIGEN'] . ' ➔ ' . $r['RUT_DESTINO']);
+                $r['ETIQUETA_MODALIDAD'] = $r['MODALIDAD_NOMBRE'] . ($horasTotal > 0 ? " ({$horasTotal}h)" : "");
+            }
+            unset($r);
+        }
+
+        return $rutas;
     }
 
     public function obtenerClientePorId($idCliente) {

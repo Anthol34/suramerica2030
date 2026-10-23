@@ -40,10 +40,22 @@
                         <!-- ID_RUTA que se envía en el POST -->
                         <input type="hidden" name="ruta_id" id="ruta_id_nuevo" value="" required>
 
-                        <!-- Selector auxiliar si existen múltiples horarios o modalidades para el mismo trayecto -->
+                        <!-- Selector y Cuadrícula Visual de Modalidades de Viaje -->
                         <div class="col-12 d-none" id="caja_multiple_horario">
-                            <label class="fw-bold text-primary small"><i class="fas fa-route me-1"></i> Itinerarios y modalidades disponibles para este trayecto:</label>
-                            <select id="sel_horario_pasaje" class="form-select form-select-sm border-info" onchange="seleccionarRutaEspecifica(this.value)">
+                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                <label class="fw-bold text-primary small mb-0">
+                                    <i class="fas fa-layer-group me-1"></i> Seleccione la Modalidad de Servicio para este Viaje:
+                                </label>
+                                <span class="badge bg-light text-dark border small" id="lbl_conteo_modalidades">0 opciones</span>
+                            </div>
+                            
+                            <!-- Cuadrícula de Tarjetas Interactivas de Modalidad -->
+                            <div id="grid_tarjetas_modalidad_pasajes" class="row g-2 mb-2">
+                                <!-- Tarjetas renderizadas dinámicamente por pasajes.js -->
+                            </div>
+
+                            <!-- Selector Select sincronizado (accesibilidad y fallback) -->
+                            <select id="sel_horario_pasaje" class="form-select form-select-sm border-info d-none" onchange="seleccionarRutaEspecifica(this.value)">
                             </select>
                         </div>
 

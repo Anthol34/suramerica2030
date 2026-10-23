@@ -91,7 +91,7 @@
                         <option value="0">-- Todas las Rutas --</option>
                         <?php if(!empty($rutas)): foreach($rutas as $r): ?>
                             <option value="<?= $r['ID_RUTA'] ?>" <?= ((int)($filtros['ruta_id'] ?? 0) === (int)$r['ID_RUTA']) ? 'selected' : '' ?>>
-                                <?= htmlspecialchars($r['RUT_ORIGEN'] . ' ➔ ' . $r['RUT_DESTINO']) ?>
+                                <?= htmlspecialchars($r['RUT_ORIGEN'] . ' ➔ ' . $r['RUT_DESTINO'] . ' [' . ($r['MODALIDAD_NOMBRE'] ?? $r['MODALIDAD'] ?? 'Directo') . ']') ?>
                             </option>
                         <?php endforeach; endif; ?>
                     </select>
