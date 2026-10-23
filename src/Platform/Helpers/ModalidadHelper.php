@@ -51,6 +51,28 @@ class ModalidadHelper {
     }
 
     /**
+     * Normaliza cualquier variante de texto a uno de los códigos canónicos de modalidad.
+     */
+    public static function normalizarCodigo($modalidad) {
+        $modUpper = strtoupper(trim((string)$modalidad));
+        if ($modUpper === 'PANA_EXPRESOS' || $modUpper === 'PANA-EXPRESOS') return 'PANA_EXPRESOS';
+        if ($modUpper === 'PANAMERICANA') return 'PANAMERICANA';
+        if ($modUpper === 'EXPRESOS_SURAMERICA' || $modUpper === 'SURAMERICA' || $modUpper === 'EXPRESOS SURAMERICA') return 'EXPRESOS_SURAMERICA';
+        if ($modUpper === 'CONEXIONES' || $modUpper === 'CONEXION_TRAMOS' || $modUpper === 'CONEXIÓN MULTITRAMO' || $modUpper === 'CONEXION MULTITRAMO') return 'CONEXIONES';
+        if ($modUpper === 'ESTANDAR' || empty($modUpper)) return 'ESTANDAR';
+        return $modUpper;
+    }
+
+    /**
+     * Obtiene el nombre legible de la modalidad.
+     */
+    public static function getNombre($codigo) {
+        $cat = self::catalogoModalidades();
+        $codNorm = self::normalizarCodigo($codigo);
+        return $cat[$codNorm]['nombre'] ?? self::formatearEtiqueta($codigo);
+    }
+
+    /**
      * Sugiere automáticamente la modalidad adecuada según el operador y los tramos.
      */
     public static function resolverModalidadAutomatica($idOperador, $tipoViaje, array $tramos = [], $operadorNombre = '') {

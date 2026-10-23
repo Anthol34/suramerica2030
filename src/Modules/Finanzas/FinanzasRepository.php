@@ -2,6 +2,7 @@
 namespace Modules\Finanzas;
 
 use Platform\Storage\Database;
+use Platform\Helpers\ModalidadHelper;
 use PDO;
 use Exception;
 
@@ -50,6 +51,7 @@ class FinanzasRepository {
         $fechaFin = !empty($filtros['fecha_fin']) ? $filtros['fecha_fin'] : date('Y-m-d');
         $tipoFecha = (isset($filtros['tipo_fecha']) && $filtros['tipo_fecha'] === 'viaje') ? 'f.FECHA_VIAJE' : 'f.FA_FECHA';
         $operadorFiltro = trim($filtros['operador'] ?? 'TODOS');
+        $modalidadFiltro = trim($filtros['modalidad'] ?? 'TODAS');
         $sucursalFiltro = (!empty($filtros['id_sucursal']) && $filtros['id_sucursal'] !== 'TODAS') ? intval($filtros['id_sucursal']) : null;
 
         $params = [':f_ini' => $fechaInicio, ':f_fin' => $fechaFin];
@@ -112,7 +114,7 @@ class FinanzasRepository {
         // 2. Obtener sobrepesos cobrados en el rango
         $sqlSp = "SELECT s.*, f.FA_FECHA, f.FECHA_VIAJE, f.ID_RUTA, f.ID_SUCURSAL,
                          c.CLI_NOMBRE, c.CLI_APELLIDO, c.ID_CLIENTE as CLI_DOC,
-                         r.RUT_ORIGEN, r.RUT_DESTINO,
+                         r.RUT_ORIGEN, r.RUT_DESTINO, r.MODALIDAD,
                          suc.CIUDAD as SUCURSAL_NOMBRE
                   FROM SOBREPESO s
                   INNER JOIN FACTURA f ON s.ID_FACTURA = f.ID_FACTURA
@@ -179,6 +181,14 @@ class FinanzasRepository {
             $tramos = $tramosMap[$idRuta] ?? [];
             $nombreCliente = trim(($pax['CLI_NOMBRE'] ?? '') . ' ' . ($pax['CLI_APELLIDO'] ?? '')) ?: 'Cliente S/N';
 
+            $modCodigo = ModalidadHelper::normalizarCodigo($pax['MODALIDAD'] ?? 'ESTANDAR');
+            $modNombre = ModalidadHelper::getNombre($modCodigo);
+            $modBadge = ModalidadHelper::renderBadge($modCodigo, count($tramos));
+
+            if ($modalidadFiltro !== 'TODAS' && strtoupper($modalidadFiltro) !== $modCodigo) {
+                continue;
+            }
+
             if (!empty($tramos)) {
                 foreach ($tramos as $tr) {
                     $op = !empty($tr['OP_NOMBRE']) ? trim($tr['OP_NOMBRE']) : (trim($tr['OPERADOR'] ?? 'Suramérica 2030') ?: 'Suramérica 2030');
@@ -210,6 +220,9 @@ class FinanzasRepository {
                         'ruta' => "{$pax['RUT_ORIGEN']} ➔ {$pax['RUT_DESTINO']}",
                         'tramo' => "{$tr['ORIGEN_TRAMO']} ➔ {$tr['DESTINO_TRAMO']}",
                         'operador' => $op,
+                        'modalidad' => $modCodigo,
+                        'modalidad_nombre' => $modNombre,
+                        'modalidad_badge' => $modBadge,
                         'asiento' => $pax['PAX_ASIENTO'],
                         'pvp' => $pvpTramo,
                         'costo_socio' => $costoSocio,
@@ -250,6 +263,9 @@ class FinanzasRepository {
                     'ruta' => "{$pax['RUT_ORIGEN']} ➔ {$pax['RUT_DESTINO']}",
                     'tramo' => "Directo",
                     'operador' => $op,
+                    'modalidad' => $modCodigo,
+                    'modalidad_nombre' => $modNombre,
+                    'modalidad_badge' => $modBadge,
                     'asiento' => $pax['PAX_ASIENTO'],
                     'pvp' => $pvpPax,
                     'costo_socio' => $costoSocio,
@@ -265,6 +281,15 @@ class FinanzasRepository {
             if (($sp['ESTADO'] ?? '') === 'ANULADO') {
                 continue;
             }
+
+            $modCodigo = ModalidadHelper::normalizarCodigo($sp['MODALIDAD'] ?? 'ESTANDAR');
+            $modNombre = ModalidadHelper::getNombre($modCodigo);
+            $modBadge = ModalidadHelper::renderBadge($modCodigo);
+
+            if ($modalidadFiltro !== 'TODAS' && strtoupper($modalidadFiltro) !== $modCodigo) {
+                continue;
+            }
+
             $op = trim($sp['SP_OPERADOR'] ?? '') ?: 'Panamericana';
             if ($operadorFiltro !== 'TODOS' && mb_strtoupper($op) !== mb_strtoupper($operadorFiltro)) {
                 continue;
@@ -310,6 +335,9 @@ class FinanzasRepository {
                 'ruta' => "{$sp['RUT_ORIGEN']} ➔ {$sp['RUT_DESTINO']}",
                 'tramo' => $sp['SP_TRAMO'] ?: 'Equipaje Exceso',
                 'operador' => $op,
+                'modalidad' => $modCodigo,
+                'modalidad_nombre' => $modNombre,
+                'modalidad_badge' => $modBadge,
                 'asiento' => '-',
                 'pvp' => $totalSp,
                 'costo_socio' => $costoSocio,
@@ -355,6 +383,7 @@ class FinanzasRepository {
                 'fecha_fin' => $fechaFin,
                 'tipo_fecha' => (isset($filtros['tipo_fecha']) && $filtros['tipo_fecha'] === 'viaje') ? 'viaje' : 'venta',
                 'operador' => $operadorFiltro,
+                'modalidad' => $modalidadFiltro,
                 'id_sucursal' => $sucursalFiltro ?: 'TODAS'
             ],
             'resumen' => [

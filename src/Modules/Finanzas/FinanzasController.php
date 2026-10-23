@@ -23,6 +23,7 @@ class FinanzasController {
             'fecha_fin' => !empty($_GET['fecha_fin']) ? trim($_GET['fecha_fin']) : date('Y-m-d'),
             'tipo_fecha' => (isset($_GET['tipo_fecha']) && $_GET['tipo_fecha'] === 'viaje') ? 'viaje' : 'venta',
             'operador' => !empty($_GET['operador']) ? trim($_GET['operador']) : 'TODOS',
+            'modalidad' => !empty($_GET['modalidad']) ? trim($_GET['modalidad']) : 'TODAS',
             'id_sucursal' => !empty($_GET['id_sucursal']) ? trim($_GET['id_sucursal']) : ''
         ];
 

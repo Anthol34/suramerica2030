@@ -104,9 +104,11 @@
                         <div class="mb-2">
                             <label class="fw-bold text-secondary mb-1">Modalidad Logística:</label>
                             <select name="tipo_logistica" class="form-select border-dark" required>
-                                <option value="ESTANDAR">🚐 Estándar (Directo Suramérica)</option>
-                                <option value="PANAMERICANA">🚌 Delegado a Panamericana (Quito-Cúcuta)</option>
-                                <option value="CONEXIONES">🔄 Conexiones Múltiples (Manta-Tulcán-Ipiales...)</option>
+                                <option value="ESTANDAR">➡️ Estándar (Directo Suramérica)</option>
+                                <option value="CONEXIONES">🔀 Conexiones Locales (Aliados EC, COL, VE)</option>
+                                <option value="PANAMERICANA">🚌 Vía Panamericana (Internacional Binacional)</option>
+                                <option value="EXPRESOS_SURAMERICA">🚍 Expresos Suramérica 2030 (Troncal Venezuela)</option>
+                                <option value="PANA_EXPRESOS">⚡ Alianza Pana-Expresos (Alta Eficiencia)</option>
                             </select>
                         </div>
                     </div>
@@ -135,9 +137,11 @@
                         <div class="mb-3">
                             <label class="fw-bold text-secondary mb-1">Modalidad Logística (Membrete):</label>
                             <select name="tipo_logistica" class="form-select border-primary" required>
-                                <option value="ESTANDAR">🚐 Estándar (Directo Suramérica)</option>
-                                <option value="PANAMERICANA">🚌 Delegado a Panamericana (Quito-Cúcuta)</option>
-                                <option value="CONEXIONES">🔄 Conexiones Múltiples (Manta-Tulcán-Ipiales...)</option>
+                                <option value="ESTANDAR">➡️ Estándar (Directo Suramérica)</option>
+                                <option value="CONEXIONES">🔀 Conexiones Locales (Aliados EC, COL, VE)</option>
+                                <option value="PANAMERICANA">🚌 Vía Panamericana (Internacional Binacional)</option>
+                                <option value="EXPRESOS_SURAMERICA">🚍 Expresos Suramérica 2030 (Troncal Venezuela)</option>
+                                <option value="PANA_EXPRESOS">⚡ Alianza Pana-Expresos (Alta Eficiencia)</option>
                             </select>
                         </div>
 
@@ -292,10 +296,13 @@
                                                 
                                                 <div class="mb-2">
                                                     <label class="fw-bold text-secondary mb-1">Modalidad Logística del Viaje:</label>
+                                                    <?php $modTrip = strtoupper(trim($v['MODALIDAD'] ?? 'ESTANDAR')); ?>
                                                     <select name="tipo_logistica" class="form-select border-dark" required>
-                                                        <option value="ESTANDAR">🚐 Estándar (Directo Suramérica)</option>
-                                                        <option value="PANAMERICANA">🚌 Delegado a Panamericana (Quito-Cúcuta)</option>
-                                                        <option value="CONEXIONES">🔄 Conexiones Múltiples (Manta-Tulcán-Ipiales...)</option>
+                                                        <option value="ESTANDAR" <?= $modTrip === 'ESTANDAR' ? 'selected' : '' ?>>➡️ Estándar (Directo Suramérica)</option>
+                                                        <option value="CONEXIONES" <?= ($modTrip === 'CONEXIONES' || $modTrip === 'CONEXION_TRAMOS') ? 'selected' : '' ?>>🔀 Conexiones Locales (Aliados EC, COL, VE)</option>
+                                                        <option value="PANAMERICANA" <?= $modTrip === 'PANAMERICANA' ? 'selected' : '' ?>>🚌 Vía Panamericana (Internacional Binacional)</option>
+                                                        <option value="EXPRESOS_SURAMERICA" <?= ($modTrip === 'EXPRESOS_SURAMERICA' || $modTrip === 'SURAMERICA') ? 'selected' : '' ?>>🚍 Expresos Suramérica 2030 (Troncal Venezuela)</option>
+                                                        <option value="PANA_EXPRESOS" <?= $modTrip === 'PANA_EXPRESOS' ? 'selected' : '' ?>>⚡ Alianza Pana-Expresos (Alta Eficiencia)</option>
                                                     </select>
                                                     <small class="text-muted d-block mt-2" style="font-size:11px;">El formato modificará automáticamente el itinerario y membrete del PDF para controles aduaneros.</small>
                                                 </div>
@@ -324,10 +331,13 @@
                                                 
                                                 <div class="mb-3">
                                                     <label class="fw-bold text-secondary mb-1">Modalidad Logística (Formato del PDF):</label>
+                                                    <?php $modTrip = strtoupper(trim($v['MODALIDAD'] ?? 'ESTANDAR')); ?>
                                                     <select name="tipo_logistica" class="form-select border-primary" required>
-                                                        <option value="ESTANDAR">🚐 Estándar (Directo Suramérica)</option>
-                                                        <option value="PANAMERICANA">🚌 Delegado a Panamericana (Quito-Cúcuta)</option>
-                                                        <option value="CONEXIONES">🔄 Conexiones Múltiples (Manta-Tulcán-Ipiales...)</option>
+                                                        <option value="ESTANDAR" <?= $modTrip === 'ESTANDAR' ? 'selected' : '' ?>>➡️ Estándar (Directo Suramérica)</option>
+                                                        <option value="CONEXIONES" <?= ($modTrip === 'CONEXIONES' || $modTrip === 'CONEXION_TRAMOS') ? 'selected' : '' ?>>🔀 Conexiones Locales (Aliados EC, COL, VE)</option>
+                                                        <option value="PANAMERICANA" <?= $modTrip === 'PANAMERICANA' ? 'selected' : '' ?>>🚌 Vía Panamericana (Internacional Binacional)</option>
+                                                        <option value="EXPRESOS_SURAMERICA" <?= ($modTrip === 'EXPRESOS_SURAMERICA' || $modTrip === 'SURAMERICA') ? 'selected' : '' ?>>🚍 Expresos Suramérica 2030 (Troncal Venezuela)</option>
+                                                        <option value="PANA_EXPRESOS" <?= $modTrip === 'PANA_EXPRESOS' ? 'selected' : '' ?>>⚡ Alianza Pana-Expresos (Alta Eficiencia)</option>
                                                     </select>
                                                 </div>
 
@@ -516,9 +526,11 @@
                     <div class="mb-2">
                         <label class="fw-bold text-secondary mb-1">Modalidad Logística:</label>
                         <select id="selLogisticaConsolidadoViajes" class="form-select border-dark" required>
-                            <option value="ESTANDAR">🚐 Estándar (Directo Suramérica)</option>
-                            <option value="PANAMERICANA">🚌 Delegado a Panamericana (Quito-Cúcuta)</option>
-                            <option value="CONEXIONES">🔄 Conexiones Múltiples (Manta-Tulcán-Ipiales...)</option>
+                            <option value="ESTANDAR">➡️ Estándar (Directo Suramérica)</option>
+                            <option value="CONEXIONES">🔀 Conexiones Locales (Aliados EC, COL, VE)</option>
+                            <option value="PANAMERICANA">🚌 Vía Panamericana (Internacional Binacional)</option>
+                            <option value="EXPRESOS_SURAMERICA">🚍 Expresos Suramérica 2030 (Troncal Venezuela)</option>
+                            <option value="PANA_EXPRESOS">⚡ Alianza Pana-Expresos (Alta Eficiencia)</option>
                         </select>
                     </div>
                 </div>
@@ -553,9 +565,11 @@
                         <div class="mb-3">
                             <label class="fw-bold text-secondary mb-1">Modalidad Logística (Membrete):</label>
                             <select name="tipo_logistica" class="form-select border-primary" required>
-                                <option value="ESTANDAR">🚐 Estándar (Directo Suramérica)</option>
-                                <option value="PANAMERICANA">🚌 Delegado a Panamericana (Quito-Cúcuta)</option>
-                                <option value="CONEXIONES">🔄 Conexiones Múltiples (Manta-Tulcán-Ipiales...)</option>
+                                <option value="ESTANDAR">➡️ Estándar (Directo Suramérica)</option>
+                                <option value="CONEXIONES">🔀 Conexiones Locales (Aliados EC, COL, VE)</option>
+                                <option value="PANAMERICANA">🚌 Vía Panamericana (Internacional Binacional)</option>
+                                <option value="EXPRESOS_SURAMERICA">🚍 Expresos Suramérica 2030 (Troncal Venezuela)</option>
+                                <option value="PANA_EXPRESOS">⚡ Alianza Pana-Expresos (Alta Eficiencia)</option>
                             </select>
                         </div>
 

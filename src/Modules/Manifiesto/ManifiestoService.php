@@ -44,24 +44,47 @@ class ManifiestoService {
     }
 
     public function prepararFormatoLogistica($ruta, $tipo_logistica) {
+        $origen = mb_strtoupper($ruta['RUT_ORIGEN'] ?? 'ECUADOR');
+        $destino = mb_strtoupper($ruta['RUT_DESTINO'] ?? 'VENEZUELA');
+        $tipo = strtoupper(trim((string)$tipo_logistica));
+
         $formato = [
             'empresa' => "SURAMERICA 2030 S.A.",
-            'origenPrint' => mb_strtoupper($ruta['RUT_ORIGEN']),
-            'destinoPrint' => mb_strtoupper($ruta['RUT_DESTINO']),
+            'propietario' => "SURAMERICA 2030 S.A.",
+            'origenPrint' => $origen,
+            'destinoPrint' => $destino,
             'paisDestino' => "VENEZUELA",
-            'itinerarioPrint' => "DIRECTO: " . mb_strtoupper($ruta['RUT_ORIGEN']) . " - " . mb_strtoupper($ruta['RUT_DESTINO'])
+            'itinerarioPrint' => "DIRECTO: {$origen} - {$destino}"
         ];
 
-        if ($tipo_logistica === 'PANAMERICANA') {
+        if ($tipo === 'PANAMERICANA') {
             $formato['empresa'] = "COOPERATIVA DE TRANSPORTES PANAMERICANA INTERNACIONAL";
-            $formato['origenPrint'] = "QUITO";
-            $formato['destinoPrint'] = "CUCUTA";
+            $formato['propietario'] = "COOPERATIVA DE TRANSPORTES PANAMERICANA INTERNACIONAL";
+            $formato['origenPrint'] = $origen;
+            $formato['destinoPrint'] = "CÚCUTA";
             $formato['paisDestino'] = "COLOMBIA";
-            $formato['itinerarioPrint'] = "DIRECTO: QUITO - CUCUTA";
-        } elseif ($tipo_logistica === 'CONEXIONES') {
-            $formato['origenPrint'] = "MANTA";
-            $formato['destinoPrint'] = "CARACAS";
-            $formato['itinerarioPrint'] = "CONEX: MANTA-TULCÁN / IPIALES-CÚCUTA / SAN CRISTÓBAL-CARACAS";
+            $formato['itinerarioPrint'] = "INTERNACIONAL DIRECTO: {$origen} ➔ CÚCUTA (ENLACE BINACIONAL A VENEZUELA)";
+        } elseif ($tipo === 'EXPRESOS_SURAMERICA' || $tipo === 'SURAMERICA') {
+            $formato['empresa'] = "EXPRESOS SURAMÉRICA 2030 C.A.";
+            $formato['propietario'] = "EXPRESOS SURAMÉRICA 2030 C.A.";
+            $formato['origenPrint'] = "SAN CRISTÓBAL";
+            $formato['destinoPrint'] = $destino;
+            $formato['paisDestino'] = "VENEZUELA";
+            $formato['itinerarioPrint'] = "TRONCAL VENEZOLANA: SAN CRISTÓBAL ➔ CARACAS ➔ {$destino}";
+        } elseif ($tipo === 'PANA_EXPRESOS') {
+            $formato['empresa'] = "ALIANZA PANAMERICANA & EXPRESOS SURAMÉRICA 2030";
+            $formato['propietario'] = "PANAMERICANA / SURAMÉRICA 2030";
+            $formato['origenPrint'] = $origen;
+            $formato['destinoPrint'] = $destino;
+            $formato['paisDestino'] = "VENEZUELA";
+            $formato['itinerarioPrint'] = "ALIANZA ESTRATÉGICA: {$origen} ➔ CÚCUTA (PANAMERICANA) | SAN CRISTÓBAL ➔ CARACAS ➔ {$destino} (SURAMÉRICA)";
+        } elseif ($tipo === 'CONEXIONES' || $tipo === 'CONEXION_TRAMOS') {
+            $formato['empresa'] = "RED MULTIMODAL CONEXIONES INTERNACIONALES";
+            $formato['propietario'] = "EMPRESAS LOCALES ALIADAS (ECUADOR - COLOMBIA - VENEZUELA)";
+            $formato['origenPrint'] = $origen;
+            $formato['destinoPrint'] = $destino;
+            $formato['paisDestino'] = "VENEZUELA";
+            $formato['itinerarioPrint'] = "CONEXIONES REGIONALES: {$origen} ➔ TULCÁN ➔ IPIALES ➔ CÚCUTA ➔ SAN CRISTÓBAL ➔ {$destino}";
         }
 
         return $formato;

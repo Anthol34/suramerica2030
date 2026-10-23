@@ -52,7 +52,7 @@
         <tr>
             <td>
                 <strong>PROPIETARIO:</strong><br>
-                <span <?= $editAttr ?>>COOPERATIVA DE TRANSPORTES PANAMERICANA</span>
+                <span <?= $editAttr ?>><?= htmlspecialchars($propietario ?? $empresa ?? 'SURAMERICA 2030 S.A.') ?></span>
             </td>
             <td>
                 <strong>PAIS DE MATRICULA:</strong> <span <?= $editAttr ?>>ECUADOR</span><br>

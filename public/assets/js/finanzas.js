@@ -72,7 +72,8 @@ function prepararImpresionOperador(nombreOp) {
                 ${op.razon_social && op.razon_social !== nombreOp ? `<strong>Razón Social:</strong> ${op.razon_social}<br>` : ''}
                 ${op.identificacion ? `<strong>RUC / Cédula / Doc:</strong> <span class="badge bg-light text-dark border">${op.identificacion}</span><br>` : ''}
                 <strong>Período Liquidado:</strong> ${f.fecha_inicio} al ${f.fecha_fin}<br>
-                <strong>Criterio de Fecha:</strong> ${f.tipo_fecha === 'viaje' ? 'Fecha de Viaje' : 'Fecha de Venta'}
+                <strong>Criterio de Fecha:</strong> ${f.tipo_fecha === 'viaje' ? 'Fecha de Viaje' : 'Fecha de Venta'}<br>
+                ${f.modalidad && f.modalidad !== 'TODAS' ? `<strong>Modalidad Filtrada:</strong> <span class="badge bg-secondary">${f.modalidad}</span><br>` : ''}
             </div>
             <div class="col-6 text-end">
                 <strong>Fecha Emisión:</strong> <?= date('d/m/Y H:i') ?><br>
@@ -118,6 +119,7 @@ function prepararImpresionOperador(nombreOp) {
                         <th>Factura</th>
                         <th>Pasajero</th>
                         <th>Ruta / Tramo</th>
+                        <th>Modalidad</th>
                         <th>Concepto</th>
                         <th class="text-end">PVP</th>
                         <th class="text-end">A Liquidar</th>
@@ -132,7 +134,11 @@ function prepararImpresionOperador(nombreOp) {
                 <td>${(m.fecha_venta || '').substring(0, 10)}</td>
                 <td>#${m.id_factura}</td>
                 <td>${m.cliente}</td>
-                <td>${m.tramo}</td>
+                <td>
+                    <strong>${m.tramo}</strong><br>
+                    <small class="text-muted">${m.ruta}</small>
+                </td>
+                <td><small class="fw-bold">${m.modalidad_nombre || m.modalidad || 'Estándar'}</small></td>
                 <td>${m.detalle}</td>
                 <td class="text-end">$ ${parseFloat(m.pvp).toFixed(2)}</td>
                 <td class="text-end fw-bold text-danger">$ ${parseFloat(m.costo_socio).toFixed(2)}</td>
@@ -144,7 +150,7 @@ function prepararImpresionOperador(nombreOp) {
                 </tbody>
                 <tfoot class="table-light fw-bold">
                     <tr>
-                        <td colspan="5" class="text-end">TOTAL LIQUIDADO AL SOCIO:</td>
+                        <td colspan="6" class="text-end">TOTAL LIQUIDADO AL SOCIO:</td>
                         <td class="text-end">$ ${(parseFloat(op.total_pvp_pasajes) + parseFloat(op.total_sobrepeso_usd)).toFixed(2)}</td>
                         <td class="text-end text-danger fs-6">$ ${parseFloat(op.total_a_liquidar).toFixed(2)}</td>
                     </tr>
@@ -191,7 +197,8 @@ function prepararImpresionGeneral() {
         <div class="row g-2 mb-3 small">
             <div class="col-6">
                 <strong>Período:</strong> ${f.fecha_inicio} al ${f.fecha_fin}<br>
-                <strong>Base de Consulta:</strong> ${f.tipo_fecha === 'viaje' ? 'Fecha de Viaje' : 'Fecha de Venta'}
+                <strong>Base de Consulta:</strong> ${f.tipo_fecha === 'viaje' ? 'Fecha de Viaje' : 'Fecha de Venta'}<br>
+                ${f.modalidad && f.modalidad !== 'TODAS' ? `<strong>Modalidad:</strong> ${f.modalidad}<br>` : ''}
             </div>
             <div class="col-6 text-end">
                 <strong>Fecha Emisión:</strong> <?= date('d/m/Y H:i') ?><br>

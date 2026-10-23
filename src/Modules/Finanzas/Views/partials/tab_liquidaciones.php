@@ -5,17 +5,17 @@
                 <form method="GET" action="/suramerica2030/finanzas" class="row g-2 align-items-end">
                     <input type="hidden" name="tab" value="liquidaciones">
                     
-                    <div class="col-md-2 col-sm-6">
+                    <div class="col-lg-2 col-md-4 col-sm-6">
                         <label class="form-label small fw-bold text-muted mb-1">Fecha Inicio</label>
                         <input type="date" name="fecha_inicio" class="form-control form-control-sm" value="<?= htmlspecialchars($filtros['fecha_inicio'] ?? date('Y-m-01')) ?>" required>
                     </div>
                     
-                    <div class="col-md-2 col-sm-6">
+                    <div class="col-lg-2 col-md-4 col-sm-6">
                         <label class="form-label small fw-bold text-muted mb-1">Fecha Fin</label>
                         <input type="date" name="fecha_fin" class="form-control form-control-sm" value="<?= htmlspecialchars($filtros['fecha_fin'] ?? date('Y-m-d')) ?>" required>
                     </div>
                     
-                    <div class="col-md-2 col-sm-6">
+                    <div class="col-lg-2 col-md-4 col-sm-6">
                         <label class="form-label small fw-bold text-muted mb-1">Base de Fecha</label>
                         <select name="tipo_fecha" class="form-select form-select-sm">
                             <option value="venta" <?= ($filtros['tipo_fecha'] ?? 'venta') === 'venta' ? 'selected' : '' ?>>📅 Fecha de Venta</option>
@@ -23,7 +23,7 @@
                         </select>
                     </div>
                     
-                    <div class="col-md-2 col-sm-6">
+                    <div class="col-lg-2 col-md-4 col-sm-6">
                         <label class="form-label small fw-bold text-muted mb-1">Operador / Socio</label>
                         <select name="operador" class="form-select form-select-sm">
                             <option value="TODOS" <?= ($filtros['operador'] ?? 'TODOS') === 'TODOS' ? 'selected' : '' ?>>🌐 Todos los Operadores</option>
@@ -34,8 +34,20 @@
                             <?php endforeach; ?>
                         </select>
                     </div>
+
+                    <div class="col-lg-2 col-md-4 col-sm-6">
+                        <label class="form-label small fw-bold text-muted mb-1">Modalidad</label>
+                        <select name="modalidad" class="form-select form-select-sm">
+                            <option value="TODAS" <?= ($filtros['modalidad'] ?? 'TODAS') === 'TODAS' ? 'selected' : '' ?>>🌐 Todas las Modalidades</option>
+                            <option value="CONEXIONES" <?= ($filtros['modalidad'] ?? '') === 'CONEXIONES' ? 'selected' : '' ?>>🔀 Conexiones Locales</option>
+                            <option value="PANAMERICANA" <?= ($filtros['modalidad'] ?? '') === 'PANAMERICANA' ? 'selected' : '' ?>>🚌 Panamericana Internacional</option>
+                            <option value="EXPRESOS_SURAMERICA" <?= ($filtros['modalidad'] ?? '') === 'EXPRESOS_SURAMERICA' ? 'selected' : '' ?>>🚍 Expresos Suramérica</option>
+                            <option value="PANA_EXPRESOS" <?= ($filtros['modalidad'] ?? '') === 'PANA_EXPRESOS' ? 'selected' : '' ?>>⚡ Pana-Expresos</option>
+                            <option value="ESTANDAR" <?= ($filtros['modalidad'] ?? '') === 'ESTANDAR' ? 'selected' : '' ?>>➡️ Directo Estándar</option>
+                        </select>
+                    </div>
                     
-                    <div class="col-md-2 col-sm-6">
+                    <div class="col-lg-2 col-md-4 col-sm-6">
                         <label class="form-label small fw-bold text-muted mb-1">Sucursal</label>
                         <select name="id_sucursal" class="form-select form-select-sm">
                             <option value="" <?= empty($filtros['id_sucursal']) || $filtros['id_sucursal'] === 'TODAS' ? 'selected' : '' ?>>🏢 Todas las Sucursales</option>
@@ -47,12 +59,12 @@
                         </select>
                     </div>
                     
-                    <div class="col-md-2 col-sm-12 d-flex gap-1">
-                        <button type="submit" class="btn btn-primary btn-sm flex-grow-1 fw-bold">
-                            🔍 Consultar
+                    <div class="col-12 d-flex justify-content-end gap-1 mt-2">
+                        <button type="submit" class="btn btn-primary btn-sm px-4 fw-bold">
+                            🔍 Consultar Liquidaciones
                         </button>
-                        <a href="/suramerica2030/finanzas?tab=liquidaciones" class="btn btn-outline-secondary btn-sm" title="Restablecer">
-                            🔄
+                        <a href="/suramerica2030/finanzas?tab=liquidaciones" class="btn btn-outline-secondary btn-sm px-3" title="Restablecer">
+                            🔄 Limpiar
                         </a>
                     </div>
                 </form>
@@ -287,6 +299,7 @@
                                 <tr class="fila-movimiento"
                                     data-tipo="<?= htmlspecialchars($m['tipo']) ?>"
                                     data-operador="<?= htmlspecialchars($m['operador']) ?>"
+                                    data-modalidad="<?= htmlspecialchars($m['modalidad'] ?? '') ?>"
                                     data-pvp="<?= $m['pvp'] ?>"
                                     data-costo="<?= $m['costo_socio'] ?>"
                                     data-utilidad="<?= $m['utilidad_agencia'] ?>">
@@ -306,8 +319,13 @@
                                         <small class="text-muted"><?= htmlspecialchars($m['documento'] ?? '') ?></small>
                                     </td>
                                     <td class="small text-muted"><?= htmlspecialchars($m['sucursal']) ?></td>
-                                    <td class="small text-truncate" style="max-width: 140px;" title="<?= htmlspecialchars($m['ruta']) ?>">
-                                        <?= htmlspecialchars($m['ruta']) ?>
+                                    <td class="small" style="max-width: 170px;">
+                                        <div class="text-truncate fw-bold" title="<?= htmlspecialchars($m['ruta']) ?>">
+                                            <?= htmlspecialchars($m['ruta']) ?>
+                                        </div>
+                                        <div class="mt-1">
+                                            <?= $m['modalidad_badge'] ?? '' ?>
+                                        </div>
                                     </td>
                                     <td>
                                         <span class="fw-bold text-primary small">
