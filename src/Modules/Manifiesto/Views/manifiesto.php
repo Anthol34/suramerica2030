@@ -104,7 +104,6 @@
                         <div class="mb-2">
                             <label class="fw-bold text-secondary mb-1">Modalidad Logística:</label>
                             <select name="tipo_logistica" class="form-select border-dark" required>
-                                <option value="ESTANDAR">➡️ Estándar (Directo Suramérica)</option>
                                 <option value="CONEXIONES">🔀 Conexiones Locales (Aliados EC, COL, VE)</option>
                                 <option value="PANAMERICANA">🚌 Vía Panamericana (Internacional Binacional)</option>
                                 <option value="EXPRESOS_SURAMERICA">🚍 Expresos Suramérica 2030 (Troncal Venezuela)</option>
@@ -137,7 +136,6 @@
                         <div class="mb-3">
                             <label class="fw-bold text-secondary mb-1">Modalidad Logística (Membrete):</label>
                             <select name="tipo_logistica" class="form-select border-primary" required>
-                                <option value="ESTANDAR">➡️ Estándar (Directo Suramérica)</option>
                                 <option value="CONEXIONES">🔀 Conexiones Locales (Aliados EC, COL, VE)</option>
                                 <option value="PANAMERICANA">🚌 Vía Panamericana (Internacional Binacional)</option>
                                 <option value="EXPRESOS_SURAMERICA">🚍 Expresos Suramérica 2030 (Troncal Venezuela)</option>
@@ -296,9 +294,8 @@
                                                 
                                                 <div class="mb-2">
                                                     <label class="fw-bold text-secondary mb-1">Modalidad Logística del Viaje:</label>
-                                                    <?php $modTrip = strtoupper(trim($v['MODALIDAD'] ?? 'ESTANDAR')); ?>
+                                                    <?php $modTrip = strtoupper(trim($v['MODALIDAD'] ?? 'CONEXIONES')); ?>
                                                     <select name="tipo_logistica" class="form-select border-dark" required>
-                                                        <option value="ESTANDAR" <?= $modTrip === 'ESTANDAR' ? 'selected' : '' ?>>➡️ Estándar (Directo Suramérica)</option>
                                                         <option value="CONEXIONES" <?= ($modTrip === 'CONEXIONES' || $modTrip === 'CONEXION_TRAMOS') ? 'selected' : '' ?>>🔀 Conexiones Locales (Aliados EC, COL, VE)</option>
                                                         <option value="PANAMERICANA" <?= $modTrip === 'PANAMERICANA' ? 'selected' : '' ?>>🚌 Vía Panamericana (Internacional Binacional)</option>
                                                         <option value="EXPRESOS_SURAMERICA" <?= ($modTrip === 'EXPRESOS_SURAMERICA' || $modTrip === 'SURAMERICA') ? 'selected' : '' ?>>🚍 Expresos Suramérica 2030 (Troncal Venezuela)</option>
@@ -331,9 +328,8 @@
                                                 
                                                 <div class="mb-3">
                                                     <label class="fw-bold text-secondary mb-1">Modalidad Logística (Formato del PDF):</label>
-                                                    <?php $modTrip = strtoupper(trim($v['MODALIDAD'] ?? 'ESTANDAR')); ?>
+                                                    <?php $modTrip = strtoupper(trim($v['MODALIDAD'] ?? 'CONEXIONES')); ?>
                                                     <select name="tipo_logistica" class="form-select border-primary" required>
-                                                        <option value="ESTANDAR" <?= $modTrip === 'ESTANDAR' ? 'selected' : '' ?>>➡️ Estándar (Directo Suramérica)</option>
                                                         <option value="CONEXIONES" <?= ($modTrip === 'CONEXIONES' || $modTrip === 'CONEXION_TRAMOS') ? 'selected' : '' ?>>🔀 Conexiones Locales (Aliados EC, COL, VE)</option>
                                                         <option value="PANAMERICANA" <?= $modTrip === 'PANAMERICANA' ? 'selected' : '' ?>>🚌 Vía Panamericana (Internacional Binacional)</option>
                                                         <option value="EXPRESOS_SURAMERICA" <?= ($modTrip === 'EXPRESOS_SURAMERICA' || $modTrip === 'SURAMERICA') ? 'selected' : '' ?>>🚍 Expresos Suramérica 2030 (Troncal Venezuela)</option>
@@ -526,7 +522,6 @@
                     <div class="mb-2">
                         <label class="fw-bold text-secondary mb-1">Modalidad Logística:</label>
                         <select id="selLogisticaConsolidadoViajes" class="form-select border-dark" required>
-                            <option value="ESTANDAR">➡️ Estándar (Directo Suramérica)</option>
                             <option value="CONEXIONES">🔀 Conexiones Locales (Aliados EC, COL, VE)</option>
                             <option value="PANAMERICANA">🚌 Vía Panamericana (Internacional Binacional)</option>
                             <option value="EXPRESOS_SURAMERICA">🚍 Expresos Suramérica 2030 (Troncal Venezuela)</option>
@@ -565,7 +560,6 @@
                         <div class="mb-3">
                             <label class="fw-bold text-secondary mb-1">Modalidad Logística (Membrete):</label>
                             <select name="tipo_logistica" class="form-select border-primary" required>
-                                <option value="ESTANDAR">➡️ Estándar (Directo Suramérica)</option>
                                 <option value="CONEXIONES">🔀 Conexiones Locales (Aliados EC, COL, VE)</option>
                                 <option value="PANAMERICANA">🚌 Vía Panamericana (Internacional Binacional)</option>
                                 <option value="EXPRESOS_SURAMERICA">🚍 Expresos Suramérica 2030 (Troncal Venezuela)</option>

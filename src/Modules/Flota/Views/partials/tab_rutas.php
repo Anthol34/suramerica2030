@@ -170,14 +170,8 @@
         }
         ksort($operadoresUnicos);
 
-        // Extraer Modalidades Reales Únicas
-        $modalidadesUnicas = array_values(array_unique(array_filter(array_map('trim', array_column($rutas, 'MODALIDAD')))));
-        if (!in_array('ESTANDAR', $modalidadesUnicas)) $modalidadesUnicas[] = 'ESTANDAR';
-        if (!in_array('CONEXIONES', $modalidadesUnicas)) $modalidadesUnicas[] = 'CONEXIONES';
-        if (!in_array('PANAMERICANA', $modalidadesUnicas)) $modalidadesUnicas[] = 'PANAMERICANA';
-        if (!in_array('EXPRESOS_SURAMERICA', $modalidadesUnicas)) $modalidadesUnicas[] = 'EXPRESOS_SURAMERICA';
-        if (!in_array('PANA_EXPRESOS', $modalidadesUnicas)) $modalidadesUnicas[] = 'PANA_EXPRESOS';
-        sort($modalidadesUnicas);
+        // Modalidades Oficiales del Sistema (Las 4 Estratégicas)
+        $modalidadesUnicas = ['CONEXIONES', 'PANAMERICANA', 'EXPRESOS_SURAMERICA', 'PANA_EXPRESOS'];
         ?>
 
         <!-- TARJETAS DE RESUMEN Y FILTRADO RÁPIDO (KPIS) -->
@@ -362,7 +356,7 @@
                             $strDias = empty($diasTexto) ? 'Sin definir' : implode(', ', $diasTexto);
                             $esActivo = ($r['ESTADO'] ?? 'ACTIVO') === 'ACTIVO';
 
-                            $mod = $r['MODALIDAD'] ?? 'ESTANDAR';
+                            $mod = $r['MODALIDAD'] ?? 'CONEXIONES';
                             $esConexion = ($r['TIPO_VIAJE'] ?? '') === 'CONEXION';
                             $operadorDirecto = !empty($r['OPERADOR_NOMBRE']) ? $r['OPERADOR_NOMBRE'] : 'Suramérica 2030 (Flota Propia)';
                             $numTramos = count($r['TRAMOS_DETALLE'] ?? []);
@@ -409,7 +403,7 @@
                                 data-destino="<?= htmlspecialchars(mb_strtolower(trim($r['RUT_DESTINO']))) ?>" 
                                 data-operador="<?= htmlspecialchars(mb_strtolower(trim($operadorMostrar))) ?>" 
                                 data-id-operador="<?= $r['ID_OPERADOR'] ?? '' ?>"
-                                data-modalidad="<?= htmlspecialchars(mb_strtolower(trim($r['MODALIDAD'] ?? 'estandar'))) ?>" 
+                                data-modalidad="<?= htmlspecialchars(mb_strtolower(trim($r['MODALIDAD'] ?? 'conexiones'))) ?>" 
                                 data-tipo-viaje="<?= htmlspecialchars(mb_strtolower($r['TIPO_VIAJE'] ?? 'directo')) ?>" 
                                 data-estado="<?= htmlspecialchars(mb_strtolower($r['ESTADO'] ?? 'activo')) ?>" 
                                 data-search="<?= strtolower(htmlspecialchars($r['RUT_ORIGEN'] . ' ' . $r['RUT_DESTINO'] . ' ' . ($r['NOMBRE_SENTIDO'] ?? '') . ' #' . $r['ID_RUTA'] . ' ' . $operadorMostrar . ' ' . implode(' ', $opsTramos) . ' ' . ($r['MODALIDAD'] ?? ''))) ?>">
@@ -602,22 +596,17 @@
                                             <small class="text-muted">Si es directo o conexión con transbordos.</small>
                                         </div>
                                         <div class="col-md-6">
-                                            <label class="form-label text-primary fw-bold">🔀 Modalidad Logística del Servicio</label>
+                                            <label class="form-label text-primary fw-bold">🔀 Modalidad Comercial del Servicio</label>
                                             <?php 
-                                                $currMod = $r['MODALIDAD'] ?? 'ESTANDAR';
-                                                $esPreset = in_array($currMod, ['ESTANDAR', 'PANAMERICANA', 'CONEXION_TRAMOS', 'Conexión Multitramo', 'AUTO']);
+                                                $currMod = \Platform\Helpers\ModalidadHelper::normalizarCodigo($r['MODALIDAD'] ?? 'CONEXIONES');
                                             ?>
-                                            <select name="modalidad" id="modalidad_select_edit_<?= $r['ID_RUTA'] ?>" class="form-select border-info fw-bold text-dark" onchange="alCambiarModalidadSelect(this, '<?= $r['ID_RUTA'] ?>')">
-                                                <option value="AUTO">🤖 Automático (según Operador y Tramos)</option>
-                                                <option value="PANAMERICANA" <?= $currMod === 'PANAMERICANA' ? 'selected' : '' ?>>⭐ Vía Panamericana</option>
-                                                <option value="CONEXION_TRAMOS" <?= ($currMod === 'CONEXION_TRAMOS' || $currMod === 'Conexión Multitramo') ? 'selected' : '' ?>>🔀 Conexión por Tramos</option>
-                                                <option value="ESTANDAR" <?= $currMod === 'ESTANDAR' ? 'selected' : '' ?>>➡️ Directo Estándar</option>
-                                                <option value="OTRO" <?= !$esPreset ? 'selected' : '' ?>>✏️ Nombre Personalizado...</option>
+                                            <select name="modalidad" id="modalidad_select_edit_<?= $r['ID_RUTA'] ?>" class="form-select border-info fw-bold text-dark">
+                                                <option value="CONEXIONES" <?= $currMod === 'CONEXIONES' ? 'selected' : '' ?>>🔀 Conexiones Locales (Aliados EC, COL, VE)</option>
+                                                <option value="PANAMERICANA" <?= $currMod === 'PANAMERICANA' ? 'selected' : '' ?>>🚌 Vía Panamericana (Internacional Binacional)</option>
+                                                <option value="EXPRESOS_SURAMERICA" <?= $currMod === 'EXPRESOS_SURAMERICA' ? 'selected' : '' ?>>🚍 Expresos Suramérica 2030 (Troncal Venezuela)</option>
+                                                <option value="PANA_EXPRESOS" <?= $currMod === 'PANA_EXPRESOS' ? 'selected' : '' ?>>⚡ Alianza Pana-Expresos (Alta Eficiencia)</option>
                                             </select>
-                                            <div id="caja_modalidad_personalizada_<?= $r['ID_RUTA'] ?>" class="<?= !$esPreset ? '' : 'd-none' ?> mt-1">
-                                                <input type="text" name="modalidad_personalizada" class="form-control form-control-sm border-info" placeholder="Ej: Ruta Expresa Internacional" value="<?= htmlspecialchars(!$esPreset ? $currMod : '') ?>">
-                                            </div>
-                                            <small class="text-muted" style="font-size:11px;">Nombre con el que se identificará este trayecto en Taquilla y Finanzas.</small>
+                                            <small class="text-muted" style="font-size:11px;">Modalidad estratégica con la que se comercializa este viaje en Taquilla, Manifiesto y Finanzas.</small>
                                         </div>
                                     </div>
 

@@ -181,7 +181,7 @@ class FinanzasRepository {
             $tramos = $tramosMap[$idRuta] ?? [];
             $nombreCliente = trim(($pax['CLI_NOMBRE'] ?? '') . ' ' . ($pax['CLI_APELLIDO'] ?? '')) ?: 'Cliente S/N';
 
-            $modCodigo = ModalidadHelper::normalizarCodigo($pax['MODALIDAD'] ?? 'ESTANDAR');
+            $modCodigo = ModalidadHelper::normalizarCodigo($pax['MODALIDAD'] ?? 'CONEXIONES');
             $modNombre = ModalidadHelper::getNombre($modCodigo);
             $modBadge = ModalidadHelper::renderBadge($modCodigo, count($tramos));
 
@@ -282,7 +282,7 @@ class FinanzasRepository {
                 continue;
             }
 
-            $modCodigo = ModalidadHelper::normalizarCodigo($sp['MODALIDAD'] ?? 'ESTANDAR');
+            $modCodigo = ModalidadHelper::normalizarCodigo($sp['MODALIDAD'] ?? 'CONEXIONES');
             $modNombre = ModalidadHelper::getNombre($modCodigo);
             $modBadge = ModalidadHelper::renderBadge($modCodigo);
 

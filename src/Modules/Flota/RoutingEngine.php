@@ -115,12 +115,6 @@ class RoutingEngine {
 
         $resultado = [];
 
-        // 1. Modalidad Directa / Estándar (si existe tramo directo único)
-        $itinerarioDirecto = $this->construirItinerarioDirecto($origen, $destino);
-        if ($itinerarioDirecto && $itinerarioDirecto['disponible']) {
-            $resultado['ESTANDAR'] = $itinerarioDirecto;
-        }
-
         // 2. Modalidad Conexiones (Empresas Locales EC, COL, VE)
         $itConexiones = $this->construirItinerarioConexiones($origen, $destino, $paisOrig, $paisDest);
         if ($itConexiones) {

@@ -130,12 +130,11 @@ class FlotaService {
             }
         }
 
-        // Resolver Modalidad: Respeta selección explícita/personalizada o resuelve automáticamente por reglas
+        // Resolver Modalidad: Respeta selección explícita de las 4 modalidades o resuelve automáticamente
         $modalidadInput = trim($datos['modalidad'] ?? '');
-        if ($modalidadInput === 'OTRO' && !empty($datos['modalidad_personalizada'])) {
-            $modalidad = trim($datos['modalidad_personalizada']);
-        } elseif (!empty($modalidadInput) && $modalidadInput !== 'AUTO') {
-            $modalidad = $modalidadInput;
+        $modalidadNorm = \Platform\Helpers\ModalidadHelper::normalizarCodigo($modalidadInput);
+        if (in_array($modalidadNorm, ['CONEXIONES', 'PANAMERICANA', 'EXPRESOS_SURAMERICA', 'PANA_EXPRESOS'])) {
+            $modalidad = $modalidadNorm;
         } else {
             $modalidad = \Platform\Helpers\ModalidadHelper::resolverModalidadAutomatica($idOperador, $tipoViaje, $tramos, $operadorNombre);
         }

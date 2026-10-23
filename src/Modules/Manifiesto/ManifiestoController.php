@@ -37,7 +37,7 @@ class ManifiestoController {
         // Opción A: Hoy / En Ruta
         if (isset($_GET['hoy']) && $_GET['hoy'] == 1) {
             $fecha = date('Y-m-d');
-            $tipo_logistica = $_GET['tipo_logistica'] ?? 'ESTANDAR';
+            $tipo_logistica = $_GET['tipo_logistica'] ?? 'CONEXIONES';
             $ruta = ['RUT_ORIGEN' => 'GENERAL / EN RUTA', 'RUT_DESTINO' => 'TODAS LAS RUTAS'];
             $bus = ['BUS_PLACA' => 'VARIOS', 'BUS_MARCA' => 'SISTEMA'];
             $pasajeros = $this->repository->obtenerPasajerosHoy();
@@ -55,7 +55,7 @@ class ManifiestoController {
             $viajesRaw = explode(',', $_GET['viajes']);
             $pasajeros = $this->repository->obtenerPasajerosConsolidados($viajesRaw);
             $fecha = $_GET['fecha'] ?? date('Y-m-d');
-            $tipo_logistica = $_GET['tipo_logistica'] ?? 'ESTANDAR';
+            $tipo_logistica = $_GET['tipo_logistica'] ?? 'CONEXIONES';
 
             $rutaId = (int)($_GET['ruta'] ?? 0);
             $busId = (int)($_GET['bus'] ?? 0);
@@ -83,7 +83,7 @@ class ManifiestoController {
             $fecha = $_GET['fecha'];
             $rutaId = (int)$_GET['ruta'];
             $busId = (int)$_GET['bus'];
-            $tipo_logistica = $_GET['tipo_logistica'] ?? 'ESTANDAR';
+            $tipo_logistica = $_GET['tipo_logistica'] ?? 'CONEXIONES';
 
             $datosVehiculo = $this->repository->obtenerDatosRutaYBus($rutaId, $busId);
             $ruta = $datosVehiculo['ruta'];
@@ -178,7 +178,7 @@ class ManifiestoController {
             $rutaId = (int)$_POST['ruta_envio'];
             $busId = (int)$_POST['bus_envio'];
             $correoDestino = $_POST['correo_destino'];
-            $tipo_logistica = $_POST['tipo_logistica'] ?? 'ESTANDAR';
+            $tipo_logistica = $_POST['tipo_logistica'] ?? 'CONEXIONES';
 
             $datosVehiculo = $this->repository->obtenerDatosRutaYBus($rutaId, $busId);
             $ruta = $datosVehiculo['ruta'];
@@ -208,7 +208,7 @@ class ManifiestoController {
     public function enviarManifiestoHoy() {
         if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             $correoDestino = $_POST['correo_destino'];
-            $tipo_logistica = $_POST['tipo_logistica'] ?? 'ESTANDAR';
+            $tipo_logistica = $_POST['tipo_logistica'] ?? 'CONEXIONES';
 
             $fecha = date('Y-m-d');
             $ruta = ['RUT_ORIGEN' => 'GENERAL / EN RUTA', 'RUT_DESTINO' => 'TODAS LAS RUTAS'];
@@ -242,7 +242,7 @@ class ManifiestoController {
             $rutaId = (int)($_POST['ruta_id_ref'] ?? 0);
             $busId = (int)($_POST['bus_id_ref'] ?? 0);
             $fecha = trim($_POST['fecha_ref'] ?? date('Y-m-d'));
-            $tipo_logistica = $_POST['tipo_logistica'] ?? 'ESTANDAR';
+            $tipo_logistica = $_POST['tipo_logistica'] ?? 'CONEXIONES';
 
             if (empty($viajes) || empty($correoDestino)) {
                 header("Location: /suramerica2030/manifiesto?tab=viaje&status=error&msg=" . urlencode("Datos incompletos para enviar el correo consolidado."));

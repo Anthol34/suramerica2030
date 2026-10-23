@@ -8,17 +8,10 @@ namespace Platform\Helpers;
 class ModalidadHelper {
 
     /**
-     * Catálogo maestro de modalidades estándar del sistema.
+     * Catálogo maestro de modalidades comerciales del sistema (Las 4 Estratégicas).
      */
     public static function catalogoModalidades() {
         return [
-            'ESTANDAR' => [
-                'codigo' => 'ESTANDAR',
-                'nombre' => 'Directo Estándar',
-                'icono' => '➡️',
-                'badge_class' => 'bg-success text-white',
-                'descripcion' => 'Viaje directo operado por flota propia sin transbordos.'
-            ],
             'CONEXIONES' => [
                 'codigo' => 'CONEXIONES',
                 'nombre' => 'Conexiones Locales',
@@ -51,16 +44,16 @@ class ModalidadHelper {
     }
 
     /**
-     * Normaliza cualquier variante de texto a uno de los códigos canónicos de modalidad.
+     * Normaliza cualquier variante de texto a uno de los 4 códigos canónicos de modalidad.
      */
     public static function normalizarCodigo($modalidad) {
         $modUpper = strtoupper(trim((string)$modalidad));
         if ($modUpper === 'PANA_EXPRESOS' || $modUpper === 'PANA-EXPRESOS') return 'PANA_EXPRESOS';
         if ($modUpper === 'PANAMERICANA') return 'PANAMERICANA';
         if ($modUpper === 'EXPRESOS_SURAMERICA' || $modUpper === 'SURAMERICA' || $modUpper === 'EXPRESOS SURAMERICA') return 'EXPRESOS_SURAMERICA';
-        if ($modUpper === 'CONEXIONES' || $modUpper === 'CONEXION_TRAMOS' || $modUpper === 'CONEXIÓN MULTITRAMO' || $modUpper === 'CONEXION MULTITRAMO') return 'CONEXIONES';
-        if ($modUpper === 'ESTANDAR' || empty($modUpper)) return 'ESTANDAR';
-        return $modUpper;
+        if ($modUpper === 'CONEXIONES' || $modUpper === 'CONEXION_TRAMOS' || $modUpper === 'CONEXIÓN MULTITRAMO' || $modUpper === 'CONEXION MULTITRAMO' || $modUpper === 'AUTO') return 'CONEXIONES';
+        if ($modUpper === 'ESTANDAR' || empty($modUpper)) return 'CONEXIONES';
+        return in_array($modUpper, ['CONEXIONES', 'PANAMERICANA', 'EXPRESOS_SURAMERICA', 'PANA_EXPRESOS']) ? $modUpper : 'CONEXIONES';
     }
 
     /**
@@ -73,7 +66,7 @@ class ModalidadHelper {
     }
 
     /**
-     * Sugiere automáticamente la modalidad adecuada según el operador y los tramos.
+     * Sugiere automáticamente la modalidad adecuada según el operador y los tramos entre las 4 oficiales.
      */
     public static function resolverModalidadAutomatica($idOperador, $tipoViaje, array $tramos = [], $operadorNombre = '') {
         $tienePanam = false;
@@ -83,7 +76,7 @@ class ModalidadHelper {
         if (intval($idOperador) === 2 || stripos((string)$operadorNombre, 'PANAMERICANA') !== false) {
             $tienePanam = true;
         }
-        if (intval($idOperador) === 1 || stripos((string)$operadorNombre, 'SURAMERICA') !== false) {
+        if (intval($idOperador) === 1 || stripos((string)$operadorNombre, 'SURAMERICA') !== false || stripos((string)$operadorNombre, 'SURAMÉRICA') !== false) {
             $tieneSuramerica = true;
         }
 
@@ -93,7 +86,7 @@ class ModalidadHelper {
 
             if ($trIdOp === 2 || stripos((string)$trOpNom, 'PANAMERICANA') !== false) {
                 $tienePanam = true;
-            } elseif ($trIdOp === 1 || stripos((string)$trOpNom, 'SURAMERICA') !== false) {
+            } elseif ($trIdOp === 1 || stripos((string)$trOpNom, 'SURAMERICA') !== false || stripos((string)$trOpNom, 'SURAMÉRICA') !== false) {
                 $tieneSuramerica = true;
             } else {
                 $tieneLocales = true;
@@ -106,14 +99,11 @@ class ModalidadHelper {
         if ($tienePanam) {
             return 'PANAMERICANA';
         }
-        if ($tieneSuramerica && count($tramos) > 1) {
+        if ($tieneSuramerica) {
             return 'EXPRESOS_SURAMERICA';
         }
-        if (strtoupper($tipoViaje) === 'CONEXION' || count($tramos) > 1) {
-            return 'CONEXIONES';
-        }
 
-        return 'ESTANDAR';
+        return 'CONEXIONES';
     }
 
     /**
@@ -139,11 +129,7 @@ class ModalidadHelper {
             return '🔀 Conexiones Locales' . $txtTramos;
         }
 
-        if ($modUpper === 'ESTANDAR') {
-            return '➡️ Directo' . (!empty($nombreOperador) ? " ({$nombreOperador})" : ' Estándar');
-        }
-
-        return !empty($modalidad) ? trim($modalidad) : 'Estándar';
+        return '🔀 Conexiones Locales';
     }
 
     /**
@@ -167,15 +153,8 @@ class ModalidadHelper {
             return '<span class="badge bg-primary text-white border-0">' . htmlspecialchars($txt) . '</span>';
         }
 
-        if ($modUpper === 'CONEXIONES' || $modUpper === 'CONEXION_TRAMOS' || $modUpper === 'CONEXIÓN MULTITRAMO' || $modUpper === 'CONEXION MULTITRAMO') {
-            $txt = $numTramos > 0 ? "🔀 Conexiones ({$numTramos}T)" : '🔀 Conexiones Locales';
-            return '<span class="badge bg-secondary text-white">' . htmlspecialchars($txt) . '</span>';
-        }
-
-        if ($modUpper === 'ESTANDAR') {
-            return '<span class="badge bg-success text-white">➡️ Directo</span>';
-        }
-
-        return '<span class="badge bg-light text-dark border">' . htmlspecialchars($modalidad) . '</span>';
+        // Default: Conexiones
+        $txt = $numTramos > 0 ? "🔀 Conexiones ({$numTramos}T)" : '🔀 Conexiones Locales';
+        return '<span class="badge bg-secondary text-white">' . htmlspecialchars($txt) . '</span>';
     }
 }

@@ -620,8 +620,8 @@ class PasajesRepository {
                 $stmtRuta->execute([$idPasaje]);
                 $orig = $stmtRuta->fetch(PDO::FETCH_ASSOC);
                 
-                if (empty($nombreTramo) && !empty($orig['MODALIDAD']) && $orig['MODALIDAD'] !== 'ESTANDAR') {
-                    $operadorTramo = $orig['MODALIDAD'];
+                if (empty($nombreTramo) && !empty($orig['MODALIDAD'])) {
+                    $operadorTramo = \Platform\Helpers\ModalidadHelper::getNombre($orig['MODALIDAD']);
                 }
 
                 $idCliente = !empty($datos['cliente_id']) ? $datos['cliente_id'] : (!empty($orig['PAX_CLIENTE']) ? $orig['PAX_CLIENTE'] : (!empty($orig['FAC_CLIENTE']) ? $orig['FAC_CLIENTE'] : '9999999999'));

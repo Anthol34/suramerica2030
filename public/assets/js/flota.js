@@ -703,22 +703,7 @@ document.addEventListener("DOMContentLoaded", function() {
 // ============================================================
 
 function alCambiarModalidadSelect(selectEl, rutaId) {
-    const sufijo = rutaId ? '_' + rutaId : '_';
-    const cajaCustom = document.getElementById('caja_modalidad_personalizada' + sufijo);
-    if (!cajaCustom) return;
-
-    if (selectEl.value === 'OTRO') {
-        cajaCustom.classList.remove('d-none');
-        const input = cajaCustom.querySelector('input[name="modalidad_personalizada"]');
-        if (input) {
-            input.focus();
-            if (!input.value.trim()) {
-                input.placeholder = "Escriba el nombre (ej: Ruta Expresa Internacional)";
-            }
-        }
-    } else {
-        cajaCustom.classList.add('d-none');
-    }
+    // Ya no se requiere campo de texto libre: modalidades 100% estandarizadas en 4 opciones.
 }
 
 function condicionarModalidadPorOperador(idOperador, rutaId) {
@@ -726,26 +711,12 @@ function condicionarModalidadPorOperador(idOperador, rutaId) {
     const selectMod = document.getElementById('modalidad_select_edit' + sufijo);
     if (!selectMod) return;
 
-    // Respetar si el usuario escribió un nombre personalizado explícito (OTRO)
-    if (selectMod.value === 'OTRO') {
-        const cajaCustom = document.getElementById('caja_modalidad_personalizada' + sufijo);
-        const inputCustom = cajaCustom ? cajaCustom.querySelector('input[name="modalidad_personalizada"]') : null;
-        if (inputCustom && inputCustom.value.trim().length > 0) {
-            return;
-        }
-    }
-
-    // Regla de operador: Si es Panamericana (ID 2)
     const esPanamericana = String(idOperador) === '2';
-
     if (esPanamericana) {
         selectMod.value = 'PANAMERICANA';
     } else {
-        if (selectMod.value === 'PANAMERICANA' || selectMod.value === 'AUTO') {
-            selectMod.value = 'ESTANDAR';
-        }
+        selectMod.value = 'EXPRESOS_SURAMERICA';
     }
-    alCambiarModalidadSelect(selectMod, rutaId);
 }
 
 function condicionarModalidadPorTramos(rutaId) {
@@ -753,38 +724,33 @@ function condicionarModalidadPorTramos(rutaId) {
     const selectMod = document.getElementById('modalidad_select_edit' + sufijo);
     if (!selectMod) return;
 
-    // Respetar personalizaciones manuales
-    if (selectMod.value === 'OTRO') {
-        const cajaCustom = document.getElementById('caja_modalidad_personalizada' + sufijo);
-        const inputCustom = cajaCustom ? cajaCustom.querySelector('input[name="modalidad_personalizada"]') : null;
-        if (inputCustom && inputCustom.value.trim().length > 0) {
-            return;
-        }
-    }
-
     const containerId = rutaId ? 'lista_tramos_edit_' + rutaId : 'lista_tramos_nuevos';
     const container = document.getElementById(containerId);
     if (!container) return;
 
     const opSelects = container.querySelectorAll('select[name="tramo_id_operador[]"]');
     let tienePanamericana = false;
+    let tieneSuramerica = false;
+
     opSelects.forEach(sel => {
-        if (String(sel.value) === '2') {
+        const val = String(sel.value);
+        const optText = (sel.options[sel.selectedIndex]?.text || '').toLowerCase();
+        if (val === '2' || optText.includes('panamericana')) {
             tienePanamericana = true;
-        } else {
-            const optText = sel.options[sel.selectedIndex]?.text || '';
-            if (optText.toLowerCase().includes('panamericana')) {
-                tienePanamericana = true;
-            }
+        } else if (val === '1' || optText.includes('suramérica') || optText.includes('suramerica')) {
+            tieneSuramerica = true;
         }
     });
 
-    if (tienePanamericana) {
+    if (tienePanamericana && tieneSuramerica) {
+        selectMod.value = 'PANA_EXPRESOS';
+    } else if (tienePanamericana) {
         selectMod.value = 'PANAMERICANA';
+    } else if (tieneSuramerica) {
+        selectMod.value = 'EXPRESOS_SURAMERICA';
     } else {
-        selectMod.value = 'CONEXION_TRAMOS';
+        selectMod.value = 'CONEXIONES';
     }
-    alCambiarModalidadSelect(selectMod, rutaId);
 }
 
 function condicionarModalidadAutomatica(rutaId) {

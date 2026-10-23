@@ -43,7 +43,6 @@
                             <option value="PANAMERICANA" <?= ($filtros['modalidad'] ?? '') === 'PANAMERICANA' ? 'selected' : '' ?>>🚌 Panamericana Internacional</option>
                             <option value="EXPRESOS_SURAMERICA" <?= ($filtros['modalidad'] ?? '') === 'EXPRESOS_SURAMERICA' ? 'selected' : '' ?>>🚍 Expresos Suramérica</option>
                             <option value="PANA_EXPRESOS" <?= ($filtros['modalidad'] ?? '') === 'PANA_EXPRESOS' ? 'selected' : '' ?>>⚡ Pana-Expresos</option>
-                            <option value="ESTANDAR" <?= ($filtros['modalidad'] ?? '') === 'ESTANDAR' ? 'selected' : '' ?>>➡️ Directo Estándar</option>
                         </select>
                     </div>
                     

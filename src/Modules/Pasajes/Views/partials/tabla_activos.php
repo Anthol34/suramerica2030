@@ -73,7 +73,7 @@
                         </td>
                         <td>
                             <strong><?= htmlspecialchars($p['RUT_ORIGEN'].' ➔ '.$p['RUT_DESTINO']) ?></strong>
-                            <?= \Platform\Helpers\ModalidadHelper::renderBadge($p['MODALIDAD'] ?? 'ESTANDAR') ?><br>
+                            <?= \Platform\Helpers\ModalidadHelper::renderBadge($p['MODALIDAD'] ?? 'CONEXIONES') ?><br>
                             <?php if($p['ESTADO'] == 'DEVUELTO'): ?>
                                 <span class="badge bg-secondary text-decoration-line-through">Cancelado</span>
                             <?php elseif($p['FECHA_VIAJE']): ?>
@@ -490,7 +490,7 @@
                                                         }
                                                     }
 
-                                                    $operadorDirectoRuta = (!empty($p['MODALIDAD']) && $p['MODALIDAD'] !== 'ESTANDAR' && $p['MODALIDAD'] !== 'CONEXION_TRAMOS') ? $p['MODALIDAD'] : 'Propio Suramérica';
+                                                    $operadorDirectoRuta = !empty($p['MODALIDAD']) ? \Platform\Helpers\ModalidadHelper::getNombre($p['MODALIDAD']) : 'Expresos Suramérica 2030';
                                                     $admiteDirectoRuta = isset($p['ADMITE_SOBREPESO']) ? intval($p['ADMITE_SOBREPESO']) : 1;
                                                     $limiteTramoActivo = floatval($p['LIMITE_EQUIPAJE_KG'] ?? 35.0);
                                                     $tarifaTramoActivo = floatval($p['PRECIO_SOBREPESO_KG'] ?? 1.0);
@@ -518,13 +518,7 @@
                                                             <span class="small text-muted fw-bold">
                                                                 📍 Itinerario General: <strong class="text-dark"><?= htmlspecialchars($p['RUT_ORIGEN'].' ➔ '.$p['RUT_DESTINO']) ?></strong>
                                                             </span>
-                                                            <?php if (!empty($p['MODALIDAD']) && $p['MODALIDAD'] === 'PANAMERICANA'): ?>
-                                                                <span class="badge bg-warning text-dark border border-warning" style="font-size:10px;">⭐ Aliado Panamericana</span>
-                                                            <?php elseif (!empty($p['MODALIDAD']) && $p['MODALIDAD'] !== 'ESTANDAR' && $p['MODALIDAD'] !== 'CONEXION_TRAMOS'): ?>
-                                                                <span class="badge bg-light text-dark border" style="font-size:10px;"><i class="bi bi-building"></i> <?= htmlspecialchars($p['MODALIDAD']) ?></span>
-                                                            <?php else: ?>
-                                                                <span class="badge bg-success" style="font-size:10px;">🚌 Operación Propia</span>
-                                                            <?php endif; ?>
+                                                            <?= \Platform\Helpers\ModalidadHelper::renderBadge($p['MODALIDAD'] ?? 'CONEXIONES') ?>
                                                         </div>
 
                                                         <?php if ($tieneTramos): ?>
