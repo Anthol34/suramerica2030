@@ -367,7 +367,27 @@ class RoutingEngine {
                 $pares[] = ['Cúcuta', $destino, 4];
             }
         }
-        // CASO E: Nacional o tramo interno
+        // CASO E: Ecuador ➔ Colombia (Conexiones Locales)
+        elseif ($paisOrig === 'ECUADOR' && $paisDest === 'COLOMBIA') {
+            if (strcasecmp($origen, 'Tulcán') !== 0) {
+                $pares[] = [$origen, 'Tulcán', 3]; // Empresa Local Ecuador
+            }
+            // Cruce binacional Rumichaca (Tulcán ⇄ Ipiales) se gestiona vía PUENTE_FRONTERIZO
+            if (strcasecmp($destino, 'Ipiales') !== 0) {
+                $pares[] = ['Ipiales', $destino, 4]; // Empresa Local Colombia
+            }
+        }
+        // CASO F: Colombia ➔ Ecuador (Conexiones Locales)
+        elseif ($paisOrig === 'COLOMBIA' && $paisDest === 'ECUADOR') {
+            if (strcasecmp($origen, 'Ipiales') !== 0) {
+                $pares[] = [$origen, 'Ipiales', 4]; // Empresa Local Colombia
+            }
+            // Cruce binacional Rumichaca (Ipiales ⇄ Tulcán) vía PUENTE_FRONTERIZO
+            if (strcasecmp($destino, 'Tulcán') !== 0) {
+                $pares[] = ['Tulcán', $destino, 3]; // Empresa Local Ecuador
+            }
+        }
+        // CASO G: Nacional o tramo interno
         else {
             $pares[] = [$origen, $destino, null];
         }
