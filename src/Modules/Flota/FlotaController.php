@@ -123,6 +123,40 @@ class FlotaController {
         }
     }
 
+    public function obtenerModalEditar() {
+        $this->verificarPermiso();
+        $idRuta = intval($_GET['id'] ?? $_POST['id_ruta'] ?? 0);
+        if ($idRuta <= 0) {
+            http_response_code(400);
+            echo '<div class="alert alert-danger m-3">ID de ruta inválido.</div>';
+            exit();
+        }
+
+        $todas = $this->repository->obtenerRutas();
+        $r = null;
+        foreach ($todas as $item) {
+            if (intval($item['ID_RUTA']) === $idRuta) {
+                $r = $item;
+                break;
+            }
+        }
+
+        if (!$r) {
+            http_response_code(404);
+            echo '<div class="alert alert-warning m-3">Ruta #' . $idRuta . ' no encontrada.</div>';
+            exit();
+        }
+
+        $ciudadesCatalogo = $this->repository->obtenerCiudadesCatalogo();
+        $operadores = $this->repository->obtenerOperadores(false);
+        $mapaDias = ['1'=>'Lun', '2'=>'Mar', '3'=>'Mié', '4'=>'Jue', '5'=>'Vie', '6'=>'Sáb', '7'=>'Dom'];
+        $esActivo = ($r['ESTADO'] ?? 'ACTIVO') === 'ACTIVO';
+        $diasArr = explode(',', $r['DIAS_SALIDA'] ?? '');
+
+        require __DIR__ . '/Views/partials/modal_editar_ruta.php';
+        exit();
+    }
+
     public function eliminarRuta() {
         $this->verificarPermiso();
         if ($_SERVER['REQUEST_METHOD'] == 'POST') {
