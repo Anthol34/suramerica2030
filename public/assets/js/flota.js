@@ -1016,8 +1016,10 @@ function actualizarFilaRutaEnDOM(ruta) {
     const colPasaje = fila.querySelector('.col-ruta-tarifa-pasaje');
     if (colPasaje) {
         colPasaje.innerHTML = `
-            <span class="fs-6 fw-bold text-primary">$${precioPasaje.toFixed(2)}</span>
-            <small class="text-muted d-block" style="font-size: 0.68rem;">precio viajero</small>
+            <div class="celda-editable-live" data-id-ruta="${idRuta}" data-pvp="${precioPasaje.toFixed(2)}" data-costo="${costoTotal.toFixed(2)}" onclick="iniciarEdicionInlinePvp(this)" title="Clic para editar tarifa en vivo">
+                <span class="fs-6 fw-bold text-primary val-editable-texto">$${precioPasaje.toFixed(2)} ✏️</span>
+                <small class="text-muted d-block" style="font-size: 0.68rem;">precio viajero</small>
+            </div>
         `;
     }
 
@@ -1035,15 +1037,29 @@ function actualizarFilaRutaEnDOM(ruta) {
     // Columna Tarifa Encomienda
     const colEncomienda = fila.querySelector('.col-ruta-tarifa-encomienda');
     if (colEncomienda) {
-        colEncomienda.innerHTML = `<span class="fs-6 fw-bold text-dark">$${precioEncomienda.toFixed(2)}</span>`;
+        colEncomienda.innerHTML = `
+            <div class="celda-editable-live" data-id-ruta="${idRuta}" data-encomienda="${precioEncomienda.toFixed(2)}" onclick="iniciarEdicionInlineEncomienda(this)" title="Clic para editar encomienda en vivo">
+                <span class="fs-6 fw-bold text-dark val-editable-texto">$${precioEncomienda.toFixed(2)} ✏️</span>
+                <small class="text-muted d-block" style="font-size: 0.68rem;">por kilo</small>
+            </div>
+        `;
     }
 
     // Columna Estado
     const colEstado = fila.querySelector('.col-ruta-estado');
     if (colEstado) {
-        colEstado.innerHTML = esActivo 
-            ? '<span class="badge bg-success">Activo</span>' 
-            : '<span class="badge bg-secondary">Inactivo</span>';
+        colEstado.innerHTML = `
+            <button type="button" 
+                    class="btn btn-sm p-1 border-0 bg-transparent btn-toggle-estado-ruta" 
+                    data-id-ruta="${idRuta}" 
+                    data-estado="${estado}"
+                    onclick="conmutarEstadoRutaEnVivo(${idRuta}, this)"
+                    title="Clic para ${esActivo ? 'inactivar' : 'activar'} ruta en vivo">
+                <span class="badge ${esActivo ? 'bg-success shadow-sm' : 'bg-secondary opacity-75'} px-2 py-1 fs-7">
+                    <span class="indicator-dot me-1">${esActivo ? '●' : '○'}</span> ${esActivo ? 'Activo' : 'Inactivo'}
+                </span>
+            </button>
+        `;
     }
 
     // Sincronizar inputs en ambos modales para que no queden desactualizados
@@ -1207,26 +1223,477 @@ function irATabOperadores(subtabId = 'subtab-tramos') {
 }
 window.irATabOperadores = irATabOperadores;
 
-document.addEventListener('DOMContentLoaded', function() {
-    const params = new URLSearchParams(window.location.search);
-    const tab = params.get('tab');
-    const openModal = params.get('openModal');
+// ========================================================
+// FUNCIONES DE CAMBIOS EN VIVO PARA RUTAS COMERCIALES
+// ========================================================
 
-    // Mapeo automático de parámetros a las pestañas y subpestañas
-    if (tab === 'tramos' || openModal === 'tramos') {
-        irATabOperadores('subtab-tramos');
-    } else if (tab === 'operadores' || openModal === 'operadores') {
-        irATabOperadores('subtab-operadores');
-    } else if (tab === 'buses' || openModal === 'buses') {
-        irATabOperadores('subtab-capacidad');
-    } else if (tab === 'flota') {
-        irATabOperadores('subtab-operadores');
-    } else if (openModal === 'nueva_ruta') {
-        const modalEl = document.getElementById('modalNuevaRutaComercial');
-        if (modalEl && window.bootstrap && bootstrap.Modal) {
-            const modal = new bootstrap.Modal(modalEl);
-            modal.show();
+/**
+ * Alterna el estado ACTIVO/INACTIVO de una ruta en vivo sin recargas
+ */
+function conmutarEstadoRutaEnVivo(idRuta, botonEl) {
+    if (!idRuta || !botonEl) return;
+    const estadoActual = (botonEl.getAttribute('data-estado') || 'ACTIVO').toUpperCase();
+    const nuevoEstado = (estadoActual === 'ACTIVO') ? 'INACTIVO' : 'ACTIVO';
+
+    const originalHtml = botonEl.innerHTML;
+    botonEl.disabled = true;
+    botonEl.innerHTML = `<span class="spinner-border spinner-border-sm text-secondary" style="width: 0.85rem; height: 0.85rem;" role="status"></span>`;
+
+    const formData = new FormData();
+    formData.append('id_ruta', idRuta);
+    formData.append('estado', nuevoEstado);
+    formData.append('ajax', '1');
+
+    fetch('/suramerica2030/flota/cambiarEstadoRuta', {
+        method: 'POST',
+        headers: { 'X-Requested-With': 'XMLHttpRequest' },
+        body: formData
+    })
+    .then(res => {
+        if (!res.ok) throw new Error('HTTP ' + res.status);
+        return res.json();
+    })
+    .then(data => {
+        botonEl.disabled = false;
+        if (data.status === 'success') {
+            const esActivo = data.es_activo;
+            const estadoFinal = data.estado;
+
+            botonEl.setAttribute('data-estado', estadoFinal);
+            botonEl.setAttribute('title', `Clic para ${esActivo ? 'inactivar' : 'activar'} ruta en vivo`);
+            botonEl.innerHTML = `
+                <span class="badge ${esActivo ? 'bg-success shadow-sm' : 'bg-secondary opacity-75'} px-2 py-1 fs-7">
+                    <span class="indicator-dot me-1">${esActivo ? '●' : '○'}</span> ${esActivo ? 'Activo' : 'Inactivo'}
+                </span>
+            `;
+
+            // Actualizar fila
+            const fila = document.getElementById('fila_ruta_' + idRuta);
+            if (fila) {
+                fila.setAttribute('data-estado', estadoFinal.toLowerCase());
+                if (esActivo) {
+                    fila.classList.remove('table-secondary', 'opacity-75');
+                } else {
+                    fila.classList.add('table-secondary', 'opacity-75');
+                }
+                if (window.LiveData && typeof LiveData.highlight === 'function') {
+                    LiveData.highlight(fila);
+                }
+            }
+
+            // Sincronizar select en modalTarifaRapida si existe
+            const modalTarifa = document.getElementById('modalTarifaRapida' + idRuta);
+            if (modalTarifa) {
+                const sel = modalTarifa.querySelector('select[name="estado"]');
+                if (sel) sel.value = estadoFinal;
+            }
+
+            actualizarKpisRutasEnDOM();
+            mostrarToastFlota(data.mensaje || `Ruta #${idRuta} actualizada`, 'success');
+        } else {
+            botonEl.innerHTML = originalHtml;
+            mostrarToastFlota(data.mensaje || 'Error al cambiar estado.', 'danger');
         }
+    })
+    .catch(err => {
+        botonEl.disabled = false;
+        botonEl.innerHTML = originalHtml;
+        mostrarToastFlota('Fallo de conexión: ' + err.message, 'danger');
+    });
+}
+window.conmutarEstadoRutaEnVivo = conmutarEstadoRutaEnVivo;
+
+/**
+ * Inicia la edición inline del PVP (Tarifa Pasaje) en la celda
+ */
+function iniciarEdicionInlinePvp(celdaEl) {
+    if (!celdaEl || celdaEl.classList.contains('editando')) return;
+    celdaEl.classList.add('editando');
+
+    const idRuta = celdaEl.getAttribute('data-id-ruta');
+    const pvpActual = parseFloat(celdaEl.getAttribute('data-pvp') || 0);
+    const costoTotal = parseFloat(celdaEl.getAttribute('data-costo') || 0);
+    const contenidoOriginal = celdaEl.innerHTML;
+
+    celdaEl.innerHTML = `
+        <div class="input-group input-group-sm inline-edit-widget">
+            <span class="input-group-text px-1 fw-bold text-primary">$</span>
+            <input type="number" step="0.50" min="0" class="form-control form-control-sm text-end fw-bold px-1" value="${pvpActual.toFixed(2)}" style="width: 75px;">
+            <button type="button" class="btn btn-sm btn-success px-2 btn-guardar-inline" title="Guardar (Enter)">✓</button>
+            <button type="button" class="btn btn-sm btn-outline-secondary px-2 btn-cancelar-inline" title="Cancelar (Esc)">✕</button>
+        </div>
+    `;
+
+    const input = celdaEl.querySelector('input');
+    const btnGuardar = celdaEl.querySelector('.btn-guardar-inline');
+    const btnCancelar = celdaEl.querySelector('.btn-cancelar-inline');
+
+    if (input) {
+        input.focus();
+        input.select();
     }
+
+    const cancelar = (e) => {
+        if (e) e.stopPropagation();
+        celdaEl.classList.remove('editando');
+        celdaEl.innerHTML = contenidoOriginal;
+    };
+
+    const guardar = (e) => {
+        if (e) e.stopPropagation();
+        const nuevoValor = parseFloat(input.value);
+        if (isNaN(nuevoValor) || nuevoValor <= 0) {
+            mostrarToastFlota('Ingresa un valor numérico válido mayor a 0.', 'warning');
+            input.focus();
+            return;
+        }
+
+        if (costoTotal > 0 && nuevoValor < costoTotal) {
+            mostrarToastFlota(`⚠️ La tarifa no puede ser menor a los costos de operadores ($${costoTotal.toFixed(2)}).`, 'warning');
+            input.focus();
+            return;
+        }
+
+        btnGuardar.disabled = true;
+        btnGuardar.innerHTML = `<span class="spinner-border spinner-border-sm" style="width: 0.65rem; height: 0.65rem;" role="status"></span>`;
+
+        const formData = new FormData();
+        formData.append('id_ruta', idRuta);
+        formData.append('precio_pasaje', nuevoValor);
+        formData.append('ajax', '1');
+
+        fetch('/suramerica2030/flota/actualizarPrecioRapido', {
+            method: 'POST',
+            headers: { 'X-Requested-With': 'XMLHttpRequest' },
+            body: formData
+        })
+        .then(res => res.json())
+        .then(data => {
+            celdaEl.classList.remove('editando');
+            if (data.status === 'success') {
+                if (data.ruta) {
+                    actualizarFilaRutaEnDOM(data.ruta);
+                } else {
+                    const utilidad = Math.max(0, nuevoValor - costoTotal);
+                    const margen = (nuevoValor > 0) ? ((utilidad / nuevoValor) * 100).toFixed(1) : 0;
+                    celdaEl.setAttribute('data-pvp', nuevoValor.toFixed(2));
+                    celdaEl.innerHTML = `
+                        <span class="fs-6 fw-bold text-primary val-editable-texto">$${nuevoValor.toFixed(2)} ✏️</span>
+                        <small class="text-muted d-block" style="font-size: 0.68rem;">precio viajero</small>
+                    `;
+                    const fila = document.getElementById('fila_ruta_' + idRuta);
+                    if (fila) {
+                        const colGan = fila.querySelector('.col-ruta-ganancia');
+                        if (colGan) {
+                            colGan.innerHTML = `
+                                <span class="fs-6 fw-bold text-success">$${utilidad.toFixed(2)}</span>
+                                <small class="text-success d-block fw-bold" style="font-size: 0.68rem;">${margen}% margen</small>
+                            `;
+                        }
+                    }
+                }
+                const fila = document.getElementById('fila_ruta_' + idRuta);
+                if (fila && window.LiveData && typeof LiveData.highlight === 'function') {
+                    LiveData.highlight(fila);
+                }
+                mostrarToastFlota(data.mensaje || 'Tarifa actualizada en vivo.', 'success');
+            } else {
+                celdaEl.innerHTML = contenidoOriginal;
+                mostrarToastFlota(data.mensaje || 'Error al actualizar tarifa.', 'danger');
+            }
+        })
+        .catch(err => {
+            celdaEl.classList.remove('editando');
+            celdaEl.innerHTML = contenidoOriginal;
+            mostrarToastFlota('Error de red: ' + err.message, 'danger');
+        });
+    };
+
+    btnGuardar.addEventListener('click', guardar);
+    btnCancelar.addEventListener('click', cancelar);
+
+    input.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            guardar(e);
+        } else if (e.key === 'Escape') {
+            e.preventDefault();
+            cancelar(e);
+        }
+    });
+}
+window.iniciarEdicionInlinePvp = iniciarEdicionInlinePvp;
+
+/**
+ * Inicia la edición inline de la tarifa de encomienda en la celda
+ */
+function iniciarEdicionInlineEncomienda(celdaEl) {
+    if (!celdaEl || celdaEl.classList.contains('editando')) return;
+    celdaEl.classList.add('editando');
+
+    const idRuta = celdaEl.getAttribute('data-id-ruta');
+    const precioActual = parseFloat(celdaEl.getAttribute('data-encomienda') || 0);
+    const contenidoOriginal = celdaEl.innerHTML;
+
+    celdaEl.innerHTML = `
+        <div class="input-group input-group-sm inline-edit-widget">
+            <span class="input-group-text px-1 fw-bold text-dark">$</span>
+            <input type="number" step="0.25" min="0" class="form-control form-control-sm text-end fw-bold px-1" value="${precioActual.toFixed(2)}" style="width: 70px;">
+            <button type="button" class="btn btn-sm btn-success px-2 btn-guardar-inline" title="Guardar (Enter)">✓</button>
+            <button type="button" class="btn btn-sm btn-outline-secondary px-2 btn-cancelar-inline" title="Cancelar (Esc)">✕</button>
+        </div>
+    `;
+
+    const input = celdaEl.querySelector('input');
+    const btnGuardar = celdaEl.querySelector('.btn-guardar-inline');
+    const btnCancelar = celdaEl.querySelector('.btn-cancelar-inline');
+
+    if (input) {
+        input.focus();
+        input.select();
+    }
+
+    const cancelar = (e) => {
+        if (e) e.stopPropagation();
+        celdaEl.classList.remove('editando');
+        celdaEl.innerHTML = contenidoOriginal;
+    };
+
+    const guardar = (e) => {
+        if (e) e.stopPropagation();
+        const nuevoValor = parseFloat(input.value);
+        if (isNaN(nuevoValor) || nuevoValor < 0) {
+            mostrarToastFlota('Ingresa un valor numérico válido mayor o igual a 0.', 'warning');
+            input.focus();
+            return;
+        }
+
+        btnGuardar.disabled = true;
+        btnGuardar.innerHTML = `<span class="spinner-border spinner-border-sm" style="width: 0.65rem; height: 0.65rem;" role="status"></span>`;
+
+        const formData = new FormData();
+        formData.append('id_ruta', idRuta);
+        formData.append('precio_encomienda', nuevoValor);
+        formData.append('ajax', '1');
+
+        fetch('/suramerica2030/flota/actualizarPrecioEncomiendaRapido', {
+            method: 'POST',
+            headers: { 'X-Requested-With': 'XMLHttpRequest' },
+            body: formData
+        })
+        .then(res => res.json())
+        .then(data => {
+            celdaEl.classList.remove('editando');
+            if (data.status === 'success') {
+                celdaEl.setAttribute('data-encomienda', nuevoValor.toFixed(2));
+                celdaEl.innerHTML = `
+                    <span class="fs-6 fw-bold text-dark val-editable-texto">$${nuevoValor.toFixed(2)} ✏️</span>
+                    <small class="text-muted d-block" style="font-size: 0.68rem;">por kilo</small>
+                `;
+                const fila = document.getElementById('fila_ruta_' + idRuta);
+                if (fila && window.LiveData && typeof LiveData.highlight === 'function') {
+                    LiveData.highlight(fila);
+                }
+                mostrarToastFlota(data.mensaje || 'Tarifa de encomienda actualizada.', 'success');
+            } else {
+                celdaEl.innerHTML = contenidoOriginal;
+                mostrarToastFlota(data.mensaje || 'Error al actualizar encomienda.', 'danger');
+            }
+        })
+        .catch(err => {
+            celdaEl.classList.remove('editando');
+            celdaEl.innerHTML = contenidoOriginal;
+            mostrarToastFlota('Error de red: ' + err.message, 'danger');
+        });
+    };
+
+    btnGuardar.addEventListener('click', guardar);
+    btnCancelar.addEventListener('click', cancelar);
+
+    input.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            guardar(e);
+        } else if (e.key === 'Escape') {
+            e.preventDefault();
+            cancelar(e);
+        }
+    });
+}
+window.iniciarEdicionInlineEncomienda = iniciarEdicionInlineEncomienda;
+
+/**
+ * Recalcula y actualiza en tiempo real los contadores KPI de rutas
+ */
+function actualizarKpisRutasEnDOM() {
+    const filas = document.querySelectorAll('.fila-ruta');
+    let total = filas.length;
+    let directas = 0;
+    let conexiones = 0;
+    let activas = 0;
+
+    filas.forEach(f => {
+        const tipo = (f.getAttribute('data-tipo-viaje') || '').toLowerCase();
+        const est = (f.getAttribute('data-estado') || '').toLowerCase();
+        if (tipo === 'conexion') conexiones++; else directas++;
+        if (est === 'activo') activas++;
+    });
+
+    const elTotal = document.getElementById('kpiTotalRutasCat');
+    if (elTotal) elTotal.textContent = total;
+    const elDir = document.getElementById('kpiRutasDirectas');
+    if (elDir) elDir.textContent = directas;
+    const elCon = document.getElementById('kpiRutasConexion');
+    if (elCon) elCon.textContent = conexiones;
+    const elAct = document.getElementById('kpiRutasActivas');
+    if (elAct) elAct.textContent = activas;
+    const elBadge = document.getElementById('badgeTotalRutas');
+    if (elBadge) elBadge.textContent = total + ' rutas';
+}
+window.actualizarKpisRutasEnDOM = actualizarKpisRutasEnDOM;
+
+/**
+ * Renderiza dinámicamente una nueva fila de ruta comercial en la tabla sin recargar la página
+ */
+function renderNuevaFilaRutaEnTabla(r) {
+    if (!r || !r.ID_RUTA) return;
+    const idRuta = r.ID_RUTA;
+    if (document.getElementById('fila_ruta_' + idRuta)) {
+        actualizarFilaRutaEnDOM(r);
+        return;
+    }
+
+    const tbody = document.querySelector('#tablaRutas tbody');
+    if (!tbody) return;
+
+    const tr = document.createElement('tr');
+    tr.className = 'fila-ruta';
+    tr.id = 'fila_ruta_' + idRuta;
+    tr.innerHTML = `
+        <td><span class="badge bg-secondary">#${idRuta}</span></td>
+        <td class="col-ruta-trayecto"></td>
+        <td class="col-ruta-operador"></td>
+        <td class="col-ruta-horarios"></td>
+        <td class="col-ruta-costo text-end"></td>
+        <td class="col-ruta-tarifa-pasaje text-end"></td>
+        <td class="col-ruta-ganancia text-end"></td>
+        <td class="col-ruta-tarifa-encomienda text-end"></td>
+        <td class="col-ruta-estado text-center"></td>
+        <td class="text-center">
+            <div class="btn-group">
+                <button class="btn btn-sm btn-outline-success fw-bold" data-bs-toggle="modal" data-bs-target="#modalTarifaRapida${idRuta}" title="Editar Precio Rápido">💲</button>
+                <button class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#modalEditarRuta${idRuta}" title="Configuración Avanzada">✏️</button>
+                <button class="btn btn-sm btn-outline-danger" data-bs-toggle="modal" data-bs-target="#modalEliminarRuta${idRuta}" title="Eliminar Ruta">🗑️</button>
+            </div>
+        </td>
+    `;
+
+    // Insertar al inicio de la tabla
+    const filaSin = document.getElementById('filaSinRutas');
+    if (filaSin && filaSin.parentNode === tbody) {
+        tbody.insertBefore(tr, filaSin);
+    } else if (tbody.firstChild) {
+        tbody.insertBefore(tr, tbody.firstChild);
+    } else {
+        tbody.appendChild(tr);
+    }
+
+    // Llenar contenido con la función maestra
+    actualizarFilaRutaEnDOM(r);
+
+    if (window.LiveData && typeof LiveData.highlight === 'function') {
+        LiveData.highlight(tr);
+    }
+}
+window.renderNuevaFilaRutaEnTabla = renderNuevaFilaRutaEnTabla;
+
+// Interceptor global para eliminación de rutas en vivo
+document.addEventListener('submit', function(e) {
+    const form = e.target;
+    if (!form || !form.classList.contains('form-eliminar-ruta-ajax')) return;
+
+    e.preventDefault();
+    const btnSubmit = form.querySelector('button[type="submit"]');
+    const originalText = btnSubmit ? btnSubmit.innerHTML : '';
+    if (btnSubmit) {
+        btnSubmit.disabled = true;
+        btnSubmit.innerHTML = `<span class="spinner-border spinner-border-sm me-1" role="status"></span> Procesando...`;
+    }
+
+    const formData = new FormData(form);
+    formData.append('ajax', '1');
+
+    fetch(form.action, {
+        method: 'POST',
+        headers: { 'X-Requested-With': 'XMLHttpRequest' },
+        body: formData
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (btnSubmit) {
+            btnSubmit.disabled = false;
+            btnSubmit.innerHTML = originalText;
+        }
+
+        const modalEl = form.closest('.modal');
+        if (modalEl && window.bootstrap && bootstrap.Modal) {
+            const modal = bootstrap.Modal.getInstance(modalEl) || bootstrap.Modal.getOrCreateInstance(modalEl);
+            if (modal) modal.hide();
+        }
+
+        if (data.status === 'success') {
+            const idRuta = data.id_ruta;
+            const fila = document.getElementById('fila_ruta_' + idRuta);
+
+            if (data.accion === 'eliminada') {
+                if (fila) {
+                    fila.classList.add('row-fade-out');
+                    setTimeout(() => {
+                        fila.remove();
+                        actualizarKpisRutasEnDOM();
+                        if (typeof aplicarFiltrosYPaginarRutas === 'function') {
+                            aplicarFiltrosYPaginarRutas(typeof paginaActualRutas !== 'undefined' ? paginaActualRutas : 1);
+                        }
+                    }, 400);
+                }
+            } else if (data.accion === 'inactivada') {
+                if (fila) {
+                    fila.setAttribute('data-estado', 'inactivo');
+                    fila.classList.add('table-secondary', 'opacity-75');
+                    const colEst = fila.querySelector('.col-ruta-estado');
+                    if (colEst) {
+                        colEst.innerHTML = `
+                            <button type="button" 
+                                    class="btn btn-sm p-1 border-0 bg-transparent btn-toggle-estado-ruta" 
+                                    data-id-ruta="${idRuta}" 
+                                    data-estado="INACTIVO"
+                                    onclick="conmutarEstadoRutaEnVivo(${idRuta}, this)"
+                                    title="Clic para activar ruta en vivo">
+                                <span class="badge bg-secondary opacity-75 px-2 py-1 fs-7">
+                                    <span class="indicator-dot me-1">○</span> Inactivo
+                                </span>
+                            </button>
+                        `;
+                    }
+                    if (window.LiveData && typeof LiveData.highlight === 'function') {
+                        LiveData.highlight(fila);
+                    }
+                    actualizarKpisRutasEnDOM();
+                }
+            }
+
+            mostrarToastFlota(data.mensaje || 'Operación realizada con éxito.', 'success');
+        } else {
+            mostrarToastFlota(data.mensaje || 'Error al procesar la ruta.', 'danger');
+        }
+    })
+    .catch(err => {
+        if (btnSubmit) {
+            btnSubmit.disabled = false;
+            btnSubmit.innerHTML = originalText;
+        }
+        mostrarToastFlota('Error al eliminar la ruta: ' + err.message, 'danger');
+    });
 });
+
 

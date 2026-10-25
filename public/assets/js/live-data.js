@@ -245,6 +245,7 @@
                         else if (result.data.id_rol) highlightSelector = `#fila_rol_${result.data.id_rol}`;
                         else if (result.data.id_cierre) highlightSelector = `#fila_cierre_${result.data.id_cierre}`;
                         else if (result.data.id_movimiento) highlightSelector = `#fila_mov_${result.data.id_movimiento}`;
+                        else if (result.data.id_ruta) highlightSelector = `#fila_ruta_${result.data.id_ruta}`;
                     }
 
                     if (highlightSelector) {

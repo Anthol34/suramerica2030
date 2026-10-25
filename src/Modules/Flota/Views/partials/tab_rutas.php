@@ -452,22 +452,38 @@
                                     <small class="text-muted d-block" style="font-size: 0.68rem;">liquidación</small>
                                 </td>
                                 <td class="col-ruta-tarifa-pasaje text-end">
-                                    <span class="fs-6 fw-bold text-primary">$<?= number_format($r['PRECIO_PASAJE'], 2) ?></span>
-                                    <small class="text-muted d-block" style="font-size: 0.68rem;">precio viajero</small>
+                                    <div class="celda-editable-live" data-id-ruta="<?= $r['ID_RUTA'] ?>" data-pvp="<?= $r['PRECIO_PASAJE'] ?>" data-costo="<?= $r['COSTO_CALCULADO'] ?? $r['COSTO_TOTAL_RUTA'] ?? 0 ?>" onclick="iniciarEdicionInlinePvp(this)" title="Clic para editar tarifa en vivo">
+                                        <span class="fs-6 fw-bold text-primary val-editable-texto">$<?= number_format($r['PRECIO_PASAJE'], 2) ?> ✏️</span>
+                                        <small class="text-muted d-block" style="font-size: 0.68rem;">precio viajero</small>
+                                    </div>
                                 </td>
                                 <td class="col-ruta-ganancia text-end">
                                     <span class="fs-6 fw-bold text-success">$<?= number_format($r['UTILIDAD_CALCULADA'] ?? $r['UTILIDAD_PASAJE'] ?? 0, 2) ?></span>
                                     <small class="text-success d-block fw-bold" style="font-size: 0.68rem;"><?= $r['MARGEN_PCT'] ?? 0 ?>% margen</small>
                                 </td>
                                 <td class="col-ruta-tarifa-encomienda text-end">
-                                    <span class="fs-6 fw-bold text-dark">$<?= number_format($r['PRECIO_ENCOMIENDA_KG'], 2) ?></span>
+                                    <div class="celda-editable-live" data-id-ruta="<?= $r['ID_RUTA'] ?>" data-encomienda="<?= $r['PRECIO_ENCOMIENDA_KG'] ?>" onclick="iniciarEdicionInlineEncomienda(this)" title="Clic para editar precio encomienda en vivo">
+                                        <span class="fs-6 fw-bold text-dark val-editable-texto">$<?= number_format($r['PRECIO_ENCOMIENDA_KG'], 2) ?> ✏️</span>
+                                        <small class="text-muted d-block" style="font-size: 0.68rem;">por kilo</small>
+                                    </div>
                                 </td>
                                 <td class="col-ruta-estado text-center">
-                                    <?php if($esActivo): ?>
-                                        <span class="badge bg-success">Activo</span>
-                                    <?php else: ?>
-                                        <span class="badge bg-secondary">Inactivo</span>
-                                    <?php endif; ?>
+                                    <button type="button" 
+                                            class="btn btn-sm p-1 border-0 bg-transparent btn-toggle-estado-ruta" 
+                                            data-id-ruta="<?= $r['ID_RUTA'] ?>" 
+                                            data-estado="<?= $esActivo ? 'ACTIVO' : 'INACTIVO' ?>"
+                                            onclick="conmutarEstadoRutaEnVivo(<?= $r['ID_RUTA'] ?>, this)"
+                                            title="Clic para <?= $esActivo ? 'inactivar' : 'activar' ?> ruta en vivo">
+                                        <?php if($esActivo): ?>
+                                            <span class="badge bg-success shadow-sm px-2 py-1 fs-7">
+                                                <span class="indicator-dot me-1">●</span> Activo
+                                            </span>
+                                        <?php else: ?>
+                                            <span class="badge bg-secondary opacity-75 px-2 py-1 fs-7">
+                                                <span class="indicator-dot me-1">○</span> Inactivo
+                                            </span>
+                                        <?php endif; ?>
+                                    </button>
                                 </td>
                                 <td class="text-center">
                                     <div class="btn-group">
@@ -878,7 +894,7 @@ foreach($tramosList as $trIndex => $tramo):
                             <h5 class="modal-title fs-6 fw-bold">🗑️ Eliminar o Retirar Ruta #<?= $r['ID_RUTA'] ?></h5>
                             <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
                         </div>
-                        <form action="/suramerica2030/flota/eliminarRuta" method="POST">
+                        <form class="form-eliminar-ruta-ajax" action="/suramerica2030/flota/eliminarRuta" method="POST">
                             <div class="modal-body text-center py-3">
                                 <input type="hidden" name="id_ruta" value="<?= $r['ID_RUTA'] ?>">
                                 <div class="fs-1 text-danger mb-2">⚠️</div>
@@ -1569,18 +1585,43 @@ foreach($tramosList as $trIndex => $tramo):
                             const modal = bootstrap.Modal.getInstance(modalEl);
                             if (modal) modal.hide();
 
-                            const toastEl = document.getElementById('toastFlotaAjax');
-                            if (toastEl) {
-                                document.getElementById('toastFlotaAjaxMsg').innerText = data.mensaje || 'Ruta comercial creada correctamente.';
-                                const toast = new bootstrap.Toast(toastEl, { delay: 4000 });
-                                toast.show();
+                            formNueva.reset();
+
+                            if (typeof mostrarToastFlota === 'function') {
+                                mostrarToastFlota(data.mensaje || 'Ruta comercial creada correctamente.', 'success');
+                            } else {
+                                const toastEl = document.getElementById('toastFlotaAjax');
+                                if (toastEl) {
+                                    document.getElementById('toastFlotaAjaxMsg').innerText = data.mensaje || 'Ruta comercial creada correctamente.';
+                                    const toast = new bootstrap.Toast(toastEl, { delay: 4000 });
+                                    toast.show();
+                                }
                             }
 
-                            setTimeout(() => {
-                                window.location.href = '/suramerica2030/flota?tab=rutas&status=success';
-                            }, 700);
+                            if (Array.isArray(data.rutas) && data.rutas.length > 0) {
+                                data.rutas.forEach(r => {
+                                    if (typeof renderNuevaFilaRutaEnTabla === 'function') {
+                                        renderNuevaFilaRutaEnTabla(r);
+                                    }
+                                });
+                                if (typeof actualizarKpisRutasEnDOM === 'function') {
+                                    actualizarKpisRutasEnDOM();
+                                }
+                                if (typeof aplicarFiltrosYPaginarRutas === 'function') {
+                                    aplicarFiltrosYPaginarRutas(1);
+                                }
+                            } else if (window.LiveData && typeof LiveData.refreshContainer === 'function') {
+                                LiveData.refreshContainer('#tablaRutas', null, () => {
+                                    if (typeof actualizarKpisRutasEnDOM === 'function') actualizarKpisRutasEnDOM();
+                                    if (typeof aplicarFiltrosYPaginarRutas === 'function') aplicarFiltrosYPaginarRutas(1);
+                                });
+                            }
                         } else {
-                            alert(data.mensaje || 'Error al crear la ruta.');
+                            if (typeof mostrarToastFlota === 'function') {
+                                mostrarToastFlota(data.mensaje || 'Error al crear la ruta.', 'danger');
+                            } else {
+                                alert(data.mensaje || 'Error al crear la ruta.');
+                            }
                         }
                     })
                     .catch(err => {
@@ -1746,23 +1787,40 @@ foreach($tramosList as $trIndex => $tramo):
                 const modal = bootstrap.Modal.getInstance(modalEl);
                 if (modal) modal.hide();
 
-                const pvpValEl = document.getElementById('pvp_val_' + idRuta);
-                if (pvpValEl) {
-                    pvpValEl.innerText = '$' + Number(precio).toFixed(2);
+                if (data.ruta && typeof actualizarFilaRutaEnDOM === 'function') {
+                    actualizarFilaRutaEnDOM(data.ruta);
+                } else {
+                    const fila = document.getElementById('fila_ruta_' + idRuta);
+                    if (fila) {
+                        const celdaPvp = fila.querySelector('.celda-editable-live[data-pvp]');
+                        if (celdaPvp) {
+                            celdaPvp.setAttribute('data-pvp', Number(precio).toFixed(2));
+                            const txt = celdaPvp.querySelector('.val-editable-texto');
+                            if (txt) txt.textContent = '$' + Number(precio).toFixed(2) + ' ✏️';
+                        }
+                    }
+                }
+                const fila = document.getElementById('fila_ruta_' + idRuta);
+                if (fila && window.LiveData && typeof LiveData.highlight === 'function') {
+                    LiveData.highlight(fila);
                 }
 
-                const toastEl = document.getElementById('toastFlotaAjax');
-                if (toastEl) {
-                    document.getElementById('toastFlotaAjaxMsg').innerText = data.mensaje || 'Precio actualizado correctamente.';
-                    const toast = new bootstrap.Toast(toastEl, { delay: 3500 });
-                    toast.show();
+                if (typeof mostrarToastFlota === 'function') {
+                    mostrarToastFlota(data.mensaje || 'Precio actualizado correctamente.', 'success');
+                } else {
+                    const toastEl = document.getElementById('toastFlotaAjax');
+                    if (toastEl) {
+                        document.getElementById('toastFlotaAjaxMsg').innerText = data.mensaje || 'Precio actualizado correctamente.';
+                        const toast = new bootstrap.Toast(toastEl, { delay: 3500 });
+                        toast.show();
+                    }
                 }
-
-                setTimeout(() => {
-                    window.location.reload();
-                }, 600);
             } else {
-                alert(data.mensaje || 'Error al actualizar el precio.');
+                if (typeof mostrarToastFlota === 'function') {
+                    mostrarToastFlota(data.mensaje || 'Error al actualizar el precio.', 'danger');
+                } else {
+                    alert(data.mensaje || 'Error al actualizar el precio.');
+                }
             }
         })
         .catch(err => {

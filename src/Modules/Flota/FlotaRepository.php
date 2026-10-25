@@ -1304,5 +1304,59 @@ class FlotaRepository {
             return ['status' => 'error', 'mensaje' => 'Error al actualizar tarifa: ' . $e->getMessage()];
         }
     }
+
+    /**
+     * Alterna o asigna el estado de una ruta en vivo (ACTIVO / INACTIVO)
+     */
+    public function cambiarEstadoRutaBD($idRuta, $nuevoEstado = null) {
+        try {
+            $stmt = $this->db->prepare("SELECT ESTADO FROM RUTA WHERE ID_RUTA = ?");
+            $stmt->execute([$idRuta]);
+            $actual = $stmt->fetchColumn();
+
+            if ($actual === false) {
+                return ['status' => 'error', 'mensaje' => 'Ruta comercial no encontrada.'];
+            }
+
+            if ($nuevoEstado === null || !in_array(strtoupper($nuevoEstado), ['ACTIVO', 'INACTIVO'])) {
+                $nuevoEstado = (strtoupper($actual) === 'ACTIVO') ? 'INACTIVO' : 'ACTIVO';
+            } else {
+                $nuevoEstado = strtoupper($nuevoEstado);
+            }
+
+            $upd = $this->db->prepare("UPDATE RUTA SET ESTADO = ? WHERE ID_RUTA = ?");
+            $upd->execute([$nuevoEstado, $idRuta]);
+
+            return [
+                'status' => 'success',
+                'id_ruta' => $idRuta,
+                'estado' => $nuevoEstado,
+                'es_activo' => ($nuevoEstado === 'ACTIVO'),
+                'mensaje' => "Ruta #{$idRuta} " . ($nuevoEstado === 'ACTIVO' ? 'activada para venta en taquilla.' : 'inactivada y retirada de ventas.')
+            ];
+        } catch (\Exception $e) {
+            return ['status' => 'error', 'mensaje' => 'Error al cambiar estado de ruta: ' . $e->getMessage()];
+        }
+    }
+
+    /**
+     * Actualiza rápidamente la tarifa de encomienda por kg de una ruta comercial
+     */
+    public function actualizarPrecioEncomiendaRapidoRutaBD($idRuta, $precioEncomienda) {
+        try {
+            $precio = max(0, floatval($precioEncomienda));
+            $upd = $this->db->prepare("UPDATE RUTA SET PRECIO_ENCOMIENDA_KG = ? WHERE ID_RUTA = ?");
+            $upd->execute([$precio, $idRuta]);
+
+            return [
+                'status' => 'success',
+                'id_ruta' => $idRuta,
+                'precio_encomienda' => $precio,
+                'mensaje' => "Tarifa de encomienda de la ruta #{$idRuta} actualizada a $" . number_format($precio, 2) . "/Kg."
+            ];
+        } catch (\Exception $e) {
+            return ['status' => 'error', 'mensaje' => 'Error al actualizar tarifa de encomienda: ' . $e->getMessage()];
+        }
+    }
 }
 ?>

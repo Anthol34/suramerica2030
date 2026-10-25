@@ -204,3 +204,115 @@
     backdrop-filter: blur(1px);
     border-radius: inherit;
 }
+
+/* ======================================================== */
+/* ESTILOS DE EDICIÓN EN VIVO PARA RUTAS COMERCIALES       */
+/* ======================================================== */
+
+.celda-editable-live {
+    cursor: pointer;
+    border-radius: 6px;
+    padding: 3px 6px;
+    transition: all 0.2s ease-in-out;
+    display: inline-flex;
+    flex-direction: column;
+    align-items: flex-end;
+}
+
+.celda-editable-live:hover {
+    background-color: rgba(13, 110, 253, 0.08);
+    box-shadow: 0 0 0 1px rgba(13, 110, 253, 0.25);
+}
+
+.celda-editable-live .val-editable-texto {
+    border-bottom: 1.5px dashed rgba(13, 110, 253, 0.6);
+    transition: border-color 0.2s;
+}
+
+.celda-editable-live:hover .val-editable-texto {
+    border-bottom-color: #0d6efd;
+}
+
+.celda-editable-live.editando {
+    background-color: transparent !important;
+    box-shadow: none !important;
+    cursor: default;
+}
+
+.inline-edit-widget {
+    min-width: 140px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
+    border-radius: 6px;
+    overflow: hidden;
+    animation: inlineWidgetIn 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes inlineWidgetIn {
+    from {
+        opacity: 0;
+        transform: scale(0.95);
+    }
+    to {
+        opacity: 1;
+        transform: scale(1);
+    }
+}
+
+.inline-edit-widget .form-control {
+    font-size: 0.88rem;
+    font-weight: 700;
+}
+
+.inline-edit-widget .btn {
+    padding: 0.25rem 0.5rem;
+    font-size: 0.82rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.btn-toggle-estado-ruta {
+    transition: transform 0.15s ease, opacity 0.2s;
+    cursor: pointer;
+}
+
+.btn-toggle-estado-ruta:hover {
+    transform: scale(1.05);
+}
+
+.btn-toggle-estado-ruta:active {
+    transform: scale(0.95);
+}
+
+.btn-toggle-estado-ruta .indicator-dot {
+    font-size: 0.75rem;
+    vertical-align: middle;
+}
+
+/* Animación de eliminación reactiva de filas */
+.row-fade-out {
+    animation: rowFadeOut 0.4s ease-out forwards;
+}
+
+@keyframes rowFadeOut {
+    0% {
+        opacity: 1;
+        background-color: rgba(239, 68, 68, 0.25) !important;
+        transform: scale(1);
+    }
+    50% {
+        opacity: 0.4;
+        background-color: rgba(239, 68, 68, 0.4) !important;
+    }
+    100% {
+        opacity: 0;
+        transform: scale(0.96);
+        max-height: 0;
+        padding-top: 0;
+        padding-bottom: 0;
+        margin-top: 0;
+        margin-bottom: 0;
+        border: none;
+    }
+}
+

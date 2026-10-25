@@ -123,18 +123,59 @@ class FlotaController {
     public function eliminarRuta() {
         $this->verificarPermiso();
         if ($_SERVER['REQUEST_METHOD'] == 'POST') {
-            $resultado = $this->repository->eliminarRutaBD(intval($_POST['id_ruta']));
-            if (is_array($resultado)) {
-                if ($resultado['accion'] === 'inactivada') {
-                    header("Location: /suramerica2030/flota?tab=rutas&status=success_archived&msg=" . urlencode($resultado['mensaje']));
+            $idRuta = intval($_POST['id_ruta'] ?? 0);
+            $resultado = $this->repository->eliminarRutaBD($idRuta);
+
+            $esAjax = (!empty($_SERVER['HTTP_X_REQUESTED_WITH']) && strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) === 'xmlhttprequest') 
+                      || (isset($_SERVER['HTTP_ACCEPT']) && strpos($_SERVER['HTTP_ACCEPT'], 'application/json') !== false)
+                      || !empty($_POST['ajax']);
+
+            if ($esAjax) {
+                header('Content-Type: application/json; charset=utf-8');
+                if (is_array($resultado)) {
+                    echo json_encode([
+                        'status' => 'success',
+                        'accion' => $resultado['accion'] ?? 'eliminada',
+                        'id_ruta' => $idRuta,
+                        'mensaje' => $resultado['mensaje'] ?? 'Ruta procesada con éxito.'
+                    ]);
                 } else {
-                    header("Location: /suramerica2030/flota?tab=rutas&status=success_delete");
+                    echo json_encode([
+                        'status' => 'error',
+                        'mensaje' => is_string($resultado) ? $resultado : 'Error al eliminar la ruta.'
+                    ]);
                 }
                 exit();
+            }
+
+            if (is_array($resultado)) {
+                $token = ($resultado['accion'] === 'inactivada') ? 'success_archived' : 'success_delete';
+                $this->redireccionar('rutas', true, $token);
             } else {
                 $this->redireccionar('rutas', $resultado, 'success_delete');
             }
         }
+    }
+
+    public function cambiarEstadoRuta() {
+        $this->verificarPermiso();
+        header('Content-Type: application/json; charset=utf-8');
+        if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+            echo json_encode(['status' => 'error', 'mensaje' => 'Método HTTP no permitido.']);
+            exit();
+        }
+
+        $idRuta = intval($_POST['id_ruta'] ?? 0);
+        $estado = isset($_POST['estado']) ? trim($_POST['estado']) : null;
+
+        if ($idRuta <= 0) {
+            echo json_encode(['status' => 'error', 'mensaje' => 'ID de ruta comercial inválido.']);
+            exit();
+        }
+
+        $res = $this->repository->cambiarEstadoRutaBD($idRuta, $estado);
+        echo json_encode($res);
+        exit();
     }
 
     public function actualizarPrecioRapido() {
@@ -143,7 +184,7 @@ class FlotaController {
 
     public function actualizarPrecioRapidoRuta() {
         $this->verificarPermiso();
-        header('Content-Type: application/json');
+        header('Content-Type: application/json; charset=utf-8');
         if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
             echo json_encode(['status' => 'error', 'mensaje' => 'Método HTTP no permitido.']);
             exit();
@@ -158,6 +199,49 @@ class FlotaController {
         }
 
         $resultado = $this->repository->actualizarPrecioRapidoRutaBD($idRuta, $precio);
+        if (is_array($resultado) && ($resultado['status'] ?? '') === 'success') {
+            $todas = $this->repository->obtenerRutas();
+            foreach ($todas as $r) {
+                if (intval($r['ID_RUTA']) === $idRuta) {
+                    $resultado['ruta'] = $r;
+                    break;
+                }
+            }
+        }
+        echo json_encode($resultado);
+        exit();
+    }
+
+    public function actualizarPrecioEncomiendaRapido() {
+        $this->actualizarPrecioEncomiendaRapidoRuta();
+    }
+
+    public function actualizarPrecioEncomiendaRapidoRuta() {
+        $this->verificarPermiso();
+        header('Content-Type: application/json; charset=utf-8');
+        if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+            echo json_encode(['status' => 'error', 'mensaje' => 'Método HTTP no permitido.']);
+            exit();
+        }
+
+        $idRuta = intval($_POST['id_ruta'] ?? 0);
+        $precio = floatval($_POST['precio_encomienda'] ?? 0);
+
+        if ($idRuta <= 0 || $precio < 0) {
+            echo json_encode(['status' => 'error', 'mensaje' => 'ID de ruta o tarifa de encomienda inválida.']);
+            exit();
+        }
+
+        $resultado = $this->repository->actualizarPrecioEncomiendaRapidoRutaBD($idRuta, $precio);
+        if (is_array($resultado) && ($resultado['status'] ?? '') === 'success') {
+            $todas = $this->repository->obtenerRutas();
+            foreach ($todas as $r) {
+                if (intval($r['ID_RUTA']) === $idRuta) {
+                    $resultado['ruta'] = $r;
+                    break;
+                }
+            }
+        }
         echo json_encode($resultado);
         exit();
     }
@@ -320,10 +404,21 @@ class FlotaController {
             if ($esAjax) {
                 header('Content-Type: application/json; charset=utf-8');
                 if (is_array($resultado) && ($resultado['status'] ?? '') === 'success') {
+                    $idsCreados = array_filter([$resultado['id_ruta_ida'] ?? null, $resultado['id_ruta_retorno'] ?? null]);
+                    $rutasCreadas = [];
+                    if (!empty($idsCreados)) {
+                        $todas = $this->repository->obtenerRutas();
+                        foreach ($todas as $r) {
+                            if (in_array(intval($r['ID_RUTA']), $idsCreados)) {
+                                $rutasCreadas[] = $r;
+                            }
+                        }
+                    }
                     echo json_encode([
                         'status' => 'success',
                         'mensaje' => $resultado['mensaje'] ?? 'Ruta(s) creada(s) correctamente.',
-                        'resultado' => $resultado
+                        'resultado' => $resultado,
+                        'rutas' => $rutasCreadas
                     ]);
                 } else {
                     echo json_encode([
