@@ -246,6 +246,55 @@ class FlotaController {
         exit();
     }
 
+    /**
+     * Endpoint API para autodescubrimiento inteligente de conexiones multimodales (BFS)
+     */
+    public function apiSugerirConexiones() {
+        $this->verificarPermiso();
+        header('Content-Type: application/json; charset=utf-8');
+
+        $origen = trim($_GET['origen'] ?? $_POST['origen'] ?? '');
+        $destino = trim($_GET['destino'] ?? $_POST['destino'] ?? '');
+        $maxEscalas = intval($_GET['max_escalas'] ?? $_POST['max_escalas'] ?? 4);
+
+        if (empty($origen) || empty($destino)) {
+            echo json_encode([
+                'status' => 'error',
+                'mensaje' => 'Debe proporcionar la ciudad de origen y de destino.'
+            ]);
+            exit();
+        }
+
+        $engine = new RoutingEngine();
+        $caminos = $engine->sugerirCaminosDisponibles($origen, $destino, $maxEscalas);
+
+        echo json_encode([
+            'status' => 'success',
+            'origen' => $origen,
+            'destino' => $destino,
+            'total_caminos' => count($caminos),
+            'caminos' => $caminos
+        ]);
+        exit();
+    }
+
+    /**
+     * Endpoint API para consultar el catálogo de puentes fronterizos binacionales
+     */
+    public function apiPuentesFronterizos() {
+        $this->verificarPermiso();
+        header('Content-Type: application/json; charset=utf-8');
+
+        $engine = new RoutingEngine();
+        $puentes = $engine->obtenerPuentesFronterizos();
+
+        echo json_encode([
+            'status' => 'success',
+            'puentes' => $puentes
+        ]);
+        exit();
+    }
+
     // --- ACCIONES DE BUSES ---
     public function guardarBus() {
         $this->verificarPermiso();

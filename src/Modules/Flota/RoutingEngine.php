@@ -20,6 +20,8 @@ class RoutingEngine {
     private $db;
     private $catalogoTramos = null;
     private $ciudadesPaises = null;
+    private $puentesFronterizos = null;
+    private $ofertasOperadores = null;
 
     public function __construct(?PDO $db = null) {
         if ($db) {
@@ -30,7 +32,8 @@ class RoutingEngine {
     }
 
     /**
-     * Carga en memoria el catálogo completo de tramos activos para consultas de alta velocidad.
+     * Carga en memoria el catálogo completo de tramos activos, puentes fronterizos y ofertas
+     * para consultas de alta velocidad.
      */
     private function cargarCatalogo() {
         if ($this->catalogoTramos === null) {
@@ -48,6 +51,83 @@ class RoutingEngine {
                 $this->ciudadesPaises[mb_strtolower(trim($r['NOMBRE']))] = strtoupper(trim($r['PAIS']));
             }
         }
+
+        if ($this->puentesFronterizos === null) {
+            $this->puentesFronterizos = [];
+            try {
+                $puentes = $this->db->query("SELECT * FROM PUENTE_FRONTERIZO WHERE ACTIVO = 1")->fetchAll(PDO::FETCH_ASSOC);
+                foreach ($puentes as $p) {
+                    $orig = mb_strtolower(trim($p['CIUDAD_A']));
+                    $dest = mb_strtolower(trim($p['CIUDAD_B']));
+                    $this->puentesFronterizos[$orig][$dest] = $p;
+                }
+            } catch (\Exception $e) {
+                $this->puentesFronterizos = [];
+            }
+        }
+
+        if ($this->ofertasOperadores === null) {
+            $this->ofertasOperadores = [];
+            try {
+                $sqlOf = "SELECT oot.*, op.NOMBRE_COMERCIAL as OPERADOR_NOMBRE, op.TIPO_OPERADOR 
+                          FROM OPERADOR_OFERTA_TRAMO oot 
+                          JOIN OPERADOR op ON oot.ID_OPERADOR = op.ID_OPERADOR 
+                          WHERE oot.ACTIVO = 1";
+                $rowsOf = $this->db->query($sqlOf)->fetchAll(PDO::FETCH_ASSOC);
+                foreach ($rowsOf as $ro) {
+                    $this->ofertasOperadores[(int)$ro['ID_TRAMO_CATALOGO']][] = $ro;
+                }
+            } catch (\Exception $e) {
+                $this->ofertasOperadores = [];
+            }
+        }
+    }
+
+    /**
+     * Devuelve el mapa de puentes fronterizos activos.
+     */
+    public function obtenerPuentesFronterizos() {
+        $this->cargarCatalogo();
+        return $this->puentesFronterizos;
+    }
+
+    /**
+     * Determina si dos ciudades están unidas por un paso o puente fronterizo internacional.
+     */
+    public function esPuenteFronterizo($ciudadA, $ciudadB) {
+        $this->cargarCatalogo();
+        $cA = mb_strtolower(trim($ciudadA));
+        $cB = mb_strtolower(trim($ciudadB));
+        return isset($this->puentesFronterizos[$cA][$cB]);
+    }
+
+    /**
+     * Obtiene los metadatos de un puente fronterizo entre dos ciudades.
+     */
+    public function obtenerPuenteFronterizo($ciudadA, $ciudadB) {
+        $this->cargarCatalogo();
+        $cA = mb_strtolower(trim($ciudadA));
+        $cB = mb_strtolower(trim($ciudadB));
+        return $this->puentesFronterizos[$cA][$cB] ?? null;
+    }
+
+    /**
+     * Verifica si dos ciudades son continuas en un itinerario:
+     * idéntica ciudad o conectadas mediante puente fronterizo hermano (ej: Tulcán = Ipiales).
+     */
+    public function sonCiudadesConectables($ciudadA, $ciudadB) {
+        if (strcasecmp(trim($ciudadA), trim($ciudadB)) === 0) {
+            return true;
+        }
+        return $this->esPuenteFronterizo($ciudadA, $ciudadB);
+    }
+
+    /**
+     * Obtiene las ofertas activas de operadores para un tramo de catálogo.
+     */
+    public function obtenerOfertasTramo($idTramoCatalogo) {
+        $this->cargarCatalogo();
+        return $this->ofertasOperadores[(int)$idTramoCatalogo] ?? [];
     }
 
     /**
@@ -691,12 +771,14 @@ class RoutingEngine {
             }
 
             $util = max(0, $pvp - $costo);
+            $desfase = ($idx === 0) ? 0 : floor($totalHoras / 18);
             $totalCosto += $costo;
             $totalPvp += $pvp;
             $totalHoras += $horas;
 
             $tramosResueltos[] = [
                 'orden' => $idx + 1,
+                'dia_desfase' => (int)$desfase,
                 'id_tramo_catalogo' => $idCat,
                 'origen' => $orig,
                 'destino' => $dest,
@@ -716,6 +798,7 @@ class RoutingEngine {
 
         $totalUtilidad = max(0, $totalPvp - $totalCosto);
         $margenPct = ($totalPvp > 0) ? round(($totalUtilidad / $totalPvp) * 100, 1) : 0;
+        $diasViables = $this->calcularDiasSalidaEfectivos($tramosResueltos);
 
         return [
             'modalidad' => $modalidad,
@@ -733,7 +816,10 @@ class RoutingEngine {
             'margen_pct' => $margenPct,
             'tiempo_estimado_horas' => round($totalHoras, 1),
             'itinerario_resumen' => implode(' ➔ ', array_unique($ciudadesRuta)),
-            'disponible' => $disponible,
+            'dias_salida_viables' => $diasViables['dias_codigos'],
+            'dias_salida_texto' => $diasViables['dias_texto'],
+            'dias_salida_numeros' => $diasViables['dias_numeros'],
+            'disponible' => $disponible && !empty($diasViables['dias_codigos']),
             'motivos_faltantes' => $motivosFaltantes
         ];
     }
@@ -899,5 +985,356 @@ class RoutingEngine {
                 'mensaje' => 'Error al generar lote de rutas: ' . $e->getMessage()
             ];
         }
+    }
+
+    // =========================================================================
+    // MOTOR INTELIGENTE: BFS Y CÁLCULO DINÁMICO DE DÍAS CON DESFASE
+    // =========================================================================
+
+    /**
+     * Deducir qué días de la semana son viables para la ruta completa evaluando
+     * las ofertas de los operadores con su respectivo desfase de días.
+     * 
+     * Regla matemática: Para salir un día d ∈ {1..7}, para cada tramo i con desfase Δi,
+     * debe existir al menos una oferta activa en ese tramo disponible el día ((d - 1 + Δi) % 7) + 1.
+     */
+    public function calcularDiasSalidaEfectivos(array $tramos) {
+        $diasMapa = [
+            1 => 'LUN', 2 => 'MAR', 3 => 'MIE', 4 => 'JUE', 5 => 'VIE', 6 => 'SAB', 7 => 'DOM'
+        ];
+
+        $diasViablesCod = [];
+        $diasViablesNum = [];
+        $detalle = [];
+
+        for ($diaSalida = 1; $diaSalida <= 7; $diaSalida++) {
+            $viable = true;
+            $detalleDia = [];
+
+            foreach ($tramos as $tr) {
+                $desfase = intval($tr['dia_desfase'] ?? 0);
+                $diaRequeridoTramo = (($diaSalida - 1 + $desfase) % 7) + 1;
+                $diaCod = $diasMapa[$diaRequeridoTramo];
+
+                $ofertas = $tr['ofertas'] ?? [];
+                if (empty($ofertas) && !empty($tr['id_tramo_catalogo'])) {
+                    $ofertas = $this->obtenerOfertasTramo((int)$tr['id_tramo_catalogo']);
+                }
+
+                $hayOfertaEseDia = false;
+                if (!empty($ofertas)) {
+                    foreach ($ofertas as $of) {
+                        $diasOf = explode(',', strtoupper(str_replace(' ', '', $of['DIAS_SALIDA'])));
+                        if (in_array($diaCod, $diasOf) || in_array((string)$diaRequeridoTramo, $diasOf)) {
+                            $hayOfertaEseDia = true;
+                            break;
+                        }
+                    }
+                } else {
+                    // Fallback si no hay ofertas explícitas
+                    $hayOfertaEseDia = true;
+                }
+
+                $detalleDia[] = [
+                    'tramo' => ($tr['origen'] ?? '') . ' ➔ ' . ($tr['destino'] ?? ''),
+                    'desfase' => $desfase,
+                    'dia_requerido' => $diaCod,
+                    'disponible' => $hayOfertaEseDia
+                ];
+
+                if (!$hayOfertaEseDia) {
+                    $viable = false;
+                    break;
+                }
+            }
+
+            if ($viable) {
+                $diasViablesCod[] = $diasMapa[$diaSalida];
+                $diasViablesNum[] = $diaSalida;
+            }
+            $detalle[$diasMapa[$diaSalida]] = [
+                'viable' => $viable,
+                'tramos' => $detalleDia
+            ];
+        }
+
+        return [
+            'dias_codigos' => $diasViablesCod,
+            'dias_texto' => implode(',', $diasViablesCod),
+            'dias_numeros' => $diasViablesNum,
+            'total_dias' => count($diasViablesCod),
+            'detalle' => $detalle
+        ];
+    }
+
+    /**
+     * Autodescubrimiento Inteligente de Conexiones Multimodales (Algoritmo BFS)
+     * Explora la red de tramos físicos activos y puentes fronterizos para deducir todas
+     * las rutas viables entre un Origen y Destino, con cálculo de desfases y días efectivos.
+     * 
+     * @param string $origen
+     * @param string $destino
+     * @param int $maxEscalas
+     * @return array Lista estructurada de rutas sugeridas con sus tramos y finanzas
+     */
+    public function sugerirCaminosDisponibles($origen, $destino, $maxEscalas = 4) {
+        $this->cargarCatalogo();
+        $origen = trim($origen);
+        $destino = trim($destino);
+
+        if (empty($origen) || empty($destino) || strcasecmp($origen, $destino) === 0) {
+            return [];
+        }
+
+        // Construir Grafo en Memoria
+        $grafo = [];
+
+        foreach ($this->catalogoTramos as $t) {
+            $orig = trim($t['ORIGEN_TRAMO']);
+            $dest = trim($t['DESTINO_TRAMO']);
+            $idCat = (int)$t['ID_TRAMO_CATALOGO'];
+            $grafo[$orig][] = [
+                'destino' => $dest,
+                'tipo' => 'TRAMO',
+                'tramo' => $t,
+                'ofertas' => $this->ofertasOperadores[$idCat] ?? []
+            ];
+        }
+
+        foreach ($this->puentesFronterizos as $orig => $destinos) {
+            foreach ($destinos as $dest => $p) {
+                $grafo[$p['CIUDAD_A']][] = [
+                    'destino' => $p['CIUDAD_B'],
+                    'tipo' => 'PUENTE',
+                    'puente' => $p
+                ];
+            }
+        }
+
+        // Búsqueda en Anchura (BFS)
+        $queue = [
+            [
+                'actual' => $origen,
+                'visitados' => [mb_strtolower($origen)],
+                'pasos' => []
+            ]
+        ];
+
+        $caminosEncontrados = [];
+        $maxSaltos = max(2, $maxEscalas + 2); // Considerar saltos de puentes fronterizos
+
+        while (!empty($queue)) {
+            $estado = array_shift($queue);
+            $nodoActual = $estado['actual'];
+
+            if (strcasecmp($nodoActual, $destino) === 0 && !empty($estado['pasos'])) {
+                $caminosEncontrados[] = $estado['pasos'];
+                if (count($caminosEncontrados) >= 15) break;
+                continue;
+            }
+
+            if (count($estado['pasos']) >= $maxSaltos) {
+                continue;
+            }
+
+            if (!isset($grafo[$nodoActual])) {
+                // Probar búsqueda case-insensitive en las claves del grafo
+                $nodoKey = null;
+                foreach (array_keys($grafo) as $k) {
+                    if (strcasecmp($k, $nodoActual) === 0) {
+                        $nodoKey = $k;
+                        break;
+                    }
+                }
+                if ($nodoKey === null) continue;
+                $aristas = $grafo[$nodoKey];
+            } else {
+                $aristas = $grafo[$nodoActual];
+            }
+
+            foreach ($aristas as $arista) {
+                $sigNodo = $arista['destino'];
+                $sigNorm = mb_strtolower($sigNodo);
+                if (in_array($sigNorm, $estado['visitados'])) {
+                    continue; // Evitar ciclos
+                }
+
+                $nuevoVisitados = $estado['visitados'];
+                $nuevoVisitados[] = $sigNorm;
+
+                $nuevosPasos = $estado['pasos'];
+                $nuevosPasos[] = $arista;
+
+                $queue[] = [
+                    'actual' => $sigNodo,
+                    'visitados' => $nuevoVisitados,
+                    'pasos' => $nuevosPasos
+                ];
+            }
+        }
+
+        // Procesar y formatear cada camino encontrado
+        $rutasSugeridas = [];
+        $hashesVistos = [];
+
+        foreach ($caminosEncontrados as $camino) {
+            $tramosFormateados = [];
+            $horasAcumuladas = 0;
+            $costoTotal = 0;
+            $pvpTotal = 0;
+            $operadoresInvolucrados = [];
+            $ciudadesRuta = [$origen];
+            $ordenTramo = 1;
+
+            foreach ($camino as $paso) {
+                if ($paso['tipo'] === 'TRAMO') {
+                    $t = $paso['tramo'];
+                    $horas = floatval($t['TIEMPO_ESTIMADO_HORAS'] ?? 8);
+                    $desfase = ($ordenTramo === 1) ? 0 : floor($horasAcumuladas / 18);
+                    $costo = floatval($t['COSTO_OPERADOR'] ?? 0);
+                    $pvp = floatval($t['PVP_SUGERIDO'] ?? 0);
+                    $idOp = intval($t['ID_OPERADOR'] ?? 1);
+                    $nomOp = $t['OPERADOR_NOMBRE'] ?: ($t['OP_NOMBRE_REAL'] ?: 'Aliado');
+
+                    $ofertas = $paso['ofertas'] ?? [];
+                    if (!empty($ofertas)) {
+                        $primeraOf = $ofertas[0];
+                        if (floatval($primeraOf['COSTO_NETO']) > 0) {
+                            $costo = floatval($primeraOf['COSTO_NETO']);
+                        }
+                    }
+
+                    $tramosFormateados[] = [
+                        'orden' => $ordenTramo,
+                        'dia_desfase' => (int)$desfase,
+                        'id_tramo_catalogo' => (int)$t['ID_TRAMO_CATALOGO'],
+                        'id_oferta' => !empty($ofertas[0]['ID_OFERTA']) ? (int)$ofertas[0]['ID_OFERTA'] : null,
+                        'origen' => $t['ORIGEN_TRAMO'],
+                        'destino' => $t['DESTINO_TRAMO'],
+                        'nombre_tramo' => "{$t['ORIGEN_TRAMO']} ➔ {$t['DESTINO_TRAMO']}",
+                        'id_operador' => $idOp,
+                        'operador' => $nomOp,
+                        'tiempo_estimado_horas' => $horas,
+                        'costo' => $costo,
+                        'pvp' => $pvp,
+                        'utilidad' => max(0, $pvp - $costo),
+                        'admite_sobrepeso' => intval($t['ADMITE_SOBREPESO'] ?? 1),
+                        'limite_equipaje' => floatval($t['LIMITE_EQUIPAJE_KG'] ?? 35),
+                        'costo_sobrepeso' => floatval($t['COSTO_SOBREPESO_KG'] ?? 0),
+                        'precio_sobrepeso' => floatval($t['PRECIO_SOBREPESO_KG'] ?? 1),
+                        'ofertas' => $ofertas
+                    ];
+
+                    $horasAcumuladas += $horas;
+                    $costoTotal += $costo;
+                    $pvpTotal += $pvp;
+                    if (!in_array($nomOp, $operadoresInvolucrados)) {
+                        $operadoresInvolucrados[] = $nomOp;
+                    }
+                    $ciudadesRuta[] = $t['DESTINO_TRAMO'];
+                    $ordenTramo++;
+
+                } elseif ($paso['tipo'] === 'PUENTE') {
+                    $p = $paso['puente'];
+                    $minCruce = intval($p['TIEMPO_CRUCE_MIN'] ?? 120);
+                    $horasAcumuladas += ($minCruce / 60);
+                    $ciudadesRuta[] = $p['CIUDAD_B'];
+                }
+            }
+
+            if (empty($tramosFormateados)) continue;
+
+            // Evitar secuencias idénticas duplicadas
+            $hashSecuencia = implode('|', array_map(function($tr) {
+                return $tr['origen'] . '->' . $tr['destino'];
+            }, $tramosFormateados));
+
+            if (isset($hashesVistos[$hashSecuencia])) continue;
+            $hashesVistos[$hashSecuencia] = true;
+
+            // Calcular días viables
+            $diasViables = $this->calcularDiasSalidaEfectivos($tramosFormateados);
+
+            // Inferir modalidad adecuada
+            $modalidad = $this->inferirModalidadPorTramos($tramosFormateados, $operadoresInvolucrados);
+            $catalogoMods = \Platform\Helpers\ModalidadHelper::catalogoModalidades();
+            $infoMod = $catalogoMods[$modalidad] ?? [
+                'nombre' => 'Ruta Sugerida',
+                'icono' => '🛣️',
+                'badge_class' => 'bg-secondary text-white',
+                'descripcion' => 'Ruta compuesta por el motor de itinerarios.'
+            ];
+
+            $utilidad = max(0, $pvpTotal - $costoTotal);
+            $margenPct = ($pvpTotal > 0) ? round(($utilidad / $pvpTotal) * 100, 1) : 0;
+
+            $rutasSugeridas[] = [
+                'modalidad' => $modalidad,
+                'nombre_modalidad' => $infoMod['nombre'],
+                'icono' => $infoMod['icono'],
+                'badge_class' => $infoMod['badge_class'],
+                'descripcion' => $infoMod['descripcion'],
+                'operador_principal' => $tramosFormateados[0]['operador'] ?? 'Expresos Suramérica 2030',
+                'id_operador_principal' => $tramosFormateados[0]['id_operador'] ?? 1,
+                'tramos' => $tramosFormateados,
+                'total_tramos' => count($tramosFormateados),
+                'costo_total_operadores' => $costoTotal,
+                'pvp_sugerido' => $pvpTotal,
+                'utilidad_agencia' => $utilidad,
+                'margen_pct' => $margenPct,
+                'tiempo_estimado_horas' => round($horasAcumuladas, 1),
+                'itinerario_resumen' => implode(' ➔ ', array_unique($ciudadesRuta)),
+                'dias_salida_viables' => $diasViables['dias_codigos'],
+                'dias_salida_texto' => $diasViables['dias_texto'],
+                'dias_salida_numeros' => $diasViables['dias_numeros'],
+                'disponible' => !empty($diasViables['dias_codigos']),
+                'es_directo' => (count($tramosFormateados) === 1)
+            ];
+        }
+
+        // Ordenar opciones: Primero con días viables, luego menos tramos, luego menor costo
+        usort($rutasSugeridas, function($a, $b) {
+            $aViable = count($a['dias_salida_viables']) > 0 ? 1 : 0;
+            $bViable = count($b['dias_salida_viables']) > 0 ? 1 : 0;
+            if ($aViable !== $bViable) return $bViable <=> $aViable;
+
+            if ($a['total_tramos'] !== $b['total_tramos']) {
+                return $a['total_tramos'] <=> $b['total_tramos'];
+            }
+            return $a['costo_total_operadores'] <=> $b['costo_total_operadores'];
+        });
+
+        return $rutasSugeridas;
+    }
+
+    /**
+     * Infiere automáticamente la modalidad comercial correspondiente según los operadores involucrados.
+     */
+    private function inferirModalidadPorTramos(array $tramos, array $operadores) {
+        $opsUpper = array_map(function($op) { return strtoupper(trim($op)); }, $operadores);
+        $tieneSuramerica = false;
+        $tienePanamericana = false;
+        $tieneLocales = false;
+
+        foreach ($opsUpper as $op) {
+            if (strpos($op, 'SURAMERICA') !== false || strpos($op, 'SURAMÉRICA') !== false) {
+                $tieneSuramerica = true;
+            } elseif (strpos($op, 'PANAMERICANA') !== false) {
+                $tienePanamericana = true;
+            } else {
+                $tieneLocales = true;
+            }
+        }
+
+        if ($tienePanamericana && $tieneSuramerica) {
+            return 'PANA_EXPRESOS';
+        }
+        if ($tieneSuramerica && !$tienePanamericana) {
+            return 'EXPRESOS_SURAMERICA';
+        }
+        if ($tienePanamericana && !$tieneSuramerica) {
+            return 'PANAMERICANA';
+        }
+        return 'CONEXIONES';
     }
 }

@@ -195,6 +195,8 @@ class FlotaRepository {
                 $tr['precio_sobrepeso'] = floatval($tr['PRECIO_SOBREPESO_KG'] ?? 1);
                 $tr['costo_sobrepeso'] = floatval($tr['COSTO_SOBREPESO_KG'] ?? 0);
                 $tr['utilidad_sobrepeso'] = floatval($tr['UTILIDAD_SOBREPESO_KG'] ?? 0);
+                $tr['dia_desfase'] = intval($tr['DIA_DESFASE'] ?? 0);
+                $tr['id_oferta'] = !empty($tr['ID_OFERTA']) ? intval($tr['ID_OFERTA']) : null;
 
                 $tramosPorRuta[$tr['ID_RUTA']][] = $tr;
             }
@@ -305,32 +307,47 @@ class FlotaRepository {
                 $colsTramo = array_column($this->db->query("DESCRIBE RUTA_TRAMO")->fetchAll(PDO::FETCH_ASSOC), 'Field');
                 $tramoHasIdOp = in_array('ID_OPERADOR', $colsTramo);
                 $tramoHasIdCat = in_array('ID_TRAMO_CATALOGO', $colsTramo);
+                $tramoHasDiaDesfase = in_array('DIA_DESFASE', $colsTramo);
+                $tramoHasIdOferta = in_array('ID_OFERTA', $colsTramo);
 
                 $sqlTramo = "INSERT INTO RUTA_TRAMO 
-                    (ID_RUTA, ORDEN, ORIGEN_TRAMO, DESTINO_TRAMO, OPERADOR" 
+                    (ID_RUTA, ORDEN" 
+                    . ($tramoHasDiaDesfase ? ", DIA_DESFASE" : "") 
+                    . ", ORIGEN_TRAMO, DESTINO_TRAMO, OPERADOR" 
                     . ($tramoHasIdOp ? ", ID_OPERADOR" : "") 
                     . ($tramoHasIdCat ? ", ID_TRAMO_CATALOGO" : "") 
+                    . ($tramoHasIdOferta ? ", ID_OFERTA" : "") 
                     . ", PVP_TRAMO, COSTO_OPERADOR, UTILIDAD_AGENCIA, ADMITE_SOBREPESO, LIMITE_EQUIPAJE_KG, PRECIO_SOBREPESO_KG, COSTO_SOBREPESO_KG, UTILIDAD_SOBREPESO_KG) 
-                    VALUES (?, ?, ?, ?, ?" 
+                    VALUES (?, ?" 
+                    . ($tramoHasDiaDesfase ? ", ?" : "") 
+                    . ", ?, ?, ?" 
                     . ($tramoHasIdOp ? ", ?" : "") 
                     . ($tramoHasIdCat ? ", ?" : "") 
+                    . ($tramoHasIdOferta ? ", ?" : "") 
                     . ", ?, ?, ?, ?, ?, ?, ?, ?)";
                 $stmtTramo = $this->db->prepare($sqlTramo);
                 foreach ($datos['tramos'] as $i => $tramo) {
                     $this->asegurarCiudadExiste($tramo['origen']);
                     $this->asegurarCiudadExiste($tramo['destino']);
+                    $desfase = isset($tramo['dia_desfase']) ? intval($tramo['dia_desfase']) : max(0, $i);
                     $vals = [
                         $idRuta, 
-                        $i + 1, 
-                        $tramo['origen'], 
-                        $tramo['destino'],
-                        $tramo['operador'] ?? 'Propio'
+                        $i + 1
                     ];
+                    if ($tramoHasDiaDesfase) {
+                        $vals[] = $desfase;
+                    }
+                    $vals[] = $tramo['origen'];
+                    $vals[] = $tramo['destino'];
+                    $vals[] = $tramo['operador'] ?? 'Propio';
                     if ($tramoHasIdOp) {
                         $vals[] = !empty($tramo['id_operador']) ? intval($tramo['id_operador']) : 1;
                     }
                     if ($tramoHasIdCat) {
                         $vals[] = !empty($tramo['id_tramo_catalogo']) ? intval($tramo['id_tramo_catalogo']) : null;
+                    }
+                    if ($tramoHasIdOferta) {
+                        $vals[] = !empty($tramo['id_oferta']) ? intval($tramo['id_oferta']) : null;
                     }
                     $vals = array_merge($vals, [
                         $tramo['pvp'] ?? 0.00,
@@ -396,30 +413,45 @@ class FlotaRepository {
                 $colsTramo = array_column($this->db->query("DESCRIBE RUTA_TRAMO")->fetchAll(PDO::FETCH_ASSOC), 'Field');
                 $tramoHasIdOp = in_array('ID_OPERADOR', $colsTramo);
                 $tramoHasIdCat = in_array('ID_TRAMO_CATALOGO', $colsTramo);
+                $tramoHasDiaDesfase = in_array('DIA_DESFASE', $colsTramo);
+                $tramoHasIdOferta = in_array('ID_OFERTA', $colsTramo);
 
                 $sqlTramo = "INSERT INTO RUTA_TRAMO 
-                    (ID_RUTA, ORDEN, ORIGEN_TRAMO, DESTINO_TRAMO, OPERADOR" 
+                    (ID_RUTA, ORDEN" 
+                    . ($tramoHasDiaDesfase ? ", DIA_DESFASE" : "") 
+                    . ", ORIGEN_TRAMO, DESTINO_TRAMO, OPERADOR" 
                     . ($tramoHasIdOp ? ", ID_OPERADOR" : "") 
                     . ($tramoHasIdCat ? ", ID_TRAMO_CATALOGO" : "") 
+                    . ($tramoHasIdOferta ? ", ID_OFERTA" : "") 
                     . ", PVP_TRAMO, COSTO_OPERADOR, UTILIDAD_AGENCIA, ADMITE_SOBREPESO, LIMITE_EQUIPAJE_KG, PRECIO_SOBREPESO_KG, COSTO_SOBREPESO_KG, UTILIDAD_SOBREPESO_KG) 
-                    VALUES (?, ?, ?, ?, ?" 
+                    VALUES (?, ?" 
+                    . ($tramoHasDiaDesfase ? ", ?" : "") 
+                    . ", ?, ?, ?" 
                     . ($tramoHasIdOp ? ", ?" : "") 
                     . ($tramoHasIdCat ? ", ?" : "") 
+                    . ($tramoHasIdOferta ? ", ?" : "") 
                     . ", ?, ?, ?, ?, ?, ?, ?, ?)";
                 $stmtTramo = $this->db->prepare($sqlTramo);
                 foreach ($datos['tramos'] as $i => $tramo) {
+                    $desfase = isset($tramo['dia_desfase']) ? intval($tramo['dia_desfase']) : max(0, $i);
                     $vals = [
                         $datos['id_ruta'], 
-                        $i + 1, 
-                        $tramo['origen'], 
-                        $tramo['destino'],
-                        $tramo['operador'] ?? 'Propio'
+                        $i + 1
                     ];
+                    if ($tramoHasDiaDesfase) {
+                        $vals[] = $desfase;
+                    }
+                    $vals[] = $tramo['origen'];
+                    $vals[] = $tramo['destino'];
+                    $vals[] = $tramo['operador'] ?? 'Propio';
                     if ($tramoHasIdOp) {
                         $vals[] = !empty($tramo['id_operador']) ? intval($tramo['id_operador']) : 1;
                     }
                     if ($tramoHasIdCat) {
                         $vals[] = !empty($tramo['id_tramo_catalogo']) ? intval($tramo['id_tramo_catalogo']) : null;
+                    }
+                    if ($tramoHasIdOferta) {
+                        $vals[] = !empty($tramo['id_oferta']) ? intval($tramo['id_oferta']) : null;
                     }
                     $vals = array_merge($vals, [
                         $tramo['pvp'] ?? 0.00,
@@ -1087,33 +1119,48 @@ class FlotaRepository {
             $colsTramo = array_column($this->db->query("DESCRIBE RUTA_TRAMO")->fetchAll(PDO::FETCH_ASSOC), 'Field');
             $tramoHasIdOp = in_array('ID_OPERADOR', $colsTramo);
             $tramoHasIdCat = in_array('ID_TRAMO_CATALOGO', $colsTramo);
+            $tramoHasDiaDesfase = in_array('DIA_DESFASE', $colsTramo);
+            $tramoHasIdOferta = in_array('ID_OFERTA', $colsTramo);
 
             $sqlTramo = "INSERT INTO RUTA_TRAMO 
-                (ID_RUTA, ORDEN, ORIGEN_TRAMO, DESTINO_TRAMO, OPERADOR" 
+                (ID_RUTA, ORDEN" 
+                . ($tramoHasDiaDesfase ? ", DIA_DESFASE" : "") 
+                . ", ORIGEN_TRAMO, DESTINO_TRAMO, OPERADOR" 
                 . ($tramoHasIdOp ? ", ID_OPERADOR" : "") 
                 . ($tramoHasIdCat ? ", ID_TRAMO_CATALOGO" : "") 
+                . ($tramoHasIdOferta ? ", ID_OFERTA" : "") 
                 . ", PVP_TRAMO, COSTO_OPERADOR, UTILIDAD_AGENCIA, ADMITE_SOBREPESO, LIMITE_EQUIPAJE_KG, PRECIO_SOBREPESO_KG, COSTO_SOBREPESO_KG, UTILIDAD_SOBREPESO_KG) 
-                VALUES (?, ?, ?, ?, ?" 
+                VALUES (?, ?" 
+                . ($tramoHasDiaDesfase ? ", ?" : "") 
+                . ", ?, ?, ?" 
                 . ($tramoHasIdOp ? ", ?" : "") 
                 . ($tramoHasIdCat ? ", ?" : "") 
+                . ($tramoHasIdOferta ? ", ?" : "") 
                 . ", ?, ?, ?, ?, ?, ?, ?, ?)";
             $stmtTramo = $this->db->prepare($sqlTramo);
 
             foreach ($tramos as $i => $tramo) {
                 $this->asegurarCiudadExiste($tramo['origen']);
                 $this->asegurarCiudadExiste($tramo['destino']);
+                $desfase = isset($tramo['dia_desfase']) ? intval($tramo['dia_desfase']) : max(0, $i);
                 $vals = [
                     $idRuta, 
-                    $i + 1, 
-                    $tramo['origen'], 
-                    $tramo['destino'],
-                    $tramo['operador'] ?? 'Aliado'
+                    $i + 1
                 ];
+                if ($tramoHasDiaDesfase) {
+                    $vals[] = $desfase;
+                }
+                $vals[] = $tramo['origen'];
+                $vals[] = $tramo['destino'];
+                $vals[] = $tramo['operador'] ?? 'Aliado';
                 if ($tramoHasIdOp) {
                     $vals[] = !empty($tramo['id_operador']) ? intval($tramo['id_operador']) : 1;
                 }
                 if ($tramoHasIdCat) {
                     $vals[] = !empty($tramo['id_tramo_catalogo']) ? intval($tramo['id_tramo_catalogo']) : null;
+                }
+                if ($tramoHasIdOferta) {
+                    $vals[] = !empty($tramo['id_oferta']) ? intval($tramo['id_oferta']) : null;
                 }
                 $vals = array_merge($vals, [
                     floatval($tramo['pvp'] ?? 0.00),

@@ -54,7 +54,15 @@ class FlotaService {
                         $nomOperadorTramo = 'Propio Suramérica';
                     }
 
+                    $desfase = isset($datos['tramo_dia_desfase'][$i]) ? intval($datos['tramo_dia_desfase'][$i]) : max(0, $i);
+                    $idOferta = !empty($datos['tramo_id_oferta'][$i]) ? intval($datos['tramo_id_oferta'][$i]) : null;
+                    $idTramoCat = !empty($datos['tramo_id_catalogo'][$i]) ? intval($datos['tramo_id_catalogo'][$i]) : (!empty($datos['tramo_id_tramo_catalogo'][$i]) ? intval($datos['tramo_id_tramo_catalogo'][$i]) : null);
+
                     $tramos[] = [
+                        'orden' => $i + 1,
+                        'dia_desfase' => $desfase,
+                        'id_oferta' => $idOferta,
+                        'id_tramo_catalogo' => $idTramoCat,
                         'id_operador' => $idOperadorTramo,
                         'origen' => trim($origen),
                         'destino' => trim($datos['tramo_destino'][$i]),
@@ -427,7 +435,23 @@ class FlotaService {
             return "Inconsistencia de Destino: El último tramo finaliza en '{$destinoUltimoTramo}', pero la ruta indica destino final en '{$destinoRuta}'. Ambos deben coincidir exactamente.";
         }
 
+        // Validar continuidad entre tramos intermedios (permitiendo puentes fronterizos binacionales)
+        $engine = new RoutingEngine();
+        for ($i = 0; $i < count($tramos) - 1; $i++) {
+            $destActual = trim($tramos[$i]['destino'] ?? $tramos[$i]['DESTINO_TRAMO'] ?? '');
+            $origSiguiente = trim($tramos[$i + 1]['origen'] ?? $tramos[$i + 1]['ORIGEN_TRAMO'] ?? '');
+
+            if (!$engine->sonCiudadesConectables($destActual, $origSiguiente)) {
+                return "Inconsistencia de Conexión: El tramo " . ($i + 1) . " finaliza en '{$destActual}', pero el tramo " . ($i + 2) . " inicia en '{$origSiguiente}'. No coinciden ni cuentan con un paso fronterizo registrado.";
+            }
+        }
+
         return true;
+    }
+
+    public function sugerirConexionesInteligentes($origen, $destino) {
+        $engine = new RoutingEngine();
+        return $engine->sugerirCaminosDisponibles($origen, $destino);
     }
 
     public function procesarGenerarRutasMultimodales($postData) {
