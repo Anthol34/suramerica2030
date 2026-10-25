@@ -1405,5 +1405,78 @@ class FlotaRepository {
             return ['status' => 'error', 'mensaje' => 'Error al actualizar tarifa de encomienda: ' . $e->getMessage()];
         }
     }
+
+    /**
+     * Obtiene la oferta de tramos asignados a un operador específico
+     */
+    public function obtenerOfertasPorOperadorBD($idOperador) {
+        $stmt = $this->db->prepare("SELECT oot.*, tc.ORIGEN_TRAMO, tc.DESTINO_TRAMO, tc.NOMBRE_TRAMO, tc.TIEMPO_ESTIMADO_HORAS, tc.PAIS_TRAMO, op.NOMBRE_COMERCIAL as OPERADOR_NOMBRE
+            FROM OPERADOR_OFERTA_TRAMO oot
+            JOIN TRAMO_CATALOGO tc ON oot.ID_TRAMO_CATALOGO = tc.ID_TRAMO_CATALOGO
+            JOIN OPERADOR op ON oot.ID_OPERADOR = op.ID_OPERADOR
+            WHERE oot.ID_OPERADOR = ?
+            ORDER BY tc.ORIGEN_TRAMO, tc.DESTINO_TRAMO");
+        $stmt->execute([$idOperador]);
+        return $stmt->fetchAll(PDO::FETCH_ASSOC);
+    }
+
+    /**
+     * Guarda o actualiza un registro de oferta de operador en un tramo
+     */
+    public function guardarOfertaOperadorBD($datos) {
+        try {
+            $idOferta = intval($datos['id_oferta'] ?? 0);
+            $idTramo = intval($datos['id_tramo_catalogo'] ?? 0);
+            $idOperador = intval($datos['id_operador'] ?? 0);
+            $dias = !empty($datos['dias_salida']) ? (is_array($datos['dias_salida']) ? implode(',', $datos['dias_salida']) : trim($datos['dias_salida'])) : 'LUN,MIE,VIE,DOM';
+            $hora = !empty($datos['hora_salida']) ? trim($datos['hora_salida']) : '08:00:00';
+            $costo = floatval($datos['costo_neto'] ?? 0);
+            $pvp = floatval($datos['pvp_sugerido'] ?? 0);
+            $util = max(0, $pvp - $costo);
+
+            if ($idOferta > 0) {
+                $upd = $this->db->prepare("UPDATE OPERADOR_OFERTA_TRAMO 
+                    SET DIAS_SALIDA = ?, HORA_SALIDA = ?, COSTO_NETO = ?, PVP_SUGERIDO = ?, UTILIDAD_AGENCIA = ? 
+                    WHERE ID_OFERTA = ?");
+                $upd->execute([$dias, $hora, $costo, $pvp, $util, $idOferta]);
+                return ['status' => 'success', 'id_oferta' => $idOferta, 'mensaje' => 'Oferta de operador actualizada.'];
+            } else {
+                if ($idTramo <= 0 || $idOperador <= 0) {
+                    return ['status' => 'error', 'mensaje' => 'Debe especificar el tramo y el operador.'];
+                }
+                $ins = $this->db->prepare("INSERT INTO OPERADOR_OFERTA_TRAMO 
+                    (ID_TRAMO_CATALOGO, ID_OPERADOR, DIAS_SALIDA, HORA_SALIDA, COSTO_NETO, PVP_SUGERIDO, UTILIDAD_AGENCIA, ACTIVO) 
+                    VALUES (?, ?, ?, ?, ?, ?, ?, 1)");
+                $ins->execute([$idTramo, $idOperador, $dias, $hora, $costo, $pvp, $util]);
+                return ['status' => 'success', 'id_oferta' => (int)$this->db->lastInsertId(), 'mensaje' => 'Nuevo tramo agregado a la oferta del operador.'];
+            }
+        } catch (\Exception $e) {
+            return ['status' => 'error', 'mensaje' => 'Error al guardar oferta: ' . $e->getMessage()];
+        }
+    }
+
+    /**
+     * Alterna o asigna el estado Activo/Pausado de una oferta de operador
+     */
+    public function cambiarEstadoOfertaOperadorBD($idOferta, $nuevoEstado = null) {
+        try {
+            $stmt = $this->db->prepare("SELECT ACTIVO FROM OPERADOR_OFERTA_TRAMO WHERE ID_OFERTA = ?");
+            $stmt->execute([$idOferta]);
+            $actual = $stmt->fetchColumn();
+            if ($actual === false) return ['status' => 'error', 'mensaje' => 'Oferta no encontrada.'];
+
+            $nuevo = ($nuevoEstado !== null) ? intval($nuevoEstado) : ($actual ? 0 : 1);
+            $upd = $this->db->prepare("UPDATE OPERADOR_OFERTA_TRAMO SET ACTIVO = ? WHERE ID_OFERTA = ?");
+            $upd->execute([$nuevo, $idOferta]);
+            return [
+                'status' => 'success',
+                'id_oferta' => $idOferta,
+                'activo' => $nuevo,
+                'mensaje' => $nuevo ? 'Tramo reactivado en la oferta.' : 'Tramo pausado temporalmente en la oferta.'
+            ];
+        } catch (\Exception $e) {
+            return ['status' => 'error', 'mensaje' => 'Error al cambiar estado de oferta: ' . $e->getMessage()];
+        }
+    }
 }
 ?>

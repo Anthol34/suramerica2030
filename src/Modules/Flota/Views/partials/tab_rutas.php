@@ -1031,9 +1031,14 @@ foreach($tramosList as $trIndex => $tramo):
                                     </div>
                                     <small class="text-muted" style="font-size: 11px;">Se detectan automáticamente según los acuerdos con Panamericana, Expresos Suramérica y Enlaces Locales.</small>
                                 </div>
-                                <button type="button" class="btn btn-sm btn-outline-primary fw-bold" onclick="crearTramoManualVacio()">
-                                    + Añadir Tramo Manual
-                                </button>
+                                <div class="d-flex gap-2">
+                                    <button type="button" class="btn btn-sm btn-outline-success fw-bold" onclick="ejecutarAutocompletadoBFS(true)" id="btnAutocompletarBFS" title="Explorar conexiones y puentes en el motor de grafos">
+                                        ⚡ Sugerir Conexiones
+                                    </button>
+                                    <button type="button" class="btn btn-sm btn-outline-primary fw-bold" onclick="crearTramoManualVacio()">
+                                        + Añadir Tramo Manual
+                                    </button>
+                                </div>
                             </div>
 
                             <!-- CONTENEDOR DINÁMICO DE TRAMOS -->
@@ -1301,6 +1306,24 @@ foreach($tramosList as $trIndex => $tramo):
             container.innerHTML = '';
 
             tramos.forEach((t, idx) => {
+                // Verificar si hay cruce fronterizo entre el destino anterior y el origen de este tramo
+                if (idx > 0) {
+                    const prevDest = tramos[idx - 1].destino;
+                    const currOrig = t.origen;
+                    const puente = (typeof detectarPuenteFronterizoJS === 'function') ? detectarPuenteFronterizoJS(prevDest, currOrig) : null;
+                    if (puente) {
+                        const puenteDiv = document.createElement('div');
+                        puenteDiv.className = 'timeline-tramo-connector d-flex align-items-center justify-content-center my-2';
+                        puenteDiv.innerHTML = `
+                            <span class="badge px-3 py-1 shadow-sm font-monospace">
+                                🌉 Cruce Internacional: <strong>${puente.nombre}</strong> (${prevDest} ⇄ ${currOrig})
+                            </span>
+                        `;
+                        container.appendChild(puenteDiv);
+                    }
+                }
+
+                const desfase = typeof t.dia_desfase !== 'undefined' ? parseInt(t.dia_desfase) : 0;
                 const div = document.createElement('div');
                 div.className = 'tramo-card card border p-3 mb-2 bg-light shadow-sm';
                 div.innerHTML = `
@@ -1308,6 +1331,7 @@ foreach($tramosList as $trIndex => $tramo):
                         <div class="d-flex align-items-center gap-2">
                             <span class="badge bg-primary px-2 py-1 tramo-badge-titulo">Tramo ${idx + 1}: ${t.origen} ➔ ${t.destino}</span>
                             ${t.tiempo_estimado_horas ? `<span class="badge bg-light text-secondary border font-monospace" style="font-size:10px;">⏱️ ${t.tiempo_estimado_horas}h</span>` : ''}
+                            <span class="badge bg-info-subtle text-info border font-monospace" style="font-size:10px;">📅 Desfase: +${desfase}d</span>
                         </div>
                         <button type="button" class="btn btn-outline-danger btn-sm py-0 px-2 fw-bold" onclick="eliminarTramoCardNueva(this)">✕ Quitar</button>
                     </div>
@@ -1320,14 +1344,23 @@ foreach($tramosList as $trIndex => $tramo):
                             <label class="form-label small text-muted mb-0">Baja en</label>
                             <input type="text" name="tramo_destino[]" class="form-control form-control-sm fw-bold tramo-destino-select" value="${t.destino}" list="listaCiudadesDatalist" required onchange="actualizarTitulosTramosNueva()">
                         </div>
-                        <div class="col-md-3">
-                            <label class="form-label small text-muted mb-0">Operador Encargado</label>
-                            <select name="tramo_id_operador[]" class="form-select form-select-sm fw-bold border-primary text-primary" onchange="const opName = this.options[this.selectedIndex].getAttribute('data-nombre') || this.options[this.selectedIndex].text; this.closest('.tramo-card').querySelector('input[name=\'tramo_operador[]\']').value = opName;">
+                        <div class="col-md-2">
+                            <label class="form-label small text-secondary fw-bold mb-0">📅 Desfase Día</label>
+                            <select name="tramo_dia_desfase[]" class="form-select form-select-sm fw-bold border-secondary text-secondary tramo-desfase-select" title="Día de operación respecto a la salida original">
+                                <option value="0" ${desfase === 0 ? 'selected' : ''}>+0d (Mismo día)</option>
+                                <option value="1" ${desfase === 1 ? 'selected' : ''}>+1d (Día +1)</option>
+                                <option value="2" ${desfase === 2 ? 'selected' : ''}>+2d (Día +2)</option>
+                                <option value="3" ${desfase === 3 ? 'selected' : ''}>+3d (Día +3)</option>
+                            </select>
+                        </div>
+                        <div class="col-md-2">
+                            <label class="form-label small text-muted mb-0">Operador</label>
+                            <select name="tramo_id_operador[]" class="form-select form-select-sm fw-bold border-primary text-primary" onchange="const opName = this.options[this.selectedIndex].getAttribute('data-nombre') || this.options[this.selectedIndex].text; this.closest('.tramo-card').querySelector('input[name=\\'tramo_operador[]\\']').value = opName;">
                                 ${HTML_OPCIONES_OPERADORES}
                             </select>
                             <input type="hidden" name="tramo_operador[]" value="${t.operador || 'Panamericana'}">
                         </div>
-                        <div class="col-md-2">
+                        <div class="col-md-1">
                             <label class="form-label small text-danger fw-bold mb-0">Costo ($)</label>
                             <input type="number" step="0.50" min="0" name="tramo_costo[]" class="form-control form-control-sm fw-bold text-danger border-danger tramo-costo-input" value="${parseFloat(t.costo || 0).toFixed(2)}" required oninput="recalcularMargenNuevaRutaComercial()">
                         </div>
@@ -1339,6 +1372,8 @@ foreach($tramosList as $trIndex => $tramo):
                         </div>
                     </div>
                     <input type="hidden" name="tramo_pvp[]" class="tramo-pvp-input" value="${parseFloat(t.pvp || 0).toFixed(2)}">
+                    <input type="hidden" name="tramo_id_catalogo[]" value="${t.id_tramo_catalogo || ''}">
+                    <input type="hidden" name="tramo_id_oferta[]" value="${t.id_oferta || ''}">
                 `;
                 container.appendChild(div);
 
@@ -1353,6 +1388,14 @@ foreach($tramosList as $trIndex => $tramo):
 
             if (data.pvp_sugerido) {
                 document.getElementById('nueva_input_pvp').value = parseFloat(data.pvp_sugerido).toFixed(2);
+            }
+
+            // Sincronizar días viables deducidos por el motor de grafo
+            if (data.dias_salida_numeros && Array.isArray(data.dias_salida_numeros) && data.dias_salida_numeros.length > 0) {
+                const chks = document.querySelectorAll('#modalNuevaRutaComercial input[name="dias_salida[]"]');
+                chks.forEach(chk => {
+                    chk.checked = data.dias_salida_numeros.includes(parseInt(chk.value));
+                });
             }
 
             recalcularMargenNuevaRutaComercial();
@@ -1377,14 +1420,23 @@ foreach($tramosList as $trIndex => $tramo):
                         <label class="form-label small text-muted mb-0">Baja en</label>
                         <input type="text" name="tramo_destino[]" class="form-control form-control-sm fw-bold tramo-destino-select" value="${dest}" list="listaCiudadesDatalist" required onchange="actualizarTitulosTramosNueva()">
                     </div>
-                    <div class="col-md-3">
-                        <label class="form-label small text-muted mb-0">Operador Encargado</label>
-                        <select name="tramo_id_operador[]" class="form-select form-select-sm fw-bold border-primary text-primary" onchange="const opName = this.options[this.selectedIndex].getAttribute('data-nombre') || this.options[this.selectedIndex].text; this.closest('.tramo-card').querySelector('input[name=\'tramo_operador[]\']').value = opName;">
+                    <div class="col-md-2">
+                        <label class="form-label small text-secondary fw-bold mb-0">📅 Desfase Día</label>
+                        <select name="tramo_dia_desfase[]" class="form-select form-select-sm fw-bold border-secondary text-secondary tramo-desfase-select">
+                            <option value="0" selected>+0d (Mismo día)</option>
+                            <option value="1">+1d (Día +1)</option>
+                            <option value="2">+2d (Día +2)</option>
+                            <option value="3">+3d (Día +3)</option>
+                        </select>
+                    </div>
+                    <div class="col-md-2">
+                        <label class="form-label small text-muted mb-0">Operador</label>
+                        <select name="tramo_id_operador[]" class="form-select form-select-sm fw-bold border-primary text-primary" onchange="const opName = this.options[this.selectedIndex].getAttribute('data-nombre') || this.options[this.selectedIndex].text; this.closest('.tramo-card').querySelector('input[name=\\'tramo_operador[]\\']').value = opName;">
                             ${HTML_OPCIONES_OPERADORES}
                         </select>
                         <input type="hidden" name="tramo_operador[]" value="Panamericana">
                     </div>
-                    <div class="col-md-2">
+                    <div class="col-md-1">
                         <label class="form-label small text-danger fw-bold mb-0">Costo ($)</label>
                         <input type="number" step="0.50" min="0" name="tramo_costo[]" class="form-control form-control-sm fw-bold text-danger border-danger tramo-costo-input" value="0.00" required oninput="recalcularMargenNuevaRutaComercial()">
                     </div>
@@ -1396,6 +1448,8 @@ foreach($tramosList as $trIndex => $tramo):
                     </div>
                 </div>
                 <input type="hidden" name="tramo_pvp[]" class="tramo-pvp-input" value="0.00">
+                <input type="hidden" name="tramo_id_catalogo[]" value="">
+                <input type="hidden" name="tramo_id_oferta[]" value="">
             `;
             container.appendChild(div);
             recalcularMargenNuevaRutaComercial();
@@ -1423,14 +1477,23 @@ foreach($tramosList as $trIndex => $tramo):
                         <label class="form-label small text-muted mb-0">Baja en</label>
                         <input type="text" name="tramo_destino[]" class="form-control form-control-sm fw-bold tramo-destino-select" placeholder="Destino" list="listaCiudadesDatalist" required onchange="actualizarTitulosTramosNueva()">
                     </div>
-                    <div class="col-md-3">
-                        <label class="form-label small text-muted mb-0">Operador Encargado</label>
-                        <select name="tramo_id_operador[]" class="form-select form-select-sm fw-bold border-primary text-primary" onchange="const opName = this.options[this.selectedIndex].getAttribute('data-nombre') || this.options[this.selectedIndex].text; this.closest('.tramo-card').querySelector('input[name=\'tramo_operador[]\']').value = opName;">
+                    <div class="col-md-2">
+                        <label class="form-label small text-secondary fw-bold mb-0">📅 Desfase Día</label>
+                        <select name="tramo_dia_desfase[]" class="form-select form-select-sm fw-bold border-secondary text-secondary tramo-desfase-select">
+                            <option value="0" selected>+0d (Mismo día)</option>
+                            <option value="1">+1d (Día +1)</option>
+                            <option value="2">+2d (Día +2)</option>
+                            <option value="3">+3d (Día +3)</option>
+                        </select>
+                    </div>
+                    <div class="col-md-2">
+                        <label class="form-label small text-muted mb-0">Operador</label>
+                        <select name="tramo_id_operador[]" class="form-select form-select-sm fw-bold border-primary text-primary" onchange="const opName = this.options[this.selectedIndex].getAttribute('data-nombre') || this.options[this.selectedIndex].text; this.closest('.tramo-card').querySelector('input[name=\\'tramo_operador[]\\']').value = opName;">
                             ${HTML_OPCIONES_OPERADORES}
                         </select>
                         <input type="hidden" name="tramo_operador[]" value="Panamericana">
                     </div>
-                    <div class="col-md-2">
+                    <div class="col-md-1">
                         <label class="form-label small text-danger fw-bold mb-0">Costo ($)</label>
                         <input type="number" step="0.50" min="0" name="tramo_costo[]" class="form-control form-control-sm fw-bold text-danger border-danger tramo-costo-input" value="0.00" required oninput="recalcularMargenNuevaRutaComercial()">
                     </div>
@@ -1442,6 +1505,8 @@ foreach($tramosList as $trIndex => $tramo):
                     </div>
                 </div>
                 <input type="hidden" name="tramo_pvp[]" class="tramo-pvp-input" value="0.00">
+                <input type="hidden" name="tramo_id_catalogo[]" value="">
+                <input type="hidden" name="tramo_id_oferta[]" value="">
             `;
             container.appendChild(div);
             actualizarTitulosTramosNueva();
@@ -1501,7 +1566,7 @@ foreach($tramosList as $trIndex => $tramo):
 
                 document.getElementById('nueva_lbl_ganancia').innerText = '-$' + deficit;
                 document.getElementById('nueva_lbl_ganancia').className = 'fs-4 fw-bold text-danger';
-                document.getElementById('nueva_lbl_margen_pct').innerText = 'Pérdida';
+                document.getElementById('nueva_lbl_margen_pct').innerText = '⛔ Pérdida Económica';
                 document.getElementById('nueva_lbl_margen_pct').className = 'text-danger fw-bold d-block mt-1';
                 document.getElementById('nueva_barra_margen').style.width = '0%';
                 document.getElementById('nueva_barra_margen').className = 'progress-bar bg-danger';
@@ -1513,13 +1578,29 @@ foreach($tramosList as $trIndex => $tramo):
 
             const utilidad = Math.max(0, pvp - costoTotal);
             const margenPct = (pvp > 0) ? ((utilidad / pvp) * 100).toFixed(1) : '0';
+            const numMargen = parseFloat(margenPct);
 
             document.getElementById('nueva_lbl_ganancia').innerText = '$' + utilidad.toFixed(2);
-            document.getElementById('nueva_lbl_ganancia').className = 'fs-4 fw-bold text-success';
-            document.getElementById('nueva_lbl_margen_pct').innerText = margenPct + '% margen de rentabilidad';
-            document.getElementById('nueva_lbl_margen_pct').className = 'text-success fw-bold d-block mt-1';
-            document.getElementById('nueva_barra_margen').style.width = Math.min(100, margenPct) + '%';
-            document.getElementById('nueva_barra_margen').className = 'progress-bar bg-success';
+            
+            // Semáforo Financiero Adaptativo
+            if (numMargen >= 18) {
+                document.getElementById('nueva_lbl_ganancia').className = 'fs-4 fw-bold text-success';
+                document.getElementById('nueva_lbl_margen_pct').innerText = `✅ ${margenPct}% margen rentable`;
+                document.getElementById('nueva_lbl_margen_pct').className = 'text-success fw-bold d-block mt-1';
+                document.getElementById('nueva_barra_margen').className = 'progress-bar bg-success';
+            } else if (numMargen > 0) {
+                document.getElementById('nueva_lbl_ganancia').className = 'fs-4 fw-bold text-warning';
+                document.getElementById('nueva_lbl_margen_pct').innerText = `⚠️ ${margenPct}% margen ajustado`;
+                document.getElementById('nueva_lbl_margen_pct').className = 'text-warning fw-bold d-block mt-1';
+                document.getElementById('nueva_barra_margen').className = 'progress-bar bg-warning';
+            } else {
+                document.getElementById('nueva_lbl_ganancia').className = 'fs-4 fw-bold text-secondary';
+                document.getElementById('nueva_lbl_margen_pct').innerText = `0% margen (Al costo)`;
+                document.getElementById('nueva_lbl_margen_pct').className = 'text-secondary fw-bold d-block mt-1';
+                document.getElementById('nueva_barra_margen').className = 'progress-bar bg-secondary';
+            }
+
+            document.getElementById('nueva_barra_margen').style.width = Math.min(100, numMargen) + '%';
         }
 
         function irATabOperadores(subtab = 'subtab-tramos') {
@@ -1535,7 +1616,7 @@ foreach($tramosList as $trIndex => $tramo):
             }
         }
 
-        // Manejo de envío AJAX para Nueva Ruta Comercial
+        // Manejo de envío AJAX para Nueva Ruta Comercial con validación de nodos fronterizos
         document.addEventListener('DOMContentLoaded', function() {
             const formNueva = document.getElementById('formNuevaRutaComercial');
             if (formNueva) {
@@ -1553,12 +1634,21 @@ foreach($tramosList as $trIndex => $tramo):
                             const primerOrig = tramoOrigs[0];
                             const ultimoDest = tramoDests[tramoDests.length - 1];
 
-                            if (primerOrig && origRuta && primerOrig !== origRuta) {
-                                alert(`❌ Inconsistencia: El primer tramo inicia en "${primerOrig}", pero la ruta parte de "${origRuta}". Deben coincidir exactamente.`);
+                            const conectaOrig = (typeof sonCiudadesConectablesJS === 'function') 
+                                ? sonCiudadesConectablesJS(origRuta, primerOrig) 
+                                : (origRuta === primerOrig);
+
+                            if (primerOrig && origRuta && !conectaOrig) {
+                                alert(`❌ Inconsistencia: El primer tramo inicia en "${primerOrig}", pero la ruta parte de "${origRuta}". Deben coincidir exactamente o estar unidas por un paso fronterizo.`);
                                 return;
                             }
-                            if (ultimoDest && destRuta && ultimoDest !== destRuta) {
-                                alert(`❌ Inconsistencia: El último tramo finaliza en "${ultimoDest}", pero la ruta llega a "${destRuta}". Deben coincidir exactamente.`);
+
+                            const conectaDest = (typeof sonCiudadesConectablesJS === 'function') 
+                                ? sonCiudadesConectablesJS(ultimoDest, destRuta) 
+                                : (destRuta === ultimoDest);
+
+                            if (ultimoDest && destRuta && !conectaDest) {
+                                alert(`❌ Inconsistencia: El último tramo finaliza en "${ultimoDest}", pero la ruta llega a "${destRuta}". Deben coincidir exactamente o estar unidas por un paso fronterizo.`);
                                 return;
                             }
                         }

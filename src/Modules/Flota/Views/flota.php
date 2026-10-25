@@ -161,5 +161,6 @@ $vJs = @filemtime(__DIR__ . '/../../../../public/assets/js/flota.js') ?: time();
     const HTML_OPCIONES_OPERADORES = <?= json_encode($generarOpcionesOperadores(2)) ?>;
     const CIUDADES_CATALOGO = <?= json_encode($ciudadesCatalogo ?? [], JSON_UNESCAPED_UNICODE) ?>;
     const TRAMOS_CATALOGO = <?= json_encode($tramosCatalogo ?? [], JSON_UNESCAPED_UNICODE) ?>;
+    const PUENTES_FRONTERIZOS = <?= json_encode($puentesFronterizos ?? [], JSON_UNESCAPED_UNICODE) ?>;
 </script>
 <script src="/suramerica2030/public/assets/js/flota.js?v=<?= $vJs ?>"></script>

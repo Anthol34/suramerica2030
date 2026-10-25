@@ -1696,4 +1696,339 @@ document.addEventListener('submit', function(e) {
     });
 });
 
+// =========================================================================
+// GESTIÓN DE OFERTA DE TRAMOS POR OPERADOR (FASE 3)
+// =========================================================================
+
+function abrirModalOfertasOperador(idOperador, nombreOperador) {
+    const modalEl = document.getElementById('modalOfertasOperador');
+    if (!modalEl) return;
+
+    document.getElementById('modalOfertasOperadorTitulo').innerText = 'Oferta de Tramos: ' + nombreOperador;
+    document.getElementById('badgeOperadorOfertaNombre').innerText = nombreOperador;
+    document.getElementById('oferta_nuevo_id_operador').value = idOperador;
+    
+    const formAgregar = document.getElementById('formAgregarTramoOferta');
+    if (formAgregar) formAgregar.style.display = 'none';
+
+    const tbody = document.getElementById('cuerpoTablaOfertasOperador');
+    tbody.innerHTML = `
+        <tr>
+            <td colspan="7" class="text-center py-4 text-muted">
+                <div class="spinner-border spinner-border-sm text-primary" role="status"></div> Cargando oferta de tramos del operador...
+            </td>
+        </tr>
+    `;
+
+    const modal = bootstrap.Modal.getOrCreateInstance(modalEl);
+    modal.show();
+
+    fetch(`/suramerica2030/flota/apiOfertasOperador?id_operador=${encodeURIComponent(idOperador)}`)
+        .then(r => r.json())
+        .then(res => {
+            if (res.status === 'success') {
+                const total = res.total || 0;
+                document.getElementById('badgeOperadorTotalOfertas').innerText = `${total} tramo(s) cubierto(s)`;
+                renderizarFilasOfertasOperador(res.ofertas || []);
+            } else {
+                tbody.innerHTML = `<tr><td colspan="7" class="text-center text-danger py-4">❌ ${res.mensaje || 'Error al cargar ofertas.'}</td></tr>`;
+            }
+        })
+        .catch(err => {
+            tbody.innerHTML = `<tr><td colspan="7" class="text-center text-danger py-4">❌ Error de conexión: ${err.message}</td></tr>`;
+        });
+}
+
+function renderizarFilasOfertasOperador(ofertas) {
+    const tbody = document.getElementById('cuerpoTablaOfertasOperador');
+    if (!tbody) return;
+
+    if (!ofertas || ofertas.length === 0) {
+        tbody.innerHTML = `
+            <tr>
+                <td colspan="7" class="text-center py-4 text-muted">
+                    ℹ️ Este operador aún no tiene tramos asignados en su oferta comercial.<br>
+                    <small>Haz clic en "➕ Añadir Tramo a este Operador" arriba para asignarle rutas.</small>
+                </td>
+            </tr>
+        `;
+        return;
+    }
+
+    tbody.innerHTML = ofertas.map(of => {
+        const dias = (of.DIAS_SALIDA || '').split(',').map(d => d.trim()).filter(Boolean);
+        const diasBadges = dias.map(d => `<span class="badge bg-light text-dark border me-1" style="font-size:10px;">${d}</span>`).join('');
+        const activo = parseInt(of.ACTIVO) === 1;
+
+        return `
+            <tr id="fila_oferta_${of.ID_OFERTA}" class="${activo ? '' : 'table-secondary opacity-75'}">
+                <td>
+                    <div class="fw-bold text-dark">
+                        ${of.ORIGEN_TRAMO} <span class="text-primary">➔</span> ${of.DESTINO_TRAMO}
+                    </div>
+                    <small class="text-muted" style="font-size:11px;">
+                        🌎 ${of.PAIS_TRAMO || ''} &bull; ⏱️ ${of.TIEMPO_ESTIMADO_HORAS || 0}h
+                    </small>
+                </td>
+                <td>
+                    <div class="d-flex flex-wrap gap-1 align-items-center">
+                        ${diasBadges || '<span class="text-muted small">Todos los días</span>'}
+                    </div>
+                </td>
+                <td class="text-center font-monospace small">
+                    ⏰ ${of.HORA_SALIDA ? of.HORA_SALIDA.substring(0, 5) : '08:00'}
+                </td>
+                <td class="text-end fw-bold text-danger">
+                    $${parseFloat(of.COSTO_NETO || 0).toFixed(2)}
+                </td>
+                <td class="text-end fw-bold text-primary">
+                    $${parseFloat(of.PVP_SUGERIDO || 0).toFixed(2)}
+                </td>
+                <td class="text-center">
+                    <span class="badge ${activo ? 'bg-success' : 'bg-secondary'}" id="badge_estado_oferta_${of.ID_OFERTA}">
+                        ${activo ? '● Activo' : '○ Pausado'}
+                    </span>
+                </td>
+                <td class="text-center">
+                    <button class="btn btn-sm ${activo ? 'btn-outline-warning' : 'btn-outline-success'} py-0 px-2 fw-semibold" 
+                            onclick="conmutarEstadoOfertaOperador(${of.ID_OFERTA}, this)" 
+                            title="${activo ? 'Pausar este tramo en la oferta' : 'Reactivar este tramo'}">
+                        ${activo ? '⏸️ Pausar' : '▶️ Activar'}
+                    </button>
+                </td>
+            </tr>
+        `;
+    }).join('');
+}
+
+function toggleFormularioNuevoTramoOferta() {
+    const f = document.getElementById('formAgregarTramoOferta');
+    if (!f) return;
+    f.style.display = (f.style.display === 'none' || f.style.display === '') ? 'block' : 'none';
+}
+
+function alSeleccionarTramoEnOferta(selectEl) {
+    const opt = selectEl.options[selectEl.selectedIndex];
+    if (!opt) return;
+    const costo = opt.getAttribute('data-costo') || '0.00';
+    const pvp = opt.getAttribute('data-pvp') || '0.00';
+
+    const inpCosto = document.getElementById('oferta_nuevo_costo');
+    const inpPvp = document.getElementById('oferta_nuevo_pvp');
+    if (inpCosto && (!inpCosto.value || parseFloat(inpCosto.value) === 0)) inpCosto.value = parseFloat(costo).toFixed(2);
+    if (inpPvp && (!inpPvp.value || parseFloat(inpPvp.value) === 0)) inpPvp.value = parseFloat(pvp).toFixed(2);
+}
+
+function guardarNuevoTramoOferta(e) {
+    e.preventDefault();
+    const form = e.target;
+    const formData = new FormData(form);
+
+    const btnSubmit = form.querySelector('button[type="submit"]');
+    if (btnSubmit) {
+        btnSubmit.disabled = true;
+        btnSubmit.innerText = 'Guardando...';
+    }
+
+    fetch('/suramerica2030/flota/guardarOfertaOperador', {
+        method: 'POST',
+        body: formData
+    })
+    .then(r => r.json())
+    .then(res => {
+        if (btnSubmit) {
+            btnSubmit.disabled = false;
+            btnSubmit.innerText = 'Guardar Tramo en Oferta';
+        }
+        if (res.status === 'success') {
+            mostrarToastFlota(res.mensaje || 'Tramo agregado a la oferta.', 'success');
+            form.reset();
+            toggleFormularioNuevoTramoOferta();
+            const idOp = document.getElementById('oferta_nuevo_id_operador').value;
+            if (idOp) {
+                fetch(`/suramerica2030/flota/apiOfertasOperador?id_operador=${encodeURIComponent(idOp)}`)
+                    .then(r => r.json())
+                    .then(res2 => {
+                        if (res2.status === 'success') {
+                            document.getElementById('badgeOperadorTotalOfertas').innerText = `${res2.total || 0} tramo(s) cubierto(s)`;
+                            renderizarFilasOfertasOperador(res2.ofertas || []);
+                        }
+                    });
+            }
+        } else {
+            mostrarToastFlota(res.mensaje || 'Error al guardar tramo.', 'danger');
+        }
+    })
+    .catch(err => {
+        if (btnSubmit) {
+            btnSubmit.disabled = false;
+            btnSubmit.innerText = 'Guardar Tramo en Oferta';
+        }
+        mostrarToastFlota('Error: ' + err.message, 'danger');
+    });
+}
+
+function conmutarEstadoOfertaOperador(idOferta, btn) {
+    if (!idOferta) return;
+    btn.disabled = true;
+
+    const formData = new FormData();
+    formData.append('id_oferta', idOferta);
+
+    fetch('/suramerica2030/flota/cambiarEstadoOfertaOperador', {
+        method: 'POST',
+        body: formData
+    })
+    .then(r => r.json())
+    .then(res => {
+        btn.disabled = false;
+        if (res.status === 'success') {
+            const activo = res.activo === 1;
+            const fila = document.getElementById('fila_oferta_' + idOferta);
+            const badge = document.getElementById('badge_estado_oferta_' + idOferta);
+
+            if (fila) {
+                if (activo) fila.classList.remove('table-secondary', 'opacity-75');
+                else fila.classList.add('table-secondary', 'opacity-75');
+            }
+
+            if (badge) {
+                badge.className = `badge ${activo ? 'bg-success' : 'bg-secondary'}`;
+                badge.innerText = activo ? '● Activo' : '○ Pausado';
+            }
+
+            btn.className = `btn btn-sm ${activo ? 'btn-outline-warning' : 'btn-outline-success'} py-0 px-2 fw-semibold`;
+            btn.innerHTML = activo ? '⏸️ Pausar' : '▶️ Activar';
+            btn.title = activo ? 'Pausar este tramo en la oferta' : 'Reactivar este tramo';
+
+            mostrarToastFlota(res.mensaje, 'success');
+        } else {
+            mostrarToastFlota(res.mensaje || 'No se pudo alternar el estado.', 'danger');
+        }
+    })
+    .catch(err => {
+        btn.disabled = false;
+        mostrarToastFlota('Error: ' + err.message, 'danger');
+    });
+}
+
+// =========================================================================
+// HELPER DE PUENTES FRONTERIZOS Y CONEXIONES (FASE 3)
+// =========================================================================
+function normalizarNombreCiudad(ciudad) {
+    if (!ciudad) return '';
+    return ciudad.toString().trim().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+}
+
+function detectarPuenteFronterizoJS(ciudadA, ciudadB) {
+    if (!ciudadA || !ciudadB) return null;
+    const a = normalizarNombreCiudad(ciudadA);
+    const b = normalizarNombreCiudad(ciudadB);
+
+    // 1. Revisar si PUENTES_FRONTERIZOS fue inyectado desde la base de datos
+    if (typeof PUENTES_FRONTERIZOS !== 'undefined' && PUENTES_FRONTERIZOS && PUENTES_FRONTERIZOS[a] && PUENTES_FRONTERIZOS[a][b]) {
+        const p = PUENTES_FRONTERIZOS[a][b];
+        return {
+            nombre: p.NOMBRE_PUENTE || 'Paso Binacional',
+            ciudadA: p.CIUDAD_A,
+            ciudadB: p.CIUDAD_B,
+            paisA: p.PAIS_A,
+            paisB: p.PAIS_B
+        };
+    }
+
+    // 2. Fallback de puentes estratégicos binacionales
+    const puentesFallback = [
+        { a: 'tulcan', b: 'ipiales', nombre: 'Puente Binacional Rumichaca (Ecuador ⇄ Colombia)' },
+        { a: 'ipiales', b: 'tulcan', nombre: 'Puente Binacional Rumichaca (Colombia ⇄ Ecuador)' },
+        { a: 'cucuta', b: 'san cristobal', nombre: 'Puente Atanasio Girardot / Simón Bolívar (Colombia ⇄ Venezuela)' },
+        { a: 'san cristobal', b: 'cucuta', nombre: 'Puente Atanasio Girardot / Simón Bolívar (Venezuela ⇄ Colombia)' },
+        { a: 'huaquillas', b: 'aguas verdes', nombre: 'Paso Fronterizo Huaquillas - Aguas Verdes (Ecuador ⇄ Perú)' },
+        { a: 'aguas verdes', b: 'huaquillas', nombre: 'Paso Fronterizo Aguas Verdes - Huaquillas (Perú ⇄ Ecuador)' },
+        { a: 'maicao', b: 'maracaibo', nombre: 'Paso Fronterizo Paraguachón (Colombia ⇄ Venezuela)' },
+        { a: 'maracaibo', b: 'maicao', nombre: 'Paso Fronterizo Paraguachón (Venezuela ⇄ Colombia)' }
+    ];
+
+    const match = puentesFallback.find(p => p.a === a && p.b === b);
+    if (match) {
+        return {
+            nombre: match.nombre,
+            ciudadA: ciudadA,
+            ciudadB: ciudadB
+        };
+    }
+    return null;
+}
+
+function sonCiudadesConectablesJS(ciudadA, ciudadB) {
+    if (!ciudadA || !ciudadB) return false;
+    if (normalizarNombreCiudad(ciudadA) === normalizarNombreCiudad(ciudadB)) return true;
+    return detectarPuenteFronterizoJS(ciudadA, ciudadB) !== null;
+}
+
+/**
+ * Disparador explícito de búsqueda en el grafo BFS
+ */
+function ejecutarAutocompletadoBFS(manual = false) {
+    const orig = (document.getElementById('nueva_origen')?.value || '').trim();
+    const dest = (document.getElementById('nueva_destino')?.value || '').trim();
+
+    if (orig.length < 2 || dest.length < 2) {
+        if (manual) mostrarToastFlota('Indica la ciudad de origen y de destino para explorar conexiones.', 'warning');
+        return;
+    }
+
+    const btn = document.getElementById('btnAutocompletarBFS');
+    if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = `<span class="spinner-border spinner-border-sm me-1"></span> Buscando conexiones...`;
+    }
+
+    fetch(`/suramerica2030/flota/apiSugerirConexiones?origen=${encodeURIComponent(orig)}&destino=${encodeURIComponent(dest)}`)
+        .then(r => r.json())
+        .then(res => {
+            if (btn) {
+                btn.disabled = false;
+                btn.innerHTML = `⚡ Sugerir Conexiones`;
+            }
+
+            if (res.status === 'success' && res.caminos && res.caminos.length > 0) {
+                const mapCaminos = {};
+                res.caminos.forEach((c, i) => {
+                    const key = c.modalidad ? (c.modalidad + '_' + (i + 1)) : ('CAMINO_' + (i + 1));
+                    mapCaminos[key] = c;
+                });
+                window.modalidadesDetectadasActuales = mapCaminos;
+                if (typeof renderizarTarjetasModalidad === 'function') {
+                    renderizarTarjetasModalidad(mapCaminos);
+                }
+                const primerKey = Object.keys(mapCaminos)[0];
+                if (primerKey && typeof seleccionarModalidad === 'function') {
+                    seleccionarModalidad(primerKey);
+                }
+                if (manual) mostrarToastFlota(`¡Se encontraron ${res.caminos.length} combinaciones multimodales viables!`, 'success');
+            } else {
+                if (manual) mostrarToastFlota(res.mensaje || 'No se encontraron caminos en el grafo para este trayecto.', 'info');
+            }
+        })
+        .catch(err => {
+            if (btn) {
+                btn.disabled = false;
+                btn.innerHTML = `⚡ Sugerir Conexiones`;
+            }
+            if (manual) mostrarToastFlota('Error: ' + err.message, 'danger');
+        });
+}
+
+window.abrirModalOfertasOperador = abrirModalOfertasOperador;
+window.renderizarFilasOfertasOperador = renderizarFilasOfertasOperador;
+window.toggleFormularioNuevoTramoOferta = toggleFormularioNuevoTramoOferta;
+window.alSeleccionarTramoEnOferta = alSeleccionarTramoEnOferta;
+window.guardarNuevoTramoOferta = guardarNuevoTramoOferta;
+window.conmutarEstadoOfertaOperador = conmutarEstadoOfertaOperador;
+window.detectarPuenteFronterizoJS = detectarPuenteFronterizoJS;
+window.sonCiudadesConectablesJS = sonCiudadesConectablesJS;
+window.ejecutarAutocompletadoBFS = ejecutarAutocompletadoBFS;
+
+
 

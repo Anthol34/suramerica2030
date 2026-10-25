@@ -87,3 +87,68 @@
     color: #0d6efd;
 }
 
+/* ======================================================== */
+/* FASE 3: LÍNEA DE TIEMPO INTERACTIVA Y SEMÁFORO FINANCIERO*/
+/* ======================================================== */
+.timeline-tramo-connector {
+    position: relative;
+    padding: 6px 0;
+}
+.timeline-tramo-connector::before {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 10%;
+    right: 10%;
+    border-top: 2px dashed #f59e0b;
+    z-index: 1;
+}
+.timeline-tramo-connector .badge {
+    position: relative;
+    z-index: 2;
+    background-color: #fffbeb !important;
+    color: #92400e !important;
+    border: 1px solid #fcd34d !important;
+    font-weight: 600;
+}
+
+.tramo-card {
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
+    border-radius: 8px;
+}
+.tramo-card:hover {
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08) !important;
+}
+
+.tarjeta-modalidad-itinerario {
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.tarjeta-modalidad-itinerario:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 16px rgba(13, 110, 253, 0.15);
+}
+
+.badge-desfase-dia {
+    font-size: 11px;
+    padding: 3px 6px;
+    border-radius: 4px;
+}
+
+/* Semáforo Financiero en Vivo */
+.semaforo-verde {
+    background-color: #dcfce7 !important;
+    color: #166534 !important;
+    border-left: 4px solid #16a34a !important;
+}
+.semaforo-amarillo {
+    background-color: #fef9c3 !important;
+    color: #854d0e !important;
+    border-left: 4px solid #eab308 !important;
+}
+.semaforo-rojo {
+    background-color: #fee2e2 !important;
+    color: #991b1b !important;
+    border-left: 4px solid #dc2626 !important;
+}
+
+

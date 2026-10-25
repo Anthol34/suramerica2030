@@ -27,6 +27,9 @@ class FlotaController {
         $buses = $this->repository->obtenerBusesConSocios();
         $operadores = $this->repository->obtenerOperadores(false);
 
+        $engine = new RoutingEngine();
+        $puentesFronterizos = $engine->obtenerPuentesFronterizos();
+
         $titulo = "Gestión de Flota y Rutas Comerciales - Suramerica 2030";
         $vista = __DIR__ . '/Views/flota.php';
         require_once __DIR__ . '/../../Platform/Views/layout.php';
@@ -292,6 +295,64 @@ class FlotaController {
             'status' => 'success',
             'puentes' => $puentes
         ]);
+        exit();
+    }
+
+    /**
+     * Endpoint API para consultar la oferta de tramos de un operador específico
+     */
+    public function apiOfertasOperador() {
+        $this->verificarPermiso();
+        header('Content-Type: application/json; charset=utf-8');
+
+        $idOperador = intval($_GET['id_operador'] ?? $_POST['id_operador'] ?? 0);
+        if ($idOperador <= 0) {
+            echo json_encode(['status' => 'error', 'mensaje' => 'ID de operador inválido.']);
+            exit();
+        }
+
+        $ofertas = $this->repository->obtenerOfertasPorOperadorBD($idOperador);
+        echo json_encode([
+            'status' => 'success',
+            'id_operador' => $idOperador,
+            'total' => count($ofertas),
+            'ofertas' => $ofertas
+        ]);
+        exit();
+    }
+
+    /**
+     * Guarda o actualiza un tramo en la oferta de un operador
+     */
+    public function guardarOfertaOperador() {
+        $this->verificarPermiso();
+        header('Content-Type: application/json; charset=utf-8');
+
+        if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+            echo json_encode(['status' => 'error', 'mensaje' => 'Método no permitido.']);
+            exit();
+        }
+
+        $res = $this->repository->guardarOfertaOperadorBD($_POST);
+        echo json_encode($res);
+        exit();
+    }
+
+    /**
+     * Alterna en vivo el estado (Activo / Pausado) de un tramo en la oferta del operador
+     */
+    public function cambiarEstadoOfertaOperador() {
+        $this->verificarPermiso();
+        header('Content-Type: application/json; charset=utf-8');
+
+        if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+            echo json_encode(['status' => 'error', 'mensaje' => 'Método no permitido.']);
+            exit();
+        }
+
+        $idOferta = intval($_POST['id_oferta'] ?? 0);
+        $res = $this->repository->cambiarEstadoOfertaOperadorBD($idOferta);
+        echo json_encode($res);
         exit();
     }
 
