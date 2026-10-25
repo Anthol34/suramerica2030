@@ -219,14 +219,12 @@ class RoutingEngine {
             $resultado['PANA_EXPRESOS'] = $itPanaExp;
         }
 
-        // 6. Enriquecer con alternativas descubiertas por el motor de grafo BFS
+        // 6. Enriquecer con alternativas del motor de grafo BFS solo si falta alguna modalidad estándar
         $caminosBfs = $this->sugerirCaminosDisponibles($origen, $destino, 4);
-        foreach ($caminosBfs as $idx => $camBfs) {
+        foreach ($caminosBfs as $camBfs) {
             $keyBfs = $camBfs['modalidad'];
             if (!isset($resultado[$keyBfs])) {
                 $resultado[$keyBfs] = $camBfs;
-            } elseif (count($resultado) < 6) {
-                $resultado[$keyBfs . '_ALT_' . ($idx + 1)] = $camBfs;
             }
         }
 
