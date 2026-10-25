@@ -430,16 +430,21 @@ class FlotaService {
         $origenPrimerTramo = trim($primerTramo['origen'] ?? $primerTramo['ORIGEN_TRAMO'] ?? '');
         $destinoUltimoTramo = trim($ultimoTramo['destino'] ?? $ultimoTramo['DESTINO_TRAMO'] ?? '');
 
+        $engine = new RoutingEngine();
+
         if (mb_strtoupper($origenPrimerTramo) !== mb_strtoupper($origenRuta)) {
-            return "Inconsistencia de Origen: El primer tramo inicia en '{$origenPrimerTramo}', pero la ruta indica origen en '{$origenRuta}'. Ambos deben coincidir exactamente.";
+            if (!$engine->sonCiudadesConectables($origenRuta, $origenPrimerTramo)) {
+                return "Inconsistencia de Origen: El primer tramo inicia en '{$origenPrimerTramo}', pero la ruta indica origen en '{$origenRuta}'. Ambos deben coincidir exactamente o contar con un puente fronterizo binacional.";
+            }
         }
 
         if (mb_strtoupper($destinoUltimoTramo) !== mb_strtoupper($destinoRuta)) {
-            return "Inconsistencia de Destino: El último tramo finaliza en '{$destinoUltimoTramo}', pero la ruta indica destino final en '{$destinoRuta}'. Ambos deben coincidir exactamente.";
+            if (!$engine->sonCiudadesConectables($destinoUltimoTramo, $destinoRuta)) {
+                return "Inconsistencia de Destino: El último tramo finaliza en '{$destinoUltimoTramo}', pero la ruta indica destino final en '{$destinoRuta}'. Ambos deben coincidir exactamente o contar con un puente fronterizo binacional.";
+            }
         }
 
         // Validar continuidad entre tramos intermedios (permitiendo puentes fronterizos binacionales)
-        $engine = new RoutingEngine();
         for ($i = 0; $i < count($tramos) - 1; $i++) {
             $destActual = trim($tramos[$i]['destino'] ?? $tramos[$i]['DESTINO_TRAMO'] ?? '');
             $origSiguiente = trim($tramos[$i + 1]['origen'] ?? $tramos[$i + 1]['ORIGEN_TRAMO'] ?? '');

@@ -295,9 +295,9 @@ class RoutingEngine {
             if (strcasecmp($origen, 'Tulcán') !== 0) {
                 $pares[] = [$origen, 'Tulcán', 3]; // Empresa Local Ecuador
             }
-            $pares[] = ['Tulcán', 'Ipiales', 3];   // Frontera EC/COL
+            // Cruce binacional Rumichaca (Tulcán ⇄ Ipiales) se gestiona vía PUENTE_FRONTERIZO
             $pares[] = ['Ipiales', 'Cúcuta', 4];   // Empresa Local Colombia
-            $pares[] = ['Cúcuta', 'San Cristóbal', 5]; // Frontera COL/VE
+            // Cruce binacional Atanasio Girardot (Cúcuta ⇄ San Cristóbal) vía PUENTE_FRONTERIZO
 
             if (strcasecmp($destino, 'San Cristóbal') !== 0) {
                 // Verificar si existe tramo directo San Cristóbal -> Destino
@@ -326,9 +326,9 @@ class RoutingEngine {
                     $pares[] = ['Caracas', 'San Cristóbal', 5];
                 }
             }
-            $pares[] = ['San Cristóbal', 'Cúcuta', 5];
+            // Cruce binacional Atanasio Girardot vía PUENTE_FRONTERIZO
             $pares[] = ['Cúcuta', 'Ipiales', 4];
-            $pares[] = ['Ipiales', 'Tulcán', 4];
+            // Cruce binacional Rumichaca vía PUENTE_FRONTERIZO
             if (strcasecmp($destino, 'Tulcán') !== 0) {
                 $pares[] = ['Tulcán', $destino, 3];
             }
@@ -338,7 +338,7 @@ class RoutingEngine {
             if (strcasecmp($origen, 'Cúcuta') !== 0) {
                 $pares[] = [$origen, 'Cúcuta', 4];
             }
-            $pares[] = ['Cúcuta', 'San Cristóbal', 5];
+            // Cruce binacional Atanasio Girardot vía PUENTE_FRONTERIZO
             if (strcasecmp($destino, 'San Cristóbal') !== 0) {
                 $trDirectoVE = $this->buscarTramo('San Cristóbal', $destino, 5);
                 if ($trDirectoVE) {
@@ -364,7 +364,7 @@ class RoutingEngine {
                     $pares[] = ['Caracas', 'San Cristóbal', 5];
                 }
             }
-            $pares[] = ['San Cristóbal', 'Cúcuta', 5];
+            // Cruce binacional Atanasio Girardot vía PUENTE_FRONTERIZO
             if (strcasecmp($destino, 'Cúcuta') !== 0) {
                 $pares[] = ['Cúcuta', $destino, 4];
             }
@@ -407,10 +407,9 @@ class RoutingEngine {
                 $pares[] = ['Quito', 'Cúcuta', 2];
             }
 
-            // Tramo 2: Cúcuta -> San Cristóbal
-            $pares[] = ['Cúcuta', 'San Cristóbal', 5];
+            // Cruce binacional Atanasio Girardot (Cúcuta ⇄ San Cristóbal) se gestiona vía PUENTE_FRONTERIZO
 
-            // Tramo 3: Distribución en Venezuela
+            // Tramo 2: Distribución en Venezuela
             if (strcasecmp($destino, 'San Cristóbal') !== 0) {
                 $trDirectoVE = $this->buscarTramo('San Cristóbal', $destino, 5);
                 if ($trDirectoVE) {
@@ -436,10 +435,9 @@ class RoutingEngine {
                 }
             }
 
-            // Tramo 2: San Cristóbal -> Cúcuta
-            $pares[] = ['San Cristóbal', 'Cúcuta', 5];
+            // Cruce binacional Atanasio Girardot (San Cristóbal ⇄ Cúcuta) vía PUENTE_FRONTERIZO
 
-            // Tramo 3: Salto Panamericana (Cúcuta -> Ecuador)
+            // Tramo 2: Salto Panamericana (Cúcuta -> Ecuador)
             $trPana = $this->buscarTramo('Cúcuta', $destino, 2);
             if ($trPana) {
                 $pares[] = ['Cúcuta', $destino, 2];
@@ -514,9 +512,9 @@ class RoutingEngine {
             if (strcasecmp($origen, 'Tulcán') !== 0) {
                 $pares[] = [$origen, 'Tulcán', 3];
             }
-            $pares[] = ['Tulcán', 'Ipiales', 3];
+            // Cruce Rumichaca vía PUENTE_FRONTERIZO
             $pares[] = ['Ipiales', 'Cúcuta', 4];
-            $pares[] = ['Cúcuta', 'San Cristóbal', 5];
+            // Cruce Atanasio Girardot vía PUENTE_FRONTERIZO
 
             // Troncal venezolana con Expresos Suramérica 2030
             $ciudadesTroncales = ['Caracas', 'Valencia', 'Maracay', 'Barquisimeto', 'Maracaibo'];
@@ -559,9 +557,9 @@ class RoutingEngine {
                 }
             }
 
-            $pares[] = ['San Cristóbal', 'Cúcuta', 5];
+            // Cruce Atanasio Girardot vía PUENTE_FRONTERIZO
             $pares[] = ['Cúcuta', 'Ipiales', 4];
-            $pares[] = ['Ipiales', 'Tulcán', 4];
+            // Cruce Rumichaca vía PUENTE_FRONTERIZO
             if (strcasecmp($destino, 'Tulcán') !== 0) {
                 $pares[] = ['Tulcán', $destino, 3];
             }
@@ -571,7 +569,7 @@ class RoutingEngine {
             if (strcasecmp($origen, 'Cúcuta') !== 0) {
                 $pares[] = [$origen, 'Cúcuta', 4];
             }
-            $pares[] = ['Cúcuta', 'San Cristóbal', 5];
+            // Cruce Atanasio Girardot vía PUENTE_FRONTERIZO
             $pares[] = ['San Cristóbal', 'Caracas', 1];
             if (strcasecmp($destino, 'Caracas') !== 0) {
                 $pares[] = ['Caracas', $destino, 5];
@@ -622,10 +620,9 @@ class RoutingEngine {
                 $pares[] = ['Quito', 'Cúcuta', 2];
             }
 
-            // 2. Frontera COL/VE
-            $pares[] = ['Cúcuta', 'San Cristóbal', 5];
+            // Cruce binacional Atanasio Girardot (Cúcuta ⇄ San Cristóbal) vía PUENTE_FRONTERIZO
 
-            // 3. Troncal Venezuela con Expresos Suramérica 2030
+            // 2. Troncal Venezuela con Expresos Suramérica 2030
             $ciudadesTroncales = ['Caracas', 'Valencia', 'Maracay', 'Barquisimeto', 'Maracaibo'];
             $esTroncalDirecta = false;
             foreach ($ciudadesTroncales as $ct) {
@@ -666,7 +663,7 @@ class RoutingEngine {
                 }
             }
 
-            $pares[] = ['San Cristóbal', 'Cúcuta', 5];
+            // Cruce binacional Atanasio Girardot vía PUENTE_FRONTERIZO
 
             $trPana = $this->buscarTramo('Cúcuta', $destino, 2);
             if ($trPana) {
@@ -681,7 +678,7 @@ class RoutingEngine {
             if (strcasecmp($origen, 'Cúcuta') !== 0) {
                 $pares[] = [$origen, 'Cúcuta', 4];
             }
-            $pares[] = ['Cúcuta', 'San Cristóbal', 5];
+            // Cruce binacional Atanasio Girardot vía PUENTE_FRONTERIZO
             if (strcasecmp($destino, 'San Cristóbal') !== 0) {
                 $ciudadesTroncales = ['Caracas', 'Valencia', 'Maracay', 'Barquisimeto', 'Maracaibo'];
                 $esTroncal = in_array(ucfirst(strtolower($destino)), $ciudadesTroncales);
@@ -705,7 +702,7 @@ class RoutingEngine {
                     $pares[] = ['Caracas', 'San Cristóbal', 1];
                 }
             }
-            $pares[] = ['San Cristóbal', 'Cúcuta', 5];
+            // Cruce binacional Atanasio Girardot vía PUENTE_FRONTERIZO
             if (strcasecmp($destino, 'Cúcuta') !== 0) {
                 $pares[] = ['Cúcuta', $destino, 4];
             }
@@ -748,6 +745,17 @@ class RoutingEngine {
 
             if ($idx === 0) {
                 $ciudadesRuta[] = $orig;
+            } else {
+                $prevDest = $paresCiudades[$idx - 1][1];
+                if (strcasecmp($prevDest, $orig) !== 0) {
+                    $ciudadesRuta[] = $orig;
+                    // Si cruza por puente fronterizo binacional, sumar tiempo de migración/cruce a las horas
+                    $puente = $this->esPuenteFronterizo($prevDest, $orig);
+                    if ($puente) {
+                        $minCruce = intval($puente['TIEMPO_CRUCE_MIN'] ?? 120);
+                        $totalHoras += ($minCruce / 60);
+                    }
+                }
             }
             $ciudadesRuta[] = $dest;
 
