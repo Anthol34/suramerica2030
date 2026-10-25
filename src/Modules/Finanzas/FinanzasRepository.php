@@ -96,9 +96,12 @@ class FinanzasRepository {
         $stmtP->execute($params);
         $pasajes = $stmtP->fetchAll(PDO::FETCH_ASSOC);
 
-        // Mapear tramos de las rutas encontradas
+        // Mapear tramos de las rutas encontradas y conexiones congeladas por pasaje
         $rutasIds = array_unique(array_filter(array_column($pasajes, 'ID_RUTA')));
+        $pasajesIds = array_unique(array_filter(array_column($pasajes, 'ID_PASAJE')));
         $tramosMap = [];
+        $pasajeTramosMap = [];
+
         if (!empty($rutasIds)) {
             $inRutas = implode(',', array_map('intval', $rutasIds));
             $stmtTr = $this->db->query("SELECT rt.*, op.NOMBRE_COMERCIAL as OP_NOMBRE, op.BANCO, op.NUMERO_CUENTA, op.TIPO_CUENTA, op.TITULAR_CUENTA, op.IDENTIFICACION 
@@ -108,6 +111,20 @@ class FinanzasRepository {
                                         ORDER BY rt.ID_RUTA, rt.ORDEN ASC");
             while ($tr = $stmtTr->fetch(PDO::FETCH_ASSOC)) {
                 $tramosMap[$tr['ID_RUTA']][] = $tr;
+            }
+        }
+
+        if (!empty($pasajesIds)) {
+            $inPax = implode(',', array_map('intval', $pasajesIds));
+            $stmtPt = $this->db->query("SELECT pt.*, rt.ORIGEN_TRAMO, rt.DESTINO_TRAMO, rt.PVP_TRAMO, rt.UTILIDAD_AGENCIA,
+                                               op.NOMBRE_COMERCIAL as OP_NOMBRE, op.BANCO, op.NUMERO_CUENTA, op.TIPO_CUENTA, op.TITULAR_CUENTA, op.IDENTIFICACION 
+                                        FROM PASAJE_TRAMO pt 
+                                        LEFT JOIN RUTA_TRAMO rt ON pt.ID_RUTA_TRAMO = rt.ID_RUTA_TRAMO 
+                                        LEFT JOIN OPERADOR op ON COALESCE(pt.ID_OPERADOR, rt.ID_OPERADOR) = op.ID_OPERADOR 
+                                        WHERE pt.ID_PASAJE IN ($inPax) 
+                                        ORDER BY pt.ID_PASAJE, rt.ORDEN ASC");
+            while ($pt = $stmtPt->fetch(PDO::FETCH_ASSOC)) {
+                $pasajeTramosMap[$pt['ID_PASAJE']][] = $pt;
             }
         }
 
@@ -177,8 +194,9 @@ class FinanzasRepository {
 
         // Procesar Pasajes
         foreach ($pasajes as $pax) {
+            $idPasaje = $pax['ID_PASAJE'];
             $idRuta = $pax['ID_RUTA'];
-            $tramos = $tramosMap[$idRuta] ?? [];
+            $tramos = $pasajeTramosMap[$idPasaje] ?? ($tramosMap[$idRuta] ?? []);
             $nombreCliente = trim(($pax['CLI_NOMBRE'] ?? '') . ' ' . ($pax['CLI_APELLIDO'] ?? '')) ?: 'Cliente S/N';
 
             $modCodigo = ModalidadHelper::normalizarCodigo($pax['MODALIDAD'] ?? 'CONEXIONES');
@@ -198,8 +216,9 @@ class FinanzasRepository {
                     $initOp($porOperador, $op);
 
                     $pvpTramo = floatval($tr['PVP_TRAMO'] ?? 0);
-                    $costoSocio = floatval($tr['COSTO_OPERADOR'] ?? 0);
+                    $costoSocio = isset($tr['COSTO_LIQUIDACION']) ? floatval($tr['COSTO_LIQUIDACION']) : floatval($tr['COSTO_OPERADOR'] ?? 0);
                     $utilAgencia = floatval($tr['UTILIDAD_AGENCIA'] ?? max(0, $pvpTramo - $costoSocio));
+                    $fechaViajeTramo = !empty($tr['FECHA_TRAMO']) ? $tr['FECHA_TRAMO'] : $pax['FECHA_VIAJE'];
 
                     $porOperador[$op]['cant_pasajes']++;
                     $porOperador[$op]['total_pvp_pasajes'] += $pvpTramo;
@@ -213,7 +232,7 @@ class FinanzasRepository {
                         'id_factura' => $pax['ID_FACTURA'],
                         'id_pasaje' => $pax['ID_PASAJE'],
                         'fecha_venta' => $pax['FA_FECHA'],
-                        'fecha_viaje' => $pax['FECHA_VIAJE'],
+                        'fecha_viaje' => $fechaViajeTramo,
                         'sucursal' => $pax['SUCURSAL_NOMBRE'] ?? 'Matriz',
                         'cliente' => $nombreCliente,
                         'documento' => $pax['CLI_DOC'],

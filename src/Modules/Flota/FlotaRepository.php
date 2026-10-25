@@ -1242,6 +1242,7 @@ class FlotaRepository {
                     $tr = $tramos[$i];
                     $origInv = $tr['destino'];
                     $destInv = $tr['origen'];
+                    $desfaseInv = count($tramosInvertidos);
 
                     $stmtBuscaCat->execute([$origInv, $destInv]);
                     $catInv = $stmtBuscaCat->fetch(PDO::FETCH_ASSOC);
@@ -1253,6 +1254,7 @@ class FlotaRepository {
                             'operador' => $catInv['OPERADOR_NOMBRE'] ?: ($tr['operador'] ?? 'Aliado'),
                             'id_operador' => intval($catInv['ID_OPERADOR'] ?? ($tr['id_operador'] ?? 1)),
                             'id_tramo_catalogo' => intval($catInv['ID_TRAMO_CATALOGO']),
+                            'dia_desfase' => $desfaseInv,
                             'costo' => floatval($catInv['COSTO_OPERADOR']),
                             'pvp' => floatval($catInv['PVP_SUGERIDO']),
                             'utilidad' => max(0, floatval($catInv['PVP_SUGERIDO']) - floatval($catInv['COSTO_OPERADOR'])),
@@ -1267,6 +1269,7 @@ class FlotaRepository {
                             'operador' => $tr['operador'] ?? 'Aliado',
                             'id_operador' => $tr['id_operador'] ?? 1,
                             'id_tramo_catalogo' => null,
+                            'dia_desfase' => $desfaseInv,
                             'costo' => $tr['costo'] ?? 0,
                             'pvp' => $tr['pvp'] ?? 0,
                             'utilidad' => $tr['utilidad'] ?? 0,
@@ -1433,22 +1436,27 @@ class FlotaRepository {
             $costo = floatval($datos['costo_neto'] ?? 0);
             $pvp = floatval($datos['pvp_sugerido'] ?? 0);
             $util = max(0, $pvp - $costo);
+            $ventaDirecta = !empty($datos['venta_directa']) ? 1 : 0;
+            $precioTramoSolo = floatval($datos['precio_tramo_solo'] ?? 0);
 
             if ($idOferta > 0) {
                 $upd = $this->db->prepare("UPDATE OPERADOR_OFERTA_TRAMO 
-                    SET DIAS_SALIDA = ?, HORA_SALIDA = ?, COSTO_NETO = ?, PVP_SUGERIDO = ?, UTILIDAD_AGENCIA = ? 
+                    SET DIAS_SALIDA = ?, HORA_SALIDA = ?, COSTO_NETO = ?, PVP_SUGERIDO = ?, UTILIDAD_AGENCIA = ?, VENTA_DIRECTA = ?, PRECIO_TRAMO_SOLO = ? 
                     WHERE ID_OFERTA = ?");
-                $upd->execute([$dias, $hora, $costo, $pvp, $util, $idOferta]);
+                $upd->execute([$dias, $hora, $costo, $pvp, $util, $ventaDirecta, $precioTramoSolo, $idOferta]);
+                $this->sincronizarRutaDirectaDesdeOfertaBD($idOferta);
                 return ['status' => 'success', 'id_oferta' => $idOferta, 'mensaje' => 'Oferta de operador actualizada.'];
             } else {
                 if ($idTramo <= 0 || $idOperador <= 0) {
                     return ['status' => 'error', 'mensaje' => 'Debe especificar el tramo y el operador.'];
                 }
                 $ins = $this->db->prepare("INSERT INTO OPERADOR_OFERTA_TRAMO 
-                    (ID_TRAMO_CATALOGO, ID_OPERADOR, DIAS_SALIDA, HORA_SALIDA, COSTO_NETO, PVP_SUGERIDO, UTILIDAD_AGENCIA, ACTIVO) 
-                    VALUES (?, ?, ?, ?, ?, ?, ?, 1)");
-                $ins->execute([$idTramo, $idOperador, $dias, $hora, $costo, $pvp, $util]);
-                return ['status' => 'success', 'id_oferta' => (int)$this->db->lastInsertId(), 'mensaje' => 'Nuevo tramo agregado a la oferta del operador.'];
+                    (ID_TRAMO_CATALOGO, ID_OPERADOR, DIAS_SALIDA, HORA_SALIDA, COSTO_NETO, PVP_SUGERIDO, UTILIDAD_AGENCIA, ACTIVO, VENTA_DIRECTA, PRECIO_TRAMO_SOLO) 
+                    VALUES (?, ?, ?, ?, ?, ?, ?, 1, ?, ?)");
+                $ins->execute([$idTramo, $idOperador, $dias, $hora, $costo, $pvp, $util, $ventaDirecta, $precioTramoSolo]);
+                $nuevoId = (int)$this->db->lastInsertId();
+                $this->sincronizarRutaDirectaDesdeOfertaBD($nuevoId);
+                return ['status' => 'success', 'id_oferta' => $nuevoId, 'mensaje' => 'Nuevo tramo agregado a la oferta del operador.'];
             }
         } catch (\Exception $e) {
             return ['status' => 'error', 'mensaje' => 'Error al guardar oferta: ' . $e->getMessage()];
@@ -1468,6 +1476,7 @@ class FlotaRepository {
             $nuevo = ($nuevoEstado !== null) ? intval($nuevoEstado) : ($actual ? 0 : 1);
             $upd = $this->db->prepare("UPDATE OPERADOR_OFERTA_TRAMO SET ACTIVO = ? WHERE ID_OFERTA = ?");
             $upd->execute([$nuevo, $idOferta]);
+            $this->sincronizarRutaDirectaDesdeOfertaBD($idOferta);
             return [
                 'status' => 'success',
                 'id_oferta' => $idOferta,
@@ -1476,6 +1485,123 @@ class FlotaRepository {
             ];
         } catch (\Exception $e) {
             return ['status' => 'error', 'mensaje' => 'Error al cambiar estado de oferta: ' . $e->getMessage()];
+        }
+    }
+
+    /**
+     * Sincronizador Automático de "Tramo Suelto" a "Ruta Directa Comercial" (Sección 4.4)
+     * Cuando se activa '¿Vender también como Ruta Directa al público?', crea o actualiza
+     * automáticamente el producto comercial en RUTA y RUTA_TRAMO con modalidad ESTANDAR.
+     */
+    public function sincronizarRutaDirectaDesdeOfertaBD($idOferta) {
+        try {
+            $stmtOf = $this->db->prepare("
+                SELECT oot.*, tc.ORIGEN_TRAMO, tc.DESTINO_TRAMO, op.NOMBRE_COMERCIAL as OPERADOR_NOMBRE
+                FROM OPERADOR_OFERTA_TRAMO oot
+                JOIN tramo_catalogo tc ON oot.ID_TRAMO_CATALOGO = tc.ID_TRAMO_CATALOGO
+                JOIN OPERADOR op ON oot.ID_OPERADOR = op.ID_OPERADOR
+                WHERE oot.ID_OFERTA = ?
+            ");
+            $stmtOf->execute([$idOferta]);
+            $oferta = $stmtOf->fetch(PDO::FETCH_ASSOC);
+            if (!$oferta) return false;
+
+            $origen = trim($oferta['ORIGEN_TRAMO']);
+            $destino = trim($oferta['DESTINO_TRAMO']);
+            $idOperador = intval($oferta['ID_OPERADOR']);
+            $activoOferta = intval($oferta['ACTIVO']);
+            $esVentaDirecta = intval($oferta['VENTA_DIRECTA'] ?? 0);
+            $costoNeto = floatval($oferta['COSTO_NETO'] ?? 0);
+            $precioDirecto = floatval($oferta['PRECIO_TRAMO_SOLO'] ?? 0);
+            if ($precioDirecto <= 0) {
+                $precioDirecto = floatval($oferta['PVP_SUGERIDO'] ?? 0);
+            }
+            if ($precioDirecto <= 0) {
+                $precioDirecto = $costoNeto * 1.25;
+            }
+            $diasSalida = !empty($oferta['DIAS_SALIDA']) ? trim($oferta['DIAS_SALIDA']) : '1,2,3,4,5,6,7';
+            $diasMapaInv = ['LUN'=>'1','MAR'=>'2','MIE'=>'3','JUE'=>'4','VIE'=>'5','SAB'=>'6','DOM'=>'7'];
+            $partesDias = explode(',', $diasSalida);
+            $diasNums = [];
+            foreach ($partesDias as $pd) {
+                $pTrim = strtoupper(trim($pd));
+                if (isset($diasMapaInv[$pTrim])) {
+                    $diasNums[] = $diasMapaInv[$pTrim];
+                } elseif (is_numeric($pTrim)) {
+                    $diasNums[] = $pTrim;
+                }
+            }
+            $diasRutaStr = !empty($diasNums) ? implode(',', array_unique($diasNums)) : '1,2,3,4,5,6,7';
+            $horaSalida = !empty($oferta['HORA_SALIDA']) ? trim($oferta['HORA_SALIDA']) : '08:00:00';
+
+            // Buscar si ya existe una ruta directa asociada a esta oferta
+            $stmtCheck = $this->db->prepare("
+                SELECT r.ID_RUTA 
+                FROM RUTA r
+                JOIN RUTA_TRAMO rt ON r.ID_RUTA = rt.ID_RUTA
+                WHERE rt.ID_OFERTA = ? AND r.TIPO_VIAJE = 'DIRECTO'
+                LIMIT 1
+            ");
+            $stmtCheck->execute([$idOferta]);
+            $idRutaExistente = $stmtCheck->fetchColumn();
+
+            if ($esVentaDirecta === 1 && $activoOferta === 1) {
+                $sentido = \Platform\Helpers\SentidoHelper::resolverSentido($origen, $destino);
+                $utilidad = max(0, $precioDirecto - $costoNeto);
+
+                if ($idRutaExistente) {
+                    $updRuta = $this->db->prepare("
+                        UPDATE RUTA 
+                        SET PRECIO_PASAJE = ?, COSTO_TOTAL_RUTA = ?, DIAS_SALIDA = ?, RUT_SAHORA = ?, 
+                            UTILIDAD_PASAJE = ?, ESTADO = 'ACTIVO', SENTIDO = ?
+                        WHERE ID_RUTA = ?
+                    ");
+                    $updRuta->execute([$precioDirecto, $costoNeto, $diasRutaStr, $horaSalida, $utilidad, $sentido, $idRutaExistente]);
+
+                    $updTr = $this->db->prepare("
+                        UPDATE RUTA_TRAMO 
+                        SET PVP_TRAMO = ?, COSTO_OPERADOR = ?, UTILIDAD_AGENCIA = ?
+                        WHERE ID_RUTA = ? AND (ID_OFERTA = ? OR ORDEN = 1)
+                    ");
+                    $updTr->execute([$precioDirecto, $costoNeto, $utilidad, $idRutaExistente, $idOferta]);
+                } else {
+                    $this->insertarRutaIndividual([
+                        'origen' => $origen,
+                        'destino' => $destino,
+                        'tipo_viaje' => 'DIRECTO',
+                        'modalidad' => 'ESTANDAR',
+                        'id_operador' => $idOperador,
+                        'dias_salida' => $diasRutaStr,
+                        'hora_salida' => $horaSalida,
+                        'precio_pasaje' => $precioDirecto,
+                        'costo_total_ruta' => $costoNeto,
+                        'utilidad_pasaje' => $utilidad,
+                        'sentido' => $sentido,
+                        'tramos' => [
+                            [
+                                'origen' => $origen,
+                                'destino' => $destino,
+                                'operador' => $oferta['OPERADOR_NOMBRE'],
+                                'id_operador' => $idOperador,
+                                'id_tramo_catalogo' => $oferta['ID_TRAMO_CATALOGO'],
+                                'id_oferta' => $idOferta,
+                                'dia_desfase' => 0,
+                                'costo' => $costoNeto,
+                                'pvp' => $precioDirecto,
+                                'utilidad' => $utilidad,
+                                'admite_sobrepeso' => 1
+                            ]
+                        ]
+                    ]);
+                }
+            } else {
+                if ($idRutaExistente) {
+                    $this->db->prepare("UPDATE RUTA SET ESTADO = 'INACTIVO' WHERE ID_RUTA = ?")->execute([$idRutaExistente]);
+                }
+            }
+            return true;
+        } catch (\Exception $e) {
+            return false;
         }
     }
 }

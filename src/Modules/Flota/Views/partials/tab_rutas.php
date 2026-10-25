@@ -1356,6 +1356,7 @@ foreach($tramosList as $trIndex => $tramo):
                         <div class="col-md-2">
                             <label class="form-label small text-muted mb-0">Operador</label>
                             <select name="tramo_id_operador[]" class="form-select form-select-sm fw-bold border-primary text-primary" onchange="const opName = this.options[this.selectedIndex].getAttribute('data-nombre') || this.options[this.selectedIndex].text; this.closest('.tramo-card').querySelector('input[name=\\'tramo_operador[]\\']').value = opName;">
+                                <option value="">⭐ Automático (Cualquiera)</option>
                                 ${HTML_OPCIONES_OPERADORES}
                             </select>
                             <input type="hidden" name="tramo_operador[]" value="${t.operador || 'Panamericana'}">
@@ -1489,6 +1490,7 @@ foreach($tramosList as $trIndex => $tramo):
                     <div class="col-md-2">
                         <label class="form-label small text-muted mb-0">Operador</label>
                         <select name="tramo_id_operador[]" class="form-select form-select-sm fw-bold border-primary text-primary" onchange="const opName = this.options[this.selectedIndex].getAttribute('data-nombre') || this.options[this.selectedIndex].text; this.closest('.tramo-card').querySelector('input[name=\\'tramo_operador[]\\']').value = opName;">
+                            <option value="">⭐ Automático (Cualquiera)</option>
                             ${HTML_OPCIONES_OPERADORES}
                         </select>
                         <input type="hidden" name="tramo_operador[]" value="Panamericana">

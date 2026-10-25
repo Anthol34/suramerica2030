@@ -714,6 +714,21 @@
                                         <input type="time" name="hora_salida" class="form-control form-control-sm" value="08:00" required>
                                     </div>
                                 </div>
+                                <div class="row g-2 mb-2 align-items-center bg-white p-2 rounded border">
+                                    <div class="col-md-7">
+                                        <div class="form-check form-switch">
+                                            <input class="form-check-input" type="checkbox" name="venta_directa" value="1" id="oferta_nuevo_venta_directa" onchange="togglePrecioDirectoOferta(this.checked)">
+                                            <label class="form-check-label small fw-bold text-dark" for="oferta_nuevo_venta_directa">
+                                                🏷️ ¿Vender también como Ruta Directa al público en Boletería?
+                                            </label>
+                                        </div>
+                                        <small class="text-muted d-block" style="font-size:11px;">Crea y sincroniza automáticamente un producto comercial directo en el módulo de Pasajes.</small>
+                                    </div>
+                                    <div class="col-md-5" id="contenedorPrecioDirectoOferta" style="display: none;">
+                                        <label class="form-label small fw-bold text-success mb-0">Precio Directo al Público ($):</label>
+                                        <input type="number" step="0.50" min="0" name="precio_tramo_solo" id="oferta_nuevo_precio_solo" class="form-control form-control-sm fw-bold text-success" placeholder="0.00">
+                                    </div>
+                                </div>
                                 <div class="d-flex justify-content-between align-items-center mt-2 flex-wrap gap-2">
                                     <div>
                                         <label class="form-label small fw-bold d-block mb-1">Días de Operación:</label>
@@ -744,13 +759,14 @@
                                         <th class="text-center">Hora</th>
                                         <th class="text-end">Costo Liquidación</th>
                                         <th class="text-end">PVP Sugerido</th>
+                                        <th class="text-center">Venta Directa</th>
                                         <th class="text-center">Estado</th>
                                         <th class="text-center">Acciones</th>
                                     </tr>
                                 </thead>
                                 <tbody id="cuerpoTablaOfertasOperador">
                                     <tr>
-                                        <td colspan="7" class="text-center py-4 text-muted">
+                                        <td colspan="8" class="text-center py-4 text-muted">
                                             <div class="spinner-border spinner-border-sm text-primary" role="status"></div> Cargando ofertas...
                                         </td>
                                     </tr>

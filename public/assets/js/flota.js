@@ -1746,7 +1746,7 @@ function renderizarFilasOfertasOperador(ofertas) {
     if (!ofertas || ofertas.length === 0) {
         tbody.innerHTML = `
             <tr>
-                <td colspan="7" class="text-center py-4 text-muted">
+                <td colspan="8" class="text-center py-4 text-muted">
                     ℹ️ Este operador aún no tiene tramos asignados en su oferta comercial.<br>
                     <small>Haz clic en "➕ Añadir Tramo a este Operador" arriba para asignarle rutas.</small>
                 </td>
@@ -1759,6 +1759,8 @@ function renderizarFilasOfertasOperador(ofertas) {
         const dias = (of.DIAS_SALIDA || '').split(',').map(d => d.trim()).filter(Boolean);
         const diasBadges = dias.map(d => `<span class="badge bg-light text-dark border me-1" style="font-size:10px;">${d}</span>`).join('');
         const activo = parseInt(of.ACTIVO) === 1;
+        const esVentaDirecta = parseInt(of.VENTA_DIRECTA || 0) === 1;
+        const precioDirecto = parseFloat(of.PRECIO_TRAMO_SOLO || of.PVP_SUGERIDO || 0).toFixed(2);
 
         return `
             <tr id="fila_oferta_${of.ID_OFERTA}" class="${activo ? '' : 'table-secondary opacity-75'}">
@@ -1785,6 +1787,11 @@ function renderizarFilasOfertasOperador(ofertas) {
                     $${parseFloat(of.PVP_SUGERIDO || 0).toFixed(2)}
                 </td>
                 <td class="text-center">
+                    ${esVentaDirecta 
+                        ? `<span class="badge bg-success bg-opacity-10 text-success border border-success fw-bold" title="Se vende como ruta directa en taquilla">🎟️ Directo: $${precioDirecto}</span>` 
+                        : `<span class="badge bg-light text-muted border">No directa</span>`}
+                </td>
+                <td class="text-center">
                     <span class="badge ${activo ? 'bg-success' : 'bg-secondary'}" id="badge_estado_oferta_${of.ID_OFERTA}">
                         ${activo ? '● Activo' : '○ Pausado'}
                     </span>
@@ -1799,6 +1806,17 @@ function renderizarFilasOfertasOperador(ofertas) {
             </tr>
         `;
     }).join('');
+}
+
+function togglePrecioDirectoOferta(activado) {
+    const cont = document.getElementById('contenedorPrecioDirectoOferta');
+    if (!cont) return;
+    cont.style.display = activado ? 'block' : 'none';
+    const inp = document.getElementById('oferta_nuevo_precio_solo');
+    if (activado && inp && (!inp.value || parseFloat(inp.value) === 0)) {
+        const pvpSug = document.getElementById('oferta_nuevo_pvp');
+        if (pvpSug && pvpSug.value) inp.value = pvpSug.value;
+    }
 }
 
 function toggleFormularioNuevoTramoOferta() {

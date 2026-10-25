@@ -44,10 +44,21 @@ class PasajesRepository {
                 $tramosPorRuta[$tr['ID_RUTA']][] = $tr;
             }
 
+            $routingEngine = new \Modules\Flota\RoutingEngine($this->db);
             foreach ($rutas as &$r) {
                 $tramos = $tramosPorRuta[$r['ID_RUTA']] ?? [];
                 $r['TRAMOS'] = $tramos;
                 $r['NUM_TRAMOS'] = count($tramos);
+
+                // Cálculo dinámico de días de salida efectivos con desfase
+                if (!empty($tramos)) {
+                    $diasEf = $routingEngine->calcularDiasSalidaEfectivos($tramos);
+                    $r['DIAS_SALIDA_EFECTIVOS'] = $diasEf['dias_numeros'];
+                    $r['DIAS_SALIDA_TEXTO'] = $diasEf['dias_texto'];
+                } else {
+                    $r['DIAS_SALIDA_EFECTIVOS'] = !empty($r['DIAS_SALIDA']) ? array_map('intval', explode(',', $r['DIAS_SALIDA'])) : [1,2,3,4,5,6,7];
+                    $r['DIAS_SALIDA_TEXTO'] = '';
+                }
 
                 // Calcular horas totales sumando tramos
                 $horasTotal = 0;
@@ -373,7 +384,7 @@ class PasajesRepository {
             $stmtCli = $this->db->prepare("INSERT INTO CLIENTE (ID_CLIENTE, CLI_NOMBRE, CLI_APELLIDO, CLI_TELEFONO, CLI_CORREO, CLI_NACIONALIDAD, CLI_FECHANAC) VALUES (?, ?, ?, ?, ?, ?, ?) ON DUPLICATE KEY UPDATE CLI_NOMBRE=VALUES(CLI_NOMBRE), CLI_APELLIDO=VALUES(CLI_APELLIDO), CLI_TELEFONO=VALUES(CLI_TELEFONO), CLI_CORREO=VALUES(CLI_CORREO), CLI_NACIONALIDAD=VALUES(CLI_NACIONALIDAD), CLI_FECHANAC=VALUES(CLI_FECHANAC)");
             $stmtFac = $this->db->prepare("INSERT INTO FACTURA (ID_RUTA, ID_CLIENTE, ID_USUARIO, ID_SUCURSAL, FA_FECHA, FA_HORA, FECHA_VIAJE, FA_CANTIDAD, FA_METODO, FA_SUBTOTAL, FA_TOTAL, FA_TIPO) VALUES (?, ?, ?, ?, CURDATE(), CURTIME(), ?, ?, ?, ?, ?, ?)");
             $stmtPax = $this->db->prepare("INSERT INTO PASAJE (ID_FACTURA, ID_BUS, PAX_ASIENTO, ID_CLIENTE, ESTADO, PRECIO_TOTAL, SALDO) VALUES (?, ?, ?, ?, ?, ?, ?)");
-            $stmtInsTramo = $this->db->prepare("INSERT INTO PASAJE_TRAMO (ID_PASAJE, ID_RUTA_TRAMO, FECHA_TRAMO, ID_BUS, PAX_ASIENTO, ESTADO_TRAMO) VALUES (?, ?, ?, ?, ?, 'PENDIENTE')");
+            $stmtInsTramo = $this->db->prepare("INSERT INTO PASAJE_TRAMO (ID_PASAJE, ID_RUTA_TRAMO, ID_OFERTA, ID_OPERADOR, FECHA_TRAMO, ID_BUS, PAX_ASIENTO, COSTO_LIQUIDACION, ESTADO_TRAMO) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'PENDIENTE')");
 
             // 1. Registrar o actualizar a todos los pasajeros en la tabla CLIENTE primero
             foreach ($datos['pasajeros'] as $pax) {
@@ -423,10 +434,26 @@ class PasajesRepository {
 
                 if (!empty($tramos)) {
                     foreach ($tramos as $index => $tramo) {
+                        $desfase = isset($tramo['DIA_DESFASE']) ? intval($tramo['DIA_DESFASE']) : $index;
                         $tramoBus = ($index === 0) ? $datos['bus_id'] : null;
                         $tramoAsiento = ($index === 0) ? $pax['asiento'] : null;
-                        $tramoFecha = ($index === 0) ? $datos['fecha_viaje'] : null;
-                        $stmtInsTramo->execute([$idPasajeGenerado, $tramo['ID_RUTA_TRAMO'], $tramoFecha, $tramoBus, $tramoAsiento]);
+                        $tramoFecha = !empty($datos['fecha_viaje']) 
+                            ? date('Y-m-d', strtotime($datos['fecha_viaje'] . " +{$desfase} days")) 
+                            : null;
+                        $idOferta = !empty($tramo['ID_OFERTA']) ? intval($tramo['ID_OFERTA']) : null;
+                        $idOperador = !empty($tramo['ID_OPERADOR']) ? intval($tramo['ID_OPERADOR']) : 1;
+                        $costoLiq = floatval($tramo['COSTO_OPERADOR'] ?? 0);
+
+                        $stmtInsTramo->execute([
+                            $idPasajeGenerado, 
+                            $tramo['ID_RUTA_TRAMO'], 
+                            $idOferta, 
+                            $idOperador, 
+                            $tramoFecha, 
+                            $tramoBus, 
+                            $tramoAsiento, 
+                            $costoLiq
+                        ]);
                     }
                 }
             }

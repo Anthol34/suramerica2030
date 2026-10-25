@@ -372,8 +372,11 @@ class FlotaService {
                         'destino' => trim($destTr),
                         'costo' => floatval($postData['tramo_costo'][$i] ?? 0),
                         'pvp' => floatval($postData['tramo_pvp'][$i] ?? 0),
-                        'id_operador' => intval($postData['tramo_id_operador'][$i] ?? 1),
+                        'id_operador' => !empty($postData['tramo_id_operador'][$i]) ? intval($postData['tramo_id_operador'][$i]) : 1,
                         'operador' => trim($postData['tramo_operador'][$i] ?? 'Propio'),
+                        'dia_desfase' => isset($postData['tramo_dia_desfase'][$i]) ? intval($postData['tramo_dia_desfase'][$i]) : 0,
+                        'id_tramo_catalogo' => !empty($postData['tramo_id_catalogo'][$i]) ? intval($postData['tramo_id_catalogo'][$i]) : null,
+                        'id_oferta' => !empty($postData['tramo_id_oferta'][$i]) ? intval($postData['tramo_id_oferta'][$i]) : null,
                         'admite_sobrepeso' => !empty($postData['tramo_admite_sp'][$i]) ? 1 : 0
                     ];
                 }

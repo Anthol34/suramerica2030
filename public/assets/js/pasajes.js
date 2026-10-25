@@ -85,6 +85,10 @@ function getRutasValidasPorFecha() {
     let diaPhp = d.getDay() === 0 ? 7 : d.getDay(); // 1: Lun ... 7: Dom
     
     return TODAS_LAS_RUTAS.filter(r => {
+        // Validación dinámica inteligente: si la ruta tiene tramos evaluados por el RoutingEngine
+        if (r.DIAS_SALIDA_EFECTIVOS && Array.isArray(r.DIAS_SALIDA_EFECTIVOS) && r.TRAMOS && r.TRAMOS.length > 0) {
+            return r.DIAS_SALIDA_EFECTIVOS.includes(diaPhp);
+        }
         if (!r.DIAS_SALIDA) return true;
         let dias = r.DIAS_SALIDA.split(',').map(s => s.trim());
         return dias.includes(diaPhp.toString());
