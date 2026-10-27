@@ -155,9 +155,10 @@ class RoutingEngine {
     }
 
     /**
-     * Busca el tramo ideal en el catálogo, priorizando un ID de operador si se solicita.
+     * Busca el tramo ideal en el catálogo, priorizando un ID de operador si se solicita,
+     * y aplicando las políticas de operadores permitidos y vetados según la modalidad.
      */
-    public function buscarTramo($origen, $destino, $preferIdOperador = null) {
+    public function buscarTramo($origen, $destino, $preferIdOperador = null, array $operadoresPermitidos = [], array $operadoresVetados = []) {
         $this->cargarCatalogo();
         $oNorm = mb_strtolower(trim($origen));
         $dNorm = mb_strtolower(trim($destino));
@@ -166,14 +167,27 @@ class RoutingEngine {
 
         foreach ($this->catalogoTramos as $t) {
             if (mb_strtolower(trim($t['ORIGEN_TRAMO'])) === $oNorm && mb_strtolower(trim($t['DESTINO_TRAMO'])) === $dNorm) {
-                if ($preferIdOperador !== null && intval($t['ID_OPERADOR']) === intval($preferIdOperador)) {
-                    return $t; // Coincidencia exacta de operador
+                $idOp = intval($t['ID_OPERADOR']);
+
+                // 1. Descartar si el operador está expresamente prohibido en esta modalidad
+                if (!empty($operadoresVetados) && in_array($idOp, $operadoresVetados)) {
+                    continue;
+                }
+
+                // 2. Descartar si hay una lista de permitidos y no pertenece a ella
+                if (!empty($operadoresPermitidos) && !in_array($idOp, $operadoresPermitidos)) {
+                    continue;
+                }
+
+                // 3. Coincidencia exacta con el operador preferido
+                if ($preferIdOperador !== null && $idOp === intval($preferIdOperador)) {
+                    return $t;
                 }
                 $coincidencias[] = $t;
             }
         }
 
-        // Si no hay match con el operador preferido, retornar la primera coincidencia activa
+        // Si no hay match con el operador preferido, retornar la primera coincidencia que cumpla la política
         return !empty($coincidencias) ? $coincidencias[0] : null;
     }
 
@@ -220,11 +234,24 @@ class RoutingEngine {
         }
 
         // 6. Enriquecer con alternativas del motor de grafo BFS solo si falta alguna modalidad estándar
-        $caminosBfs = $this->sugerirCaminosDisponibles($origen, $destino, 4);
-        foreach ($caminosBfs as $camBfs) {
-            $keyBfs = $camBfs['modalidad'];
-            if (!isset($resultado[$keyBfs])) {
-                $resultado[$keyBfs] = $camBfs;
+        // Solo para rutas internacionales donde falten modalidades y NUNCA para rutas nacionales
+        if ($paisOrig !== $paisDest) {
+            $caminosBfs = $this->sugerirCaminosDisponibles($origen, $destino, 4);
+            foreach ($caminosBfs as $camBfs) {
+                $keyBfs = $camBfs['modalidad'];
+                if (!isset($resultado[$keyBfs])) {
+                    // Validar que todos los operadores del camino cumplan la política de la modalidad
+                    $valido = true;
+                    foreach ($camBfs['tramos'] as $trBfs) {
+                        if (!\Platform\Helpers\ModalidadHelper::validarOperadorEnModalidad($trBfs['id_operador'], $keyBfs)) {
+                            $valido = false;
+                            break;
+                        }
+                    }
+                    if ($valido) {
+                        $resultado[$keyBfs] = $camBfs;
+                    }
+                }
             }
         }
 
@@ -466,38 +493,77 @@ class RoutingEngine {
                 }
             }
         } elseif ($paisOrig === 'ECUADOR' && $paisDest === 'COLOMBIA') {
-            $trDirectoPana = $this->buscarTramo($origen, $destino, 2);
-            if ($trDirectoPana) {
-                $pares[] = [$origen, $destino, 2];
-            } else {
-                $trPana = $this->buscarTramo($origen, 'Cúcuta', 2);
-                if ($trPana) {
-                    $pares[] = [$origen, 'Cúcuta', 2];
+            // Caso especial Bogotá: Panamericana opera hasta Honda, y desde allí conexión local a Bogotá
+            if (strcasecmp($destino, 'Bogotá') === 0 || strcasecmp($destino, 'Bogota') === 0) {
+                $trPanaHonda = $this->buscarTramo($origen, 'Honda', 2);
+                if ($trPanaHonda) {
+                    $pares[] = [$origen, 'Honda', 2];
                 } else {
                     if (strcasecmp($origen, 'Quito') !== 0) {
                         $pares[] = [$origen, 'Quito', 3];
                     }
-                    $pares[] = ['Quito', 'Cúcuta', 2];
+                    $pares[] = ['Quito', 'Honda', 2];
                 }
-                if (strcasecmp($destino, 'Cúcuta') !== 0) {
-                    $pares[] = ['Cúcuta', $destino, 4];
+                $pares[] = ['Honda', 'Bogotá', 4];
+            } else {
+                // Verificar si existe tramo directo internacional con Panamericana
+                $trDirectoPana = $this->buscarTramo($origen, $destino, 2);
+                if ($trDirectoPana) {
+                    $pares[] = [$origen, $destino, 2];
+                } else {
+                    // Si el origen no tiene tramo directo pero Quito sí, conectar vía Quito
+                    $trQuito = $this->buscarTramo('Quito', $destino, 2);
+                    if ($trQuito) {
+                        if (strcasecmp($origen, 'Quito') !== 0) {
+                            $pares[] = [$origen, 'Quito', 3];
+                        }
+                        $pares[] = ['Quito', $destino, 2];
+                    } else {
+                        // Conexión vía Honda hacia el interior de Colombia
+                        $trHonda = $this->buscarTramo($origen, 'Honda', 2);
+                        if ($trHonda) {
+                            $pares[] = [$origen, 'Honda', 2];
+                        } else {
+                            if (strcasecmp($origen, 'Quito') !== 0) {
+                                $pares[] = [$origen, 'Quito', 3];
+                            }
+                            $pares[] = ['Quito', 'Honda', 2];
+                        }
+                        if (strcasecmp($destino, 'Honda') !== 0) {
+                            $pares[] = ['Honda', $destino, 4];
+                        }
+                    }
                 }
             }
         } elseif ($paisOrig === 'COLOMBIA' && $paisDest === 'ECUADOR') {
-            $trDirectoPana = $this->buscarTramo($origen, $destino, 2);
-            if ($trDirectoPana) {
-                $pares[] = [$origen, $destino, 2];
-            } else {
-                if (strcasecmp($origen, 'Cúcuta') !== 0) {
-                    $pares[] = [$origen, 'Cúcuta', 4];
-                }
-                $trPana = $this->buscarTramo('Cúcuta', $destino, 2);
-                if ($trPana) {
-                    $pares[] = ['Cúcuta', $destino, 2];
+            // Caso especial Bogotá: Conexión local hasta Honda, y desde allí Panamericana hacia Ecuador
+            if (strcasecmp($origen, 'Bogotá') === 0 || strcasecmp($origen, 'Bogota') === 0) {
+                $pares[] = ['Bogotá', 'Honda', 4];
+                $trPanaHonda = $this->buscarTramo('Honda', $destino, 2);
+                if ($trPanaHonda) {
+                    $pares[] = ['Honda', $destino, 2];
                 } else {
-                    $pares[] = ['Cúcuta', 'Quito', 2];
+                    $pares[] = ['Honda', 'Quito', 2];
                     if (strcasecmp($destino, 'Quito') !== 0) {
                         $pares[] = ['Quito', $destino, 3];
+                    }
+                }
+            } else {
+                $trDirectoPana = $this->buscarTramo($origen, $destino, 2);
+                if ($trDirectoPana) {
+                    $pares[] = [$origen, $destino, 2];
+                } else {
+                    $trQuito = $this->buscarTramo($origen, 'Quito', 2);
+                    if ($trQuito) {
+                        $pares[] = [$origen, 'Quito', 2];
+                        if (strcasecmp($destino, 'Quito') !== 0) {
+                            $pares[] = ['Quito', $destino, 3];
+                        }
+                    } else {
+                        if (strcasecmp($origen, 'Honda') !== 0) {
+                            $pares[] = [$origen, 'Honda', 4];
+                        }
+                        $pares[] = ['Honda', $destino, 2];
                     }
                 }
             }
@@ -519,6 +585,20 @@ class RoutingEngine {
     }
 
     /**
+     * Ciudades troncales venezolanas cubiertas directamente por la flota propia de Expresos Suramérica 2030.
+     * Corredor de los Llanos y Centro: San Cristóbal ⇄ Barinas ⇄ Acarigua ⇄ Valencia ⇄ Maracay ⇄ Caracas.
+     */
+    private function esTroncalSuramerica($ciudad) {
+        $troncales = ['Caracas', 'Valencia', 'Maracay', 'Barinas', 'Acarigua'];
+        foreach ($troncales as $ct) {
+            if (strcasecmp($ciudad, $ct) === 0) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
      * MODALIDAD 3: EXPRESOS SURAMÉRICA 2030 (Troncal Venezuela propia)
      * Manta -> Tulcán -> Ipiales -> Cúcuta -> San Cristóbal -> Caracas (Suramérica 2030) -> Destino VE (Local VE)
      */
@@ -535,14 +615,7 @@ class RoutingEngine {
             // Cruce Atanasio Girardot vía PUENTE_FRONTERIZO
 
             // Troncal venezolana con Expresos Suramérica 2030
-            $ciudadesTroncales = ['Caracas', 'Valencia', 'Maracay', 'Barquisimeto', 'Maracaibo'];
-            $esTroncalDirecta = false;
-            foreach ($ciudadesTroncales as $ct) {
-                if (strcasecmp($destino, $ct) === 0) {
-                    $esTroncalDirecta = true;
-                    break;
-                }
-            }
+            $esTroncalDirecta = $this->esTroncalSuramerica($destino);
 
             if (strcasecmp($destino, 'San Cristóbal') !== 0) {
                 if ($esTroncalDirecta) {
@@ -557,14 +630,7 @@ class RoutingEngine {
         }
         // Venezuela ➔ Ecuador
         elseif ($paisOrig === 'VENEZUELA' && $paisDest === 'ECUADOR') {
-            $ciudadesTroncales = ['Caracas', 'Valencia', 'Maracay', 'Barquisimeto', 'Maracaibo'];
-            $esTroncalDirecta = false;
-            foreach ($ciudadesTroncales as $ct) {
-                if (strcasecmp($origen, $ct) === 0) {
-                    $esTroncalDirecta = true;
-                    break;
-                }
-            }
+            $esTroncalDirecta = $this->esTroncalSuramerica($origen);
 
             if ($esTroncalDirecta) {
                 $pares[] = [$origen, 'San Cristóbal', 1]; // Expresos Suramérica 2030 directo
@@ -588,9 +654,35 @@ class RoutingEngine {
                 $pares[] = [$origen, 'Cúcuta', 4];
             }
             // Cruce Atanasio Girardot vía PUENTE_FRONTERIZO
-            $pares[] = ['San Cristóbal', 'Caracas', 1];
-            if (strcasecmp($destino, 'Caracas') !== 0) {
-                $pares[] = ['Caracas', $destino, 5];
+            $esTroncalDirecta = $this->esTroncalSuramerica($destino);
+
+            if (strcasecmp($destino, 'San Cristóbal') !== 0) {
+                if ($esTroncalDirecta) {
+                    $pares[] = ['San Cristóbal', $destino, 1];
+                } else {
+                    $pares[] = ['San Cristóbal', 'Caracas', 1];
+                    if (strcasecmp($destino, 'Caracas') !== 0) {
+                        $pares[] = ['Caracas', $destino, 5];
+                    }
+                }
+            }
+        }
+        // Venezuela ➔ Colombia
+        elseif ($paisOrig === 'VENEZUELA' && $paisDest === 'COLOMBIA') {
+            $esTroncalDirecta = $this->esTroncalSuramerica($origen);
+
+            if ($esTroncalDirecta) {
+                $pares[] = [$origen, 'San Cristóbal', 1];
+            } else {
+                if (strcasecmp($origen, 'San Cristóbal') !== 0) {
+                    $pares[] = [$origen, 'Caracas', 5];
+                    $pares[] = ['Caracas', 'San Cristóbal', 1];
+                }
+            }
+
+            // Cruce Atanasio Girardot vía PUENTE_FRONTERIZO
+            if (strcasecmp($destino, 'Cúcuta') !== 0) {
+                $pares[] = ['Cúcuta', $destino, 4];
             }
         }
         // Nacional Venezuela (San Cristóbal - Caracas / Oriente)
@@ -627,6 +719,9 @@ class RoutingEngine {
 
         // Ecuador ➔ Venezuela
         if ($paisOrig === 'ECUADOR' && $paisDest === 'VENEZUELA') {
+            if (strcasecmp($origen, 'Tulcán') === 0 || strcasecmp($origen, 'Tulcan') === 0) {
+                return null;
+            }
             // 1. Salto Panamericana
             $trPana = $this->buscarTramo($origen, 'Cúcuta', 2);
             if ($trPana) {
@@ -641,14 +736,7 @@ class RoutingEngine {
             // Cruce binacional Atanasio Girardot (Cúcuta ⇄ San Cristóbal) vía PUENTE_FRONTERIZO
 
             // 2. Troncal Venezuela con Expresos Suramérica 2030
-            $ciudadesTroncales = ['Caracas', 'Valencia', 'Maracay', 'Barquisimeto', 'Maracaibo'];
-            $esTroncalDirecta = false;
-            foreach ($ciudadesTroncales as $ct) {
-                if (strcasecmp($destino, $ct) === 0) {
-                    $esTroncalDirecta = true;
-                    break;
-                }
-            }
+            $esTroncalDirecta = $this->esTroncalSuramerica($destino);
 
             if (strcasecmp($destino, 'San Cristóbal') !== 0) {
                 if ($esTroncalDirecta) {
@@ -663,14 +751,10 @@ class RoutingEngine {
         }
         // Venezuela ➔ Ecuador
         elseif ($paisOrig === 'VENEZUELA' && $paisDest === 'ECUADOR') {
-            $ciudadesTroncales = ['Caracas', 'Valencia', 'Maracay', 'Barquisimeto', 'Maracaibo'];
-            $esTroncalDirecta = false;
-            foreach ($ciudadesTroncales as $ct) {
-                if (strcasecmp($origen, $ct) === 0) {
-                    $esTroncalDirecta = true;
-                    break;
-                }
+            if (strcasecmp($destino, 'Tulcán') === 0 || strcasecmp($destino, 'Tulcan') === 0) {
+                return null;
             }
+            $esTroncalDirecta = $this->esTroncalSuramerica($origen);
 
             if ($esTroncalDirecta) {
                 $pares[] = [$origen, 'San Cristóbal', 1];
@@ -691,38 +775,6 @@ class RoutingEngine {
                 if (strcasecmp($destino, 'Quito') !== 0) {
                     $pares[] = ['Quito', $destino, 3];
                 }
-            }
-        } elseif ($paisOrig === 'COLOMBIA' && $paisDest === 'VENEZUELA') {
-            if (strcasecmp($origen, 'Cúcuta') !== 0) {
-                $pares[] = [$origen, 'Cúcuta', 4];
-            }
-            // Cruce binacional Atanasio Girardot vía PUENTE_FRONTERIZO
-            if (strcasecmp($destino, 'San Cristóbal') !== 0) {
-                $ciudadesTroncales = ['Caracas', 'Valencia', 'Maracay', 'Barquisimeto', 'Maracaibo'];
-                $esTroncal = in_array(ucfirst(strtolower($destino)), $ciudadesTroncales);
-                if ($esTroncal) {
-                    $pares[] = ['San Cristóbal', $destino, 1];
-                } else {
-                    $pares[] = ['San Cristóbal', 'Caracas', 1];
-                    if (strcasecmp($destino, 'Caracas') !== 0) {
-                        $pares[] = ['Caracas', $destino, 5];
-                    }
-                }
-            }
-        } elseif ($paisOrig === 'VENEZUELA' && $paisDest === 'COLOMBIA') {
-            $ciudadesTroncales = ['Caracas', 'Valencia', 'Maracay', 'Barquisimeto', 'Maracaibo'];
-            $esTroncal = in_array(ucfirst(strtolower($origen)), $ciudadesTroncales);
-            if ($esTroncal) {
-                $pares[] = [$origen, 'San Cristóbal', 1];
-            } else {
-                if (strcasecmp($origen, 'San Cristóbal') !== 0) {
-                    $pares[] = [$origen, 'Caracas', 5];
-                    $pares[] = ['Caracas', 'San Cristóbal', 1];
-                }
-            }
-            // Cruce binacional Atanasio Girardot vía PUENTE_FRONTERIZO
-            if (strcasecmp($destino, 'Cúcuta') !== 0) {
-                $pares[] = ['Cúcuta', $destino, 4];
             }
         } else {
             return null;
@@ -756,6 +808,10 @@ class RoutingEngine {
         $motivosFaltantes = [];
         $ciudadesRuta = [];
 
+        $pol = \Platform\Helpers\ModalidadHelper::getPolitica($modalidad);
+        $permitidos = $pol['operadores_permitidos'] ?? [];
+        $vetados = $pol['operadores_prohibidos'] ?? [];
+
         foreach ($paresCiudades as $idx => $par) {
             $orig = $par[0];
             $dest = $par[1];
@@ -777,7 +833,7 @@ class RoutingEngine {
             }
             $ciudadesRuta[] = $dest;
 
-            $tr = $this->buscarTramo($orig, $dest, $prefOp);
+            $tr = $this->buscarTramo($orig, $dest, $prefOp, $permitidos, $vetados);
 
             if ($tr) {
                 $costo = floatval($tr['COSTO_OPERADOR']);
@@ -793,13 +849,13 @@ class RoutingEngine {
                 $precioSp = floatval($tr['PRECIO_SOBREPESO_KG'] ?? 1);
             } else {
                 $disponible = false;
-                $motivosFaltantes[] = "Falta tramo maestro {$orig} ➔ {$dest}";
+                $motivosFaltantes[] = "Falta tramo maestro {$orig} ➔ {$dest} autorizado para modalidad {$modalidad}";
                 $costo = 25.00;
                 $pvp = 35.00;
                 $horas = 6.0;
                 $idCat = null;
-                $idOp = $prefOp ?: 1;
-                $nomOp = 'Operador Aliado';
+                $idOp = $prefOp ?: (!empty($permitidos) ? $permitidos[0] : 1);
+                $nomOp = ($idOp === 5) ? 'EMPRESA LOCAL VENEZUELA' : (($idOp === 4) ? 'EMPRESA LOCAL COLOMBIA' : (($idOp === 3) ? 'EMPRESA LOCAL ECUADOR' : (($idOp === 2) ? 'PANAMERICANA' : 'Operador Aliado')));
                 $nomTramo = "{$orig} ➔ {$dest}";
                 $admiteSp = 1;
                 $limiteEq = 35.0;
@@ -808,7 +864,7 @@ class RoutingEngine {
             }
 
             $util = max(0, $pvp - $costo);
-            $desfase = ($idx === 0) ? 0 : floor($totalHoras / 18);
+            $desfase = self::calcularDesfasePorHoras($totalHoras, $idx + 1);
             $totalCosto += $costo;
             $totalPvp += $pvp;
             $totalHoras += $horas;
@@ -935,7 +991,7 @@ class RoutingEngine {
         $repoFlota = new \Modules\Flota\FlotaRepository();
         $rutasCreadas = [];
         $crearRetorno = !empty($opciones['crear_retorno']);
-        $diasSalida = !empty($opciones['dias_salida']) ? $opciones['dias_salida'] : 'LUN,MIE,VIE';
+        $diasSalida = !empty($opciones['dias_salida']) ? $opciones['dias_salida'] : 'MAR,VIE';
         $horaSalida = !empty($opciones['hora_salida']) ? $opciones['hora_salida'] : '08:00';
 
         try {
@@ -1029,6 +1085,30 @@ class RoutingEngine {
     // =========================================================================
 
     /**
+     * Calcula el desfase en días para un tramo según las horas acumuladas de viaje previas.
+     * Escala operativa de transporte interprovincial/internacional:
+     * - Tramo 1 (horas = 0): 0 días (Día de salida)
+     * - Horas acumuladas previas < 8h: 0 días (mismo día si la conexión es corta)
+     * - Horas acumuladas previas 8h a 22h: 1 día (+1d, viaje nocturno o día siguiente)
+     * - Horas acumuladas previas 23h a 38h: 2 días (+2d)
+     * - Horas acumuladas previas >= 39h: 3 días (+3d)
+     */
+    public static function calcularDesfasePorHoras($horasAcumuladasPrevias, $ordenTramo = 1) {
+        if ($ordenTramo <= 1 || $horasAcumuladasPrevias <= 0) {
+            return 0;
+        }
+        if ($horasAcumuladasPrevias < 8.0) {
+            return 0;
+        } elseif ($horasAcumuladasPrevias <= 22.0) {
+            return 1;
+        } elseif ($horasAcumuladasPrevias <= 38.0) {
+            return 2;
+        } else {
+            return 3;
+        }
+    }
+
+    /**
      * Deducir qué días de la semana son viables para la ruta completa evaluando
      * las ofertas de los operadores con su respectivo desfase de días.
      * 
@@ -1049,13 +1129,24 @@ class RoutingEngine {
             $detalleDia = [];
 
             foreach ($tramos as $tr) {
-                $desfase = intval($tr['dia_desfase'] ?? 0);
+                $desfase = intval($tr['dia_desfase'] ?? $tr['DIA_DESFASE'] ?? 0);
                 $diaRequeridoTramo = (($diaSalida - 1 + $desfase) % 7) + 1;
                 $diaCod = $diasMapa[$diaRequeridoTramo];
 
+                $idTramo = $tr['id_tramo_catalogo'] ?? $tr['ID_TRAMO_CATALOGO'] ?? 0;
+                $idOp = $tr['id_operador'] ?? $tr['ID_OPERADOR'] ?? null;
+
                 $ofertas = $tr['ofertas'] ?? [];
-                if (empty($ofertas) && !empty($tr['id_tramo_catalogo'])) {
-                    $ofertas = $this->obtenerOfertasTramo((int)$tr['id_tramo_catalogo']);
+                if (empty($ofertas) && !empty($idTramo)) {
+                    $todasOfertas = $this->obtenerOfertasTramo((int)$idTramo);
+                    if (!empty($idOp)) {
+                        $ofertasOp = array_filter($todasOfertas, function($o) use ($idOp) {
+                            return intval($o['ID_OPERADOR']) === intval($idOp);
+                        });
+                        $ofertas = !empty($ofertasOp) ? array_values($ofertasOp) : $todasOfertas;
+                    } else {
+                        $ofertas = $todasOfertas;
+                    }
                 }
 
                 $hayOfertaEseDia = false;
@@ -1072,8 +1163,10 @@ class RoutingEngine {
                     $hayOfertaEseDia = true;
                 }
 
+                $origenTramo = $tr['origen'] ?? $tr['ORIGEN_TRAMO'] ?? '';
+                $destinoTramo = $tr['destino'] ?? $tr['DESTINO_TRAMO'] ?? '';
                 $detalleDia[] = [
-                    'tramo' => ($tr['origen'] ?? '') . ' ➔ ' . ($tr['destino'] ?? ''),
+                    'tramo' => "{$origenTramo} ➔ {$destinoTramo}",
                     'desfase' => $desfase,
                     'dia_requerido' => $diaCod,
                     'disponible' => $hayOfertaEseDia
@@ -1227,7 +1320,7 @@ class RoutingEngine {
                 if ($paso['tipo'] === 'TRAMO') {
                     $t = $paso['tramo'];
                     $horas = floatval($t['TIEMPO_ESTIMADO_HORAS'] ?? 8);
-                    $desfase = ($ordenTramo === 1) ? 0 : floor($horasAcumuladas / 18);
+                    $desfase = self::calcularDesfasePorHoras($horasAcumuladas, $ordenTramo);
                     $costo = floatval($t['COSTO_OPERADOR'] ?? 0);
                     $pvp = floatval($t['PVP_SUGERIDO'] ?? 0);
                     $idOp = intval($t['ID_OPERADOR'] ?? 1);

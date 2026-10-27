@@ -87,12 +87,7 @@
     <ul class="nav nav-pills mb-4 bg-white p-2 rounded shadow-sm border gap-2" id="subTabsFlota" role="tablist">
         <li class="nav-item">
             <button class="nav-link active fw-bold py-2 px-3" id="pill-subtab-operadores" data-bs-toggle="pill" data-bs-target="#subtab-operadores" type="button" role="tab" aria-selected="true">
-                🏢 Directorio de Operadores y Bancos <span class="badge bg-primary ms-1"><?= $totalOps ?></span>
-            </button>
-        </li>
-        <li class="nav-item">
-            <button class="nav-link fw-bold py-2 px-3" id="pill-subtab-tramos" data-bs-toggle="pill" data-bs-target="#subtab-tramos" type="button" role="tab" aria-selected="false">
-                🧩 Acuerdos de Costos por Tramo <span class="badge bg-success ms-1"><?= count($tramosCatalogo ?? []) ?></span>
+                🏢 Directorio de Operadores y Acuerdos de Oferta <span class="badge bg-primary ms-1"><?= $totalOps ?></span>
             </button>
         </li>
         <li class="nav-item">
@@ -128,13 +123,14 @@
                                     <th>Identificación / RUC</th>
                                     <th>Contacto</th>
                                     <th>Cuenta Bancaria para Liquidaciones</th>
+                                    <th class="text-center">Acuerdos y Oferta</th>
                                     <th class="text-center">Estado</th>
                                     <th class="text-center" style="width: 100px;">Acciones</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 <?php if(empty($operadores)): ?>
-                                    <tr><td colspan="8" class="text-center py-4 text-muted">No hay operadores registrados en el sistema.</td></tr>
+                                    <tr><td colspan="9" class="text-center py-4 text-muted">No hay operadores registrados en el sistema.</td></tr>
                                 <?php else: ?>
                                     <?php foreach($operadores as $op): 
                                         $badgeTipo = 'bg-secondary';
@@ -149,6 +145,7 @@
                                             $badgeTipo = 'bg-info text-dark';
                                             $labelTipo = '⭐ Empresa Aliada';
                                         }
+                                        $totalOfertasOp = intval($op['TOTAL_OFERTAS'] ?? 0);
                                     ?>
                                         <tr id="fila_operador_<?= $op['ID_OPERADOR'] ?>">
                                             <td class="fw-bold text-muted">#<?= $op['ID_OPERADOR'] ?></td>
@@ -193,15 +190,22 @@
                                                 <?php endif; ?>
                                             </td>
                                             <td class="text-center">
+                                                <div class="d-flex gap-1 justify-content-center">
+                                                    <button class="btn btn-sm btn-outline-primary fw-bold shadow-sm" onclick="abrirModalOfertasOperador(<?= $op['ID_OPERADOR'] ?>, '<?= htmlspecialchars(addslashes($op['NOMBRE_COMERCIAL'])) ?>')" title="🗺️ Ver y Gestionar Acuerdos de Costos y Oferta de Tramos">
+                                                        🗺️ <?= $totalOfertasOp ?> tramos
+                                                    </button>
+                                                    <button class="btn btn-sm btn-outline-success fw-bold shadow-sm" onclick="abrirModalOfertasConDiasGlobales(<?= $op['ID_OPERADOR'] ?>, '<?= htmlspecialchars(addslashes($op['NOMBRE_COMERCIAL'])) ?>')" title="📅 Programación masiva de días de salida para este operador">
+                                                        📅 Días
+                                                    </button>
+                                                </div>
+                                            </td>
+                                            <td class="text-center">
                                                 <span class="badge <?= ($op['ESTADO'] ?? 'ACTIVO') === 'ACTIVO' ? 'bg-success' : 'bg-secondary' ?>">
                                                     <?= htmlspecialchars($op['ESTADO'] ?? 'ACTIVO') ?>
                                                 </span>
                                             </td>
                                             <td class="text-center">
                                                 <div class="btn-group btn-group-sm">
-                                                    <button class="btn btn-outline-info text-dark fw-bold" onclick="abrirModalOfertasOperador(<?= $op['ID_OPERADOR'] ?>, '<?= htmlspecialchars(addslashes($op['NOMBRE_COMERCIAL'])) ?>')" title="🗺️ Ver y Editar Oferta de Tramos">
-                                                        🗺️ Oferta
-                                                    </button>
                                                     <button class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#modalEditarOperador<?= $op['ID_OPERADOR'] ?>" title="Editar Operador / Cuentas Bancarias">✏️</button>
                                                     <?php if($op['ID_OPERADOR'] > 1): ?>
                                                         <button class="btn btn-outline-danger" data-bs-toggle="modal" data-bs-target="#modalEliminarOperador<?= $op['ID_OPERADOR'] ?>" title="Eliminar Operador">🗑️</button>
@@ -219,14 +223,7 @@
         </div>
 
         <!-- ======================================================== -->
-        <!-- SUBTAB 2: CATÁLOGO MAESTRO DE TRAMOS Y COSTOS ACORDADOS  -->
-        <!-- ======================================================== -->
-        <div class="tab-pane fade" id="subtab-tramos" role="tabpanel">
-            <?php require __DIR__ . '/tab_tramos.php'; ?>
-        </div>
-
-        <!-- ======================================================== -->
-        <!-- SUBTAB 3: CAPACIDAD OPERATIVA Y BUSES                     -->
+        <!-- SUBTAB 2: CAPACIDAD OPERATIVA Y BUSES                     -->
         <!-- ======================================================== -->
         <div class="tab-pane fade" id="subtab-capacidad" role="tabpanel">
             <div class="row">
@@ -656,7 +653,7 @@
     <?php endforeach; ?>
 
     <!-- ======================================================== -->
-    <!-- MODAL MAESTRO-DETALLE: OFERTA DE TRAMOS POR OPERADOR     -->
+    <!-- MODAL MAESTRO-DETALLE: OFERTA DE TRAMOS Y ACUERDOS DE COSTOS -->
     <!-- ======================================================== -->
     <div class="modal fade" id="modalOfertasOperador" tabindex="-1" aria-hidden="true">
         <div class="modal-dialog modal-xl modal-dialog-scrollable">
@@ -665,8 +662,8 @@
                     <div class="d-flex align-items-center gap-2">
                         <span class="fs-4">🗺️</span>
                         <div>
-                            <h5 class="modal-title fw-bold text-white mb-0" id="modalOfertasOperadorTitulo">Oferta de Tramos del Operador</h5>
-                            <small class="text-white-50" id="modalOfertasOperadorSubtitulo">Configura frecuencias, días de salida, hora y costos netos de liquidación.</small>
+                            <h5 class="modal-title fw-bold text-white mb-0" id="modalOfertasOperadorTitulo">Acuerdos de Costos y Oferta de Tramos</h5>
+                            <small class="text-white-50" id="modalOfertasOperadorSubtitulo">Gestiona los costos netos de liquidación acordados, tarifas sugeridas, margen de agencia y horarios.</small>
                         </div>
                     </div>
                     <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
@@ -677,18 +674,93 @@
                         <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
                             <div>
                                 <span class="badge bg-primary fs-6 px-3 py-1" id="badgeOperadorOfertaNombre">Operador</span>
-                                <span class="badge bg-secondary ms-1" id="badgeOperadorTotalOfertas">0 tramos cubiertos</span>
+                                <span class="badge bg-secondary ms-1" id="badgeOperadorTotalOfertas">0 tramos acordados</span>
                             </div>
-                            <button class="btn btn-sm btn-outline-primary fw-bold" onclick="toggleFormularioNuevoTramoOferta()">
-                                ➕ Añadir Tramo a este Operador
-                            </button>
+                            <div class="d-flex gap-2">
+                                <button class="btn btn-sm btn-outline-success fw-bold" id="btnToggleDiasGlobalesOferta" onclick="togglePanelDiasGlobales()">
+                                    📅 Programar Días Globales
+                                </button>
+                                <button class="btn btn-sm btn-outline-primary fw-bold" id="btnToggleNuevoTramoOferta" onclick="toggleFormularioNuevoTramoOferta()">
+                                    ➕ Añadir Nuevo Tramo Acordado
+                                </button>
+                            </div>
                         </div>
 
-                        <!-- FORMULARIO DESPLEGABLE PARA ASIGNAR NUEVO TRAMO -->
+                        <!-- PANEL DE PROGRAMACIÓN MASIVA / GLOBAL DE DÍAS POR OPERADOR -->
+                        <div id="panelDiasGlobalesOferta" class="mt-3 p-3 border rounded bg-white shadow-sm" style="display: none; border-left: 4px solid #198754 !important;">
+                            <div class="d-flex justify-content-between align-items-center mb-2 pb-2 border-bottom">
+                                <div>
+                                    <h6 class="fw-bold text-success mb-0">📅 Programación Masiva de Días de Operación</h6>
+                                    <small class="text-muted">Asigna días de salida fijos a los tramos de este operador (Ida, Retorno, o Todos) y sincroniza el calendario de rutas.</small>
+                                </div>
+                                <button type="button" class="btn-close" onclick="togglePanelDiasGlobales(false)"></button>
+                            </div>
+
+                            <form id="formDiasGlobalesOperador" onsubmit="ejecutarActualizacionDiasGlobales(event)">
+                                <div class="row g-3">
+                                    <!-- COLUMNA 1: ALCANCE / SENTIDO -->
+                                    <div class="col-md-4">
+                                        <label class="form-label small fw-bold text-dark mb-1">1. ¿A qué tramos aplicar?</label>
+                                        <div class="d-flex flex-column gap-1 bg-light p-2 rounded border">
+                                            <div class="form-check">
+                                                <input class="form-check-input" type="radio" name="alcance_dias_global" id="alcance_ida" value="IDA" checked onchange="alCambiarAlcanceDiasGlobales()">
+                                                <label class="form-check-label small fw-bold text-success" for="alcance_ida">
+                                                    🟢 Solo Tramos de IDA (Hacia el Norte)
+                                                </label>
+                                            </div>
+                                            <div class="form-check">
+                                                <input class="form-check-input" type="radio" name="alcance_dias_global" id="alcance_retorno" value="RETORNO" onchange="alCambiarAlcanceDiasGlobales()">
+                                                <label class="form-check-label small fw-bold text-primary" for="alcance_retorno">
+                                                    🔵 Solo Tramos de RETORNO (Hacia el Sur)
+                                                </label>
+                                            </div>
+                                            <div class="form-check">
+                                                <input class="form-check-input" type="radio" name="alcance_dias_global" id="alcance_todos" value="TODOS" onchange="alCambiarAlcanceDiasGlobales()">
+                                                <label class="form-check-label small fw-bold text-dark" for="alcance_todos">
+                                                    🌐 TODOS los tramos del operador
+                                                </label>
+                                            </div>
+                                        </div>
+                                        <small class="text-muted d-block mt-1" id="lblResumenAlcanceTramos">Calculando tramos...</small>
+                                    </div>
+
+                                    <!-- COLUMNA 2: DÍAS DE SALIDA -->
+                                    <div class="col-md-8">
+                                        <label class="form-label small fw-bold text-dark mb-2">2. Seleccionar Días de Salida:</label>
+
+                                        <!-- BOTONES DE DÍAS INDIVIDUALES (CHECKBOXES CON ESTILO) -->
+                                        <div class="btn-group btn-group-sm w-100 mb-2" role="group">
+                                            <?php foreach (['LUN'=>'Lun','MAR'=>'Mar','MIE'=>'Mié','JUE'=>'Jue','VIE'=>'Vie','SAB'=>'Sáb','DOM'=>'Dom'] as $codDia => $nomDia): ?>
+                                                <input type="checkbox" class="btn-check chk-dia-global" id="dia_global_<?= $codDia ?>" value="<?= $codDia ?>" autocomplete="off" onchange="alCambiarCheckboxDiaGlobal()">
+                                                <label class="btn btn-outline-secondary fw-bold py-1" for="dia_global_<?= $codDia ?>"><?= $nomDia ?></label>
+                                            <?php endforeach; ?>
+                                        </div>
+
+                                        <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 pt-2 border-top">
+                                            <div class="form-check form-switch mb-0">
+                                                <input class="form-check-input" type="checkbox" id="chkSincronizarRutasGlobal" checked>
+                                                <label class="form-check-label small fw-bold text-secondary" for="chkSincronizarRutasGlobal">
+                                                    🔄 Sincronizar calendario en Rutas Comerciales (<span class="font-monospace">RUTA</span>)
+                                                </label>
+                                            </div>
+                                            <div class="d-flex gap-2">
+                                                <button type="button" class="btn btn-sm btn-secondary" onclick="togglePanelDiasGlobales(false)">Cancelar</button>
+                                                <button type="submit" class="btn btn-sm btn-success fw-bold px-3" id="btnSubmitDiasGlobales">
+                                                    💾 Aplicar Días Globales
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </form>
+                        </div>
+
+                        <!-- FORMULARIO DESPLEGABLE PARA ASIGNAR O EDITAR ACUERDO DE TRAMO -->
                         <div id="formAgregarTramoOferta" class="mt-3 p-3 border rounded bg-light" style="display: none;">
-                            <h6 class="fw-bold text-primary mb-2">Asignar Nuevo Tramo de Catálogo a la Oferta</h6>
+                            <h6 class="fw-bold text-primary mb-2" id="tituloFormOfertaOperador">➕ Asignar Nuevo Tramo / Acuerdo de Costos</h6>
                             <form id="formNuevoTramoOfertaOperador" onsubmit="guardarNuevoTramoOferta(event)">
                                 <input type="hidden" name="id_operador" id="oferta_nuevo_id_operador" value="">
+                                <input type="hidden" name="id_oferta" id="oferta_nuevo_id_oferta" value="">
                                 <div class="row g-2 mb-2">
                                     <div class="col-md-5">
                                         <label class="form-label small fw-bold mb-0">Tramo Físico (Catálogo):</label>
@@ -703,15 +775,15 @@
                                     </div>
                                     <div class="col-md-3">
                                         <label class="form-label small fw-bold text-danger mb-0">Costo Neto Liquidación ($):</label>
-                                        <input type="number" step="0.50" min="0" name="costo_neto" id="oferta_nuevo_costo" class="form-control form-control-sm fw-bold text-danger" required placeholder="0.00">
+                                        <input type="number" step="0.50" min="0" name="costo_neto" id="oferta_nuevo_costo" class="form-control form-control-sm fw-bold text-danger" required placeholder="0.00" oninput="recalcularMargenOfertaForm()">
                                     </div>
                                     <div class="col-md-2">
                                         <label class="form-label small fw-bold text-primary mb-0">PVP Sugerido ($):</label>
-                                        <input type="number" step="0.50" min="0" name="pvp_sugerido" id="oferta_nuevo_pvp" class="form-control form-control-sm fw-bold text-primary" required placeholder="0.00">
+                                        <input type="number" step="0.50" min="0" name="pvp_sugerido" id="oferta_nuevo_pvp" class="form-control form-control-sm fw-bold text-primary" required placeholder="0.00" oninput="recalcularMargenOfertaForm()">
                                     </div>
                                     <div class="col-md-2">
                                         <label class="form-label small fw-bold mb-0">Hora Salida:</label>
-                                        <input type="time" name="hora_salida" class="form-control form-control-sm" value="08:00" required>
+                                        <input type="time" name="hora_salida" id="oferta_nuevo_hora_salida" class="form-control form-control-sm" value="08:00" required>
                                     </div>
                                 </div>
                                 <div class="row g-2 mb-2 align-items-center bg-white p-2 rounded border">
@@ -739,35 +811,63 @@
                                             <?php endforeach; ?>
                                         </div>
                                     </div>
-                                    <div class="d-flex gap-2">
-                                        <button type="button" class="btn btn-sm btn-secondary" onclick="toggleFormularioNuevoTramoOferta()">Cancelar</button>
-                                        <button type="submit" class="btn btn-sm btn-primary fw-bold px-3">Guardar Tramo en Oferta</button>
+                                    <div class="d-flex gap-2 align-items-center">
+                                        <div id="indicadorMargenOfertaForm" class="small fw-bold text-success me-2"></div>
+                                        <button type="button" class="btn btn-sm btn-secondary" onclick="toggleFormularioNuevoTramoOferta(false)">Cancelar</button>
+                                        <button type="submit" class="btn btn-sm btn-primary fw-bold px-3" id="btnSubmitFormOferta">Guardar Tramo en Oferta</button>
                                     </div>
                                 </div>
                             </form>
                         </div>
                     </div>
 
-                    <!-- TABLA REACTIVA DE TRAMOS CUBIERTOS -->
+                    <!-- BARRA DE FILTRO POR CIUDAD DE ORIGEN Y BÚSQUEDA RÁPIDA -->
+                    <div class="card border-0 shadow-sm p-2 mb-3 bg-white">
+                        <div class="row g-2 align-items-center">
+                            <div class="col-md-5">
+                                <div class="input-group input-group-sm">
+                                    <span class="input-group-text bg-light fw-bold text-primary">🏙️ Ciudad de Origen:</span>
+                                    <select id="filtroOrigenOfertas" class="form-select form-select-sm fw-bold border-primary" onchange="alCambiarFiltroOrigenOfertas(this.value)">
+                                        <option value="">-- Todas las ciudades de origen --</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="input-group input-group-sm">
+                                    <span class="input-group-text bg-light">🔍</span>
+                                    <input type="text" id="filtroTextoOfertas" class="form-control form-control-sm" placeholder="Filtrar por destino o país..." oninput="filtrarOfertasEnPantalla()">
+                                    <button class="btn btn-outline-secondary" type="button" onclick="limpiarFiltrosOfertas()" title="Limpiar filtros">✕</button>
+                                </div>
+                            </div>
+                            <div class="col-md-3 text-md-end text-center">
+                                <span class="badge bg-light text-secondary border px-2 py-1" id="lblContadorOfertasFiltradas" style="font-size: 11px;">
+                                    Cargando...
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- TABLA REACTIVA DE TRAMOS CUBIERTOS Y ACUERDOS DE COSTOS -->
                     <div class="card border-0 shadow-sm bg-white overflow-hidden">
                         <div class="table-responsive">
                             <table class="table table-hover align-middle mb-0" id="tablaOfertasOperador">
                                 <thead class="table-light">
                                     <tr>
                                         <th>Tramo Físico</th>
-                                        <th>Días de Salida (Frecuencia)</th>
+                                        <th>Frecuencia (Días)</th>
                                         <th class="text-center">Hora</th>
                                         <th class="text-end">Costo Liquidación</th>
                                         <th class="text-end">PVP Sugerido</th>
+                                        <th class="text-end">Margen Agencia</th>
                                         <th class="text-center">Venta Directa</th>
                                         <th class="text-center">Estado</th>
-                                        <th class="text-center">Acciones</th>
+                                        <th class="text-center" style="width: 140px;">Acciones</th>
                                     </tr>
                                 </thead>
                                 <tbody id="cuerpoTablaOfertasOperador">
                                     <tr>
-                                        <td colspan="8" class="text-center py-4 text-muted">
-                                            <div class="spinner-border spinner-border-sm text-primary" role="status"></div> Cargando ofertas...
+                                        <td colspan="9" class="text-center py-4 text-muted">
+                                            <div class="spinner-border spinner-border-sm text-primary" role="status"></div> Cargando acuerdos de oferta...
                                         </td>
                                     </tr>
                                 </tbody>

@@ -76,12 +76,15 @@ class EncomiendasRepository {
                 $r['TIENE_PANAMERICANA'] = ($modCodigo === 'PANAMERICANA' || $modCodigo === 'PANA_EXPRESOS');
 
                 $ops = [];
-                if (!empty($r['OPERADOR_NOMBRE'])) $ops[] = $r['OPERADOR_NOMBRE'];
-                foreach ($tramos as $tr) {
-                    $nomOp = $tr['OPERADOR_TRAMO_NOMBRE'] ?: ($tr['OPERADOR'] ?: '');
-                    if (!empty($nomOp) && !in_array($nomOp, $ops)) {
-                        $ops[] = $nomOp;
+                if (!empty($tramos)) {
+                    foreach ($tramos as $tr) {
+                        $nomOp = $tr['OPERADOR_TRAMO_NOMBRE'] ?: ($tr['OPERADOR'] ?: '');
+                        if (!empty($nomOp) && !in_array($nomOp, $ops)) {
+                            $ops[] = $nomOp;
+                        }
                     }
+                } elseif (!empty($r['OPERADOR_NOMBRE'])) {
+                    $ops[] = $r['OPERADOR_NOMBRE'];
                 }
                 $r['OPERADORES_LISTA'] = $ops;
                 $r['OPERADORES_RESUMEN'] = implode(', ', $ops);

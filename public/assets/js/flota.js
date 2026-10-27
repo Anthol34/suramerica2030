@@ -1209,7 +1209,7 @@ document.addEventListener('submit', function(e) {
 // ========================================================
 // MANEJO DE PARÁMETROS URL PARA MODALES Y PESTAÑAS (COMPATIBILIDAD)
 // ========================================================
-function irATabOperadores(subtabId = 'subtab-tramos') {
+function irATabOperadores(subtabId = 'subtab-operadores') {
     const tabFlotaBtn = document.querySelector('button[data-bs-target="#tab-flota"]');
     if (tabFlotaBtn && window.bootstrap && bootstrap.Tab) {
         bootstrap.Tab.getOrCreateInstance(tabFlotaBtn).show();
@@ -1697,25 +1697,27 @@ document.addEventListener('submit', function(e) {
 });
 
 // =========================================================================
-// GESTIÓN DE OFERTA DE TRAMOS POR OPERADOR (FASE 3)
+// GESTIÓN DE OFERTA DE TRAMOS Y ACUERDOS DE COSTOS POR OPERADOR
 // =========================================================================
+
+let ofertasOperadorActual = [];
 
 function abrirModalOfertasOperador(idOperador, nombreOperador) {
     const modalEl = document.getElementById('modalOfertasOperador');
     if (!modalEl) return;
 
-    document.getElementById('modalOfertasOperadorTitulo').innerText = 'Oferta de Tramos: ' + nombreOperador;
+    document.getElementById('modalOfertasOperadorTitulo').innerText = 'Acuerdos de Costos y Oferta: ' + nombreOperador;
     document.getElementById('badgeOperadorOfertaNombre').innerText = nombreOperador;
     document.getElementById('oferta_nuevo_id_operador').value = idOperador;
     
-    const formAgregar = document.getElementById('formAgregarTramoOferta');
-    if (formAgregar) formAgregar.style.display = 'none';
+    // Resetear formulario a nuevo tramo
+    resetearFormularioOfertaOperador();
 
     const tbody = document.getElementById('cuerpoTablaOfertasOperador');
     tbody.innerHTML = `
         <tr>
-            <td colspan="7" class="text-center py-4 text-muted">
-                <div class="spinner-border spinner-border-sm text-primary" role="status"></div> Cargando oferta de tramos del operador...
+            <td colspan="9" class="text-center py-4 text-muted">
+                <div class="spinner-border spinner-border-sm text-primary" role="status"></div> Cargando acuerdos de costos del operador...
             </td>
         </tr>
     `;
@@ -1723,46 +1725,162 @@ function abrirModalOfertasOperador(idOperador, nombreOperador) {
     const modal = bootstrap.Modal.getOrCreateInstance(modalEl);
     modal.show();
 
+    cargarOfertasOperador(idOperador);
+}
+
+function cargarOfertasOperador(idOperador) {
+    const tbody = document.getElementById('cuerpoTablaOfertasOperador');
     fetch(`/suramerica2030/flota/apiOfertasOperador?id_operador=${encodeURIComponent(idOperador)}`)
         .then(r => r.json())
         .then(res => {
             if (res.status === 'success') {
-                const total = res.total || 0;
-                document.getElementById('badgeOperadorTotalOfertas').innerText = `${total} tramo(s) cubierto(s)`;
-                renderizarFilasOfertasOperador(res.ofertas || []);
+                ofertasOperadorActual = res.ofertas || [];
+                const total = res.total || ofertasOperadorActual.length;
+                const badgeTotal = document.getElementById('badgeOperadorTotalOfertas');
+                if (badgeTotal) badgeTotal.innerText = `${total} tramo(s) acordado(s)`;
+
+                // Población de filtro por Ciudad de Origen con conteos
+                const origenesMap = {};
+                ofertasOperadorActual.forEach(of => {
+                    const orig = (of.ORIGEN_TRAMO || '').trim();
+                    if (orig) origenesMap[orig] = (origenesMap[orig] || 0) + 1;
+                });
+
+                const selOrigen = document.getElementById('filtroOrigenOfertas');
+                if (selOrigen) {
+                    const anterior = selOrigen.value;
+                    let opts = `<option value="">-- Todas las ciudades de origen (${total} tramos) --</option>`;
+                    Object.keys(origenesMap).sort().forEach(orig => {
+                        opts += `<option value="${orig}">🏙️ ${orig} (${origenesMap[orig]} salidas)</option>`;
+                    });
+                    selOrigen.innerHTML = opts;
+                    if (anterior && origenesMap[anterior]) {
+                        selOrigen.value = anterior;
+                    } else {
+                        selOrigen.value = '';
+                    }
+                }
+
+                filtrarOfertasEnPantalla();
+                if (typeof alCambiarAlcanceDiasGlobales === 'function') {
+                    alCambiarAlcanceDiasGlobales();
+                }
             } else {
-                tbody.innerHTML = `<tr><td colspan="7" class="text-center text-danger py-4">❌ ${res.mensaje || 'Error al cargar ofertas.'}</td></tr>`;
+                tbody.innerHTML = `<tr><td colspan="9" class="text-center text-danger py-4">❌ ${res.mensaje || 'Error al cargar ofertas.'}</td></tr>`;
             }
         })
         .catch(err => {
-            tbody.innerHTML = `<tr><td colspan="7" class="text-center text-danger py-4">❌ Error de conexión: ${err.message}</td></tr>`;
+            tbody.innerHTML = `<tr><td colspan="9" class="text-center text-danger py-4">❌ Error de conexión: ${err.message}</td></tr>`;
         });
 }
 
-function renderizarFilasOfertasOperador(ofertas) {
+function alCambiarFiltroOrigenOfertas(origen) {
+    sincronizarOpcionesSelectTramoPorOrigen(origen);
+    filtrarOfertasEnPantalla();
+}
+
+function filtrarOfertasEnPantalla() {
+    const selOrigen = document.getElementById('filtroOrigenOfertas');
+    const txtBuscar = document.getElementById('filtroTextoOfertas');
+    const origenFiltro = selOrigen ? selOrigen.value : '';
+    const textoFiltro = txtBuscar ? txtBuscar.value.trim().toLowerCase() : '';
+
+    const filtradas = ofertasOperadorActual.filter(of => {
+        if (origenFiltro && of.ORIGEN_TRAMO !== origenFiltro) return false;
+        if (textoFiltro) {
+            const combinado = `${of.ORIGEN_TRAMO} ${of.DESTINO_TRAMO} ${of.PAIS_TRAMO || ''}`.toLowerCase();
+            if (!combinado.includes(textoFiltro)) return false;
+        }
+        return true;
+    });
+
+    const lbl = document.getElementById('lblContadorOfertasFiltradas');
+    if (lbl) {
+        lbl.innerText = `Mostrando ${filtradas.length} de ${ofertasOperadorActual.length} tramos`;
+        if (origenFiltro || textoFiltro) {
+            lbl.className = 'badge bg-primary text-white border px-2 py-1';
+        } else {
+            lbl.className = 'badge bg-light text-secondary border px-2 py-1';
+        }
+    }
+
+    renderizarFilasOfertasOperador(filtradas, origenFiltro);
+}
+
+function limpiarFiltrosOfertas() {
+    const sel = document.getElementById('filtroOrigenOfertas');
+    if (sel) sel.value = '';
+    const txt = document.getElementById('filtroTextoOfertas');
+    if (txt) txt.value = '';
+    sincronizarOpcionesSelectTramoPorOrigen('');
+    filtrarOfertasEnPantalla();
+}
+
+function sincronizarOpcionesSelectTramoPorOrigen(origenFiltro) {
+    const selectTramo = document.getElementById('oferta_select_tramo_cat');
+    if (!selectTramo) return;
+    Array.from(selectTramo.options).forEach(opt => {
+        if (!opt.value) return;
+        const txt = opt.text || '';
+        if (origenFiltro) {
+            const coincide = txt.toLowerCase().startsWith(origenFiltro.toLowerCase());
+            opt.style.fontWeight = coincide ? 'bold' : 'normal';
+            opt.style.color = coincide ? '#0d6efd' : '';
+        } else {
+            opt.style.fontWeight = 'normal';
+            opt.style.color = '';
+        }
+    });
+}
+
+function renderizarFilasOfertasOperador(ofertas, origenFiltrado = '') {
     const tbody = document.getElementById('cuerpoTablaOfertasOperador');
     if (!tbody) return;
 
     if (!ofertas || ofertas.length === 0) {
         tbody.innerHTML = `
             <tr>
-                <td colspan="8" class="text-center py-4 text-muted">
-                    ℹ️ Este operador aún no tiene tramos asignados en su oferta comercial.<br>
-                    <small>Haz clic en "➕ Añadir Tramo a este Operador" arriba para asignarle rutas.</small>
+                <td colspan="9" class="text-center py-4 text-muted">
+                    ℹ️ No se encontraron acuerdos de tramos con los filtros aplicados.<br>
+                    <button class="btn btn-sm btn-outline-primary mt-2 fw-bold" onclick="limpiarFiltrosOfertas()">
+                        🔄 Mostrar todos los tramos
+                    </button>
                 </td>
             </tr>
         `;
         return;
     }
 
-    tbody.innerHTML = ofertas.map(of => {
+    // Agrupación visual por ciudad de origen si no hay filtro de origen específico
+    const debeAgrupar = !origenFiltrado;
+    let html = '';
+    let ultimoOrigen = null;
+
+    ofertas.forEach(of => {
         const dias = (of.DIAS_SALIDA || '').split(',').map(d => d.trim()).filter(Boolean);
         const diasBadges = dias.map(d => `<span class="badge bg-light text-dark border me-1" style="font-size:10px;">${d}</span>`).join('');
         const activo = parseInt(of.ACTIVO) === 1;
         const esVentaDirecta = parseInt(of.VENTA_DIRECTA || 0) === 1;
         const precioDirecto = parseFloat(of.PRECIO_TRAMO_SOLO || of.PVP_SUGERIDO || 0).toFixed(2);
+        const costo = parseFloat(of.COSTO_NETO || 0);
+        const pvp = parseFloat(of.PVP_SUGERIDO || 0);
+        const utilidad = Math.max(0, pvp - costo);
+        const margenPct = pvp > 0 ? ((utilidad / pvp) * 100).toFixed(1) : 0;
 
-        return `
+        if (debeAgrupar && of.ORIGEN_TRAMO !== ultimoOrigen) {
+            ultimoOrigen = of.ORIGEN_TRAMO;
+            const cantGrupo = ofertas.filter(o => o.ORIGEN_TRAMO === ultimoOrigen).length;
+            html += `
+                <tr class="table-light border-top border-bottom">
+                    <td colspan="9" class="py-2 px-3 fw-bold text-dark">
+                        <span class="fs-6">🏙️ Salidas desde <strong class="text-primary">${ultimoOrigen}</strong></span>
+                        <span class="badge bg-primary ms-2">${cantGrupo} tramos</span>
+                    </td>
+                </tr>
+            `;
+        }
+
+        html += `
             <tr id="fila_oferta_${of.ID_OFERTA}" class="${activo ? '' : 'table-secondary opacity-75'}">
                 <td>
                     <div class="fw-bold text-dark">
@@ -1780,11 +1898,21 @@ function renderizarFilasOfertasOperador(ofertas) {
                 <td class="text-center font-monospace small">
                     ⏰ ${of.HORA_SALIDA ? of.HORA_SALIDA.substring(0, 5) : '08:00'}
                 </td>
-                <td class="text-end fw-bold text-danger">
-                    $${parseFloat(of.COSTO_NETO || 0).toFixed(2)}
+                <td class="text-end">
+                    <div class="celda-editable-live" data-id-oferta="${of.ID_OFERTA}" data-campo="costo" data-valor="${costo.toFixed(2)}" onclick="iniciarEdicionInlineOferta(this, 'costo')" title="Clic para editar costo de liquidación en vivo">
+                        <span class="fs-6 fw-bold text-danger val-editable-texto">$${costo.toFixed(2)} ✏️</span>
+                        <small class="text-muted d-block" style="font-size: 0.68rem;">costo liquidación</small>
+                    </div>
                 </td>
-                <td class="text-end fw-bold text-primary">
-                    $${parseFloat(of.PVP_SUGERIDO || 0).toFixed(2)}
+                <td class="text-end">
+                    <div class="celda-editable-live" data-id-oferta="${of.ID_OFERTA}" data-campo="pvp" data-valor="${pvp.toFixed(2)}" onclick="iniciarEdicionInlineOferta(this, 'pvp')" title="Clic para editar PVP sugerido en vivo">
+                        <span class="fs-6 fw-bold text-primary val-editable-texto">$${pvp.toFixed(2)} ✏️</span>
+                        <small class="text-muted d-block" style="font-size: 0.68rem;">PVP sugerido</small>
+                    </div>
+                </td>
+                <td class="text-end col-oferta-margen">
+                    <div class="fw-bold text-success">$${utilidad.toFixed(2)}</div>
+                    <small class="text-muted" style="font-size:11px;">${margenPct}% margen</small>
                 </td>
                 <td class="text-center">
                     ${esVentaDirecta 
@@ -1797,15 +1925,133 @@ function renderizarFilasOfertasOperador(ofertas) {
                     </span>
                 </td>
                 <td class="text-center">
-                    <button class="btn btn-sm ${activo ? 'btn-outline-warning' : 'btn-outline-success'} py-0 px-2 fw-semibold" 
-                            onclick="conmutarEstadoOfertaOperador(${of.ID_OFERTA}, this)" 
-                            title="${activo ? 'Pausar este tramo en la oferta' : 'Reactivar este tramo'}">
-                        ${activo ? '⏸️ Pausar' : '▶️ Activar'}
-                    </button>
+                    <div class="btn-group btn-group-sm">
+                        <button class="btn btn-outline-primary py-0 px-2 fw-semibold" 
+                                onclick="editarAcuerdoOperador(${of.ID_OFERTA})" 
+                                title="Editar todos los campos de este tramo">
+                            ✏️
+                        </button>
+                        <button class="btn ${activo ? 'btn-outline-warning' : 'btn-outline-success'} py-0 px-2 fw-semibold" 
+                                onclick="conmutarEstadoOfertaOperador(${of.ID_OFERTA}, this)" 
+                                title="${activo ? 'Pausar este tramo en la oferta' : 'Reactivar este tramo'}">
+                            ${activo ? '⏸️' : '▶️'}
+                        </button>
+                        <button class="btn btn-outline-danger py-0 px-2 fw-semibold" 
+                                onclick="eliminarAcuerdoOperador(${of.ID_OFERTA}, '${of.ORIGEN_TRAMO} ➔ ${of.DESTINO_TRAMO}')" 
+                                title="Eliminar acuerdo de este tramo">
+                            🗑️
+                        </button>
+                    </div>
                 </td>
             </tr>
         `;
-    }).join('');
+    });
+
+    tbody.innerHTML = html;
+}
+
+function resetearFormularioOfertaOperador() {
+    const form = document.getElementById('formNuevoTramoOfertaOperador');
+    if (form) form.reset();
+
+    const inpIdOferta = document.getElementById('oferta_nuevo_id_oferta');
+    if (inpIdOferta) inpIdOferta.value = '';
+
+    const selectTramo = document.getElementById('oferta_select_tramo_cat');
+    if (selectTramo) selectTramo.disabled = false;
+
+    const titulo = document.getElementById('tituloFormOfertaOperador');
+    if (titulo) titulo.innerHTML = '➕ Asignar Nuevo Tramo / Acuerdo de Costos';
+
+    const btnSubmit = document.getElementById('btnSubmitFormOferta');
+    if (btnSubmit) {
+        btnSubmit.disabled = false;
+        btnSubmit.innerText = 'Guardar Acuerdo de Oferta';
+    }
+
+    const indMargen = document.getElementById('indicadorMargenOfertaForm');
+    if (indMargen) indMargen.innerText = '';
+
+    togglePrecioDirectoOferta(false);
+
+    const f = document.getElementById('formAgregarTramoOferta');
+    if (f) f.style.display = 'none';
+}
+
+function toggleFormularioNuevoTramoOferta(forzar = null) {
+    const f = document.getElementById('formAgregarTramoOferta');
+    if (!f) return;
+    if (forzar === false) {
+        resetearFormularioOfertaOperador();
+        return;
+    }
+    const nuevoEstado = (forzar !== null) ? (forzar ? 'block' : 'none') : ((f.style.display === 'none' || f.style.display === '') ? 'block' : 'none');
+    f.style.display = nuevoEstado;
+    if (nuevoEstado === 'none') {
+        resetearFormularioOfertaOperador();
+    }
+}
+
+function editarAcuerdoOperador(idOferta) {
+    const of = ofertasOperadorActual.find(o => parseInt(o.ID_OFERTA) === parseInt(idOferta));
+    if (!of) return;
+
+    const f = document.getElementById('formAgregarTramoOferta');
+    if (f) f.style.display = 'block';
+
+    document.getElementById('oferta_nuevo_id_oferta').value = of.ID_OFERTA;
+    document.getElementById('oferta_nuevo_id_operador').value = of.ID_OPERADOR;
+
+    const selectTramo = document.getElementById('oferta_select_tramo_cat');
+    if (selectTramo) {
+        selectTramo.value = of.ID_TRAMO_CATALOGO;
+    }
+
+    document.getElementById('oferta_nuevo_costo').value = parseFloat(of.COSTO_NETO || 0).toFixed(2);
+    document.getElementById('oferta_nuevo_pvp').value = parseFloat(of.PVP_SUGERIDO || 0).toFixed(2);
+    document.getElementById('oferta_nuevo_hora_salida').value = of.HORA_SALIDA ? of.HORA_SALIDA.substring(0, 5) : '08:00';
+
+    const esVentaDirecta = parseInt(of.VENTA_DIRECTA || 0) === 1;
+    const chkVenta = document.getElementById('oferta_nuevo_venta_directa');
+    if (chkVenta) chkVenta.checked = esVentaDirecta;
+    togglePrecioDirectoOferta(esVentaDirecta);
+
+    if (esVentaDirecta) {
+        const inpPrecioSolo = document.getElementById('oferta_nuevo_precio_solo');
+        if (inpPrecioSolo) inpPrecioSolo.value = parseFloat(of.PRECIO_TRAMO_SOLO || of.PVP_SUGERIDO || 0).toFixed(2);
+    }
+
+    // Días de operación
+    const diasArray = (of.DIAS_SALIDA || '').split(',').map(d => d.trim().toUpperCase());
+    ['LUN','MAR','MIE','JUE','VIE','SAB','DOM'].forEach(dia => {
+        const el = document.getElementById('dia_nuevo_' + dia);
+        if (el) el.checked = diasArray.includes(dia);
+    });
+
+    const titulo = document.getElementById('tituloFormOfertaOperador');
+    if (titulo) titulo.innerHTML = `✏️ Modificar Acuerdo de Costos: <strong>${of.ORIGEN_TRAMO} ➔ ${of.DESTINO_TRAMO}</strong>`;
+
+    const btnSubmit = document.getElementById('btnSubmitFormOferta');
+    if (btnSubmit) btnSubmit.innerText = '💾 Actualizar Acuerdo de Tramo';
+
+    recalcularMargenOfertaForm();
+
+    if (f) f.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
+
+function recalcularMargenOfertaForm() {
+    const costo = parseFloat(document.getElementById('oferta_nuevo_costo')?.value || 0);
+    const pvp = parseFloat(document.getElementById('oferta_nuevo_pvp')?.value || 0);
+    const ind = document.getElementById('indicadorMargenOfertaForm');
+    if (!ind) return;
+
+    if (pvp > 0) {
+        const utilidad = Math.max(0, pvp - costo);
+        const pct = ((utilidad / pvp) * 100).toFixed(1);
+        ind.innerHTML = `Margen: <strong class="text-success">$${utilidad.toFixed(2)}</strong> (${pct}%)`;
+    } else {
+        ind.innerText = '';
+    }
 }
 
 function togglePrecioDirectoOferta(activado) {
@@ -1819,12 +2065,6 @@ function togglePrecioDirectoOferta(activado) {
     }
 }
 
-function toggleFormularioNuevoTramoOferta() {
-    const f = document.getElementById('formAgregarTramoOferta');
-    if (!f) return;
-    f.style.display = (f.style.display === 'none' || f.style.display === '') ? 'block' : 'none';
-}
-
 function alSeleccionarTramoEnOferta(selectEl) {
     const opt = selectEl.options[selectEl.selectedIndex];
     if (!opt) return;
@@ -1835,6 +2075,7 @@ function alSeleccionarTramoEnOferta(selectEl) {
     const inpPvp = document.getElementById('oferta_nuevo_pvp');
     if (inpCosto && (!inpCosto.value || parseFloat(inpCosto.value) === 0)) inpCosto.value = parseFloat(costo).toFixed(2);
     if (inpPvp && (!inpPvp.value || parseFloat(inpPvp.value) === 0)) inpPvp.value = parseFloat(pvp).toFixed(2);
+    recalcularMargenOfertaForm();
 }
 
 function guardarNuevoTramoOferta(e) {
@@ -1843,6 +2084,7 @@ function guardarNuevoTramoOferta(e) {
     const formData = new FormData(form);
 
     const btnSubmit = form.querySelector('button[type="submit"]');
+    const textoOriginal = btnSubmit ? btnSubmit.innerText : 'Guardar';
     if (btnSubmit) {
         btnSubmit.disabled = true;
         btnSubmit.innerText = 'Guardando...';
@@ -1856,31 +2098,23 @@ function guardarNuevoTramoOferta(e) {
     .then(res => {
         if (btnSubmit) {
             btnSubmit.disabled = false;
-            btnSubmit.innerText = 'Guardar Tramo en Oferta';
+            btnSubmit.innerText = textoOriginal;
         }
         if (res.status === 'success') {
-            mostrarToastFlota(res.mensaje || 'Tramo agregado a la oferta.', 'success');
-            form.reset();
-            toggleFormularioNuevoTramoOferta();
+            mostrarToastFlota(res.mensaje || 'Acuerdo guardado exitosamente.', 'success');
             const idOp = document.getElementById('oferta_nuevo_id_operador').value;
+            resetearFormularioOfertaOperador();
             if (idOp) {
-                fetch(`/suramerica2030/flota/apiOfertasOperador?id_operador=${encodeURIComponent(idOp)}`)
-                    .then(r => r.json())
-                    .then(res2 => {
-                        if (res2.status === 'success') {
-                            document.getElementById('badgeOperadorTotalOfertas').innerText = `${res2.total || 0} tramo(s) cubierto(s)`;
-                            renderizarFilasOfertasOperador(res2.ofertas || []);
-                        }
-                    });
+                cargarOfertasOperador(idOp);
             }
         } else {
-            mostrarToastFlota(res.mensaje || 'Error al guardar tramo.', 'danger');
+            mostrarToastFlota(res.mensaje || 'Error al guardar acuerdo.', 'danger');
         }
     })
     .catch(err => {
         if (btnSubmit) {
             btnSubmit.disabled = false;
-            btnSubmit.innerText = 'Guardar Tramo en Oferta';
+            btnSubmit.innerText = textoOriginal;
         }
         mostrarToastFlota('Error: ' + err.message, 'danger');
     });
@@ -1916,7 +2150,7 @@ function conmutarEstadoOfertaOperador(idOferta, btn) {
             }
 
             btn.className = `btn btn-sm ${activo ? 'btn-outline-warning' : 'btn-outline-success'} py-0 px-2 fw-semibold`;
-            btn.innerHTML = activo ? '⏸️ Pausar' : '▶️ Activar';
+            btn.innerHTML = activo ? '⏸️' : '▶️';
             btn.title = activo ? 'Pausar este tramo en la oferta' : 'Reactivar este tramo';
 
             mostrarToastFlota(res.mensaje, 'success');
@@ -1926,6 +2160,354 @@ function conmutarEstadoOfertaOperador(idOferta, btn) {
     })
     .catch(err => {
         btn.disabled = false;
+        mostrarToastFlota('Error: ' + err.message, 'danger');
+    });
+}
+
+function eliminarAcuerdoOperador(idOferta, nombreTramo) {
+    if (!idOferta) return;
+    if (!confirm(`¿Estás seguro de eliminar el acuerdo de costos para el tramo "${nombreTramo}" de este operador?\n\nEsta acción removerá el tramo de su oferta comercial y liquidación.`)) {
+        return;
+    }
+
+    const formData = new FormData();
+    formData.append('id_oferta', idOferta);
+
+    fetch('/suramerica2030/flota/eliminarOfertaOperador', {
+        method: 'POST',
+        body: formData
+    })
+    .then(r => r.json())
+    .then(res => {
+        if (res.status === 'success') {
+            mostrarToastFlota(res.mensaje || 'Acuerdo de tramo eliminado exitosamente.', 'success');
+            const idOp = document.getElementById('oferta_nuevo_id_operador')?.value;
+            if (idOp) cargarOfertasOperador(idOp);
+        } else {
+            mostrarToastFlota(res.mensaje || 'Error al eliminar acuerdo.', 'danger');
+        }
+    })
+    .catch(err => {
+        mostrarToastFlota('Error: ' + err.message, 'danger');
+    });
+}
+
+/**
+ * Inicia la edición interactiva inline de Costo o PVP de un acuerdo de tramo directamente en pantalla
+ */
+function iniciarEdicionInlineOferta(celdaEl, tipo) {
+    if (!celdaEl || celdaEl.classList.contains('editando')) return;
+    celdaEl.classList.add('editando');
+
+    const idOferta = celdaEl.getAttribute('data-id-oferta');
+    const valorActual = parseFloat(celdaEl.getAttribute('data-valor') || 0);
+    const contenidoOriginal = celdaEl.innerHTML;
+    const esCosto = (tipo === 'costo');
+
+    celdaEl.innerHTML = `
+        <div class="input-group input-group-sm inline-edit-widget">
+            <span class="input-group-text px-1 fw-bold ${esCosto ? 'text-danger' : 'text-primary'}">$</span>
+            <input type="number" step="0.50" min="0" class="form-control form-control-sm text-end fw-bold px-1" value="${valorActual.toFixed(2)}" style="width: 75px;">
+            <button type="button" class="btn btn-sm btn-success px-2 btn-guardar-inline" title="Guardar (Enter)">✓</button>
+            <button type="button" class="btn btn-sm btn-outline-secondary px-2 btn-cancelar-inline" title="Cancelar (Esc)">✕</button>
+        </div>
+    `;
+
+    const input = celdaEl.querySelector('input');
+    const btnGuardar = celdaEl.querySelector('.btn-guardar-inline');
+    const btnCancelar = celdaEl.querySelector('.btn-cancelar-inline');
+
+    if (input) {
+        input.focus();
+        input.select();
+    }
+
+    const cancelar = (e) => {
+        if (e) e.stopPropagation();
+        celdaEl.classList.remove('editando');
+        celdaEl.innerHTML = contenidoOriginal;
+    };
+
+    const guardar = (e) => {
+        if (e) e.stopPropagation();
+        const nuevoValor = parseFloat(input.value);
+        if (isNaN(nuevoValor) || nuevoValor < 0) {
+            mostrarToastFlota('Ingresa un valor numérico válido mayor o igual a 0.', 'warning');
+            input.focus();
+            return;
+        }
+
+        btnGuardar.disabled = true;
+        btnGuardar.innerHTML = `<span class="spinner-border spinner-border-sm" style="width: 0.65rem; height: 0.65rem;" role="status"></span>`;
+
+        const formData = new FormData();
+        formData.append('id_oferta', idOferta);
+        if (esCosto) {
+            formData.append('costo', nuevoValor);
+        } else {
+            formData.append('pvp', nuevoValor);
+        }
+
+        fetch('/suramerica2030/flota/actualizarTarifaRapidaOferta', {
+            method: 'POST',
+            body: formData
+        })
+        .then(r => r.json())
+        .then(res => {
+            celdaEl.classList.remove('editando');
+            if (res.status === 'success') {
+                celdaEl.setAttribute('data-valor', nuevoValor.toFixed(2));
+                if (esCosto) {
+                    celdaEl.innerHTML = `
+                        <span class="fs-6 fw-bold text-danger val-editable-texto">$${nuevoValor.toFixed(2)} ✏️</span>
+                        <small class="text-muted d-block" style="font-size: 0.68rem;">costo liquidación</small>
+                    `;
+                } else {
+                    celdaEl.innerHTML = `
+                        <span class="fs-6 fw-bold text-primary val-editable-texto">$${nuevoValor.toFixed(2)} ✏️</span>
+                        <small class="text-muted d-block" style="font-size: 0.68rem;">PVP sugerido</small>
+                    `;
+                }
+
+                // Actualizar en el arreglo local de ofertas
+                const of = ofertasOperadorActual.find(o => parseInt(o.ID_OFERTA) === parseInt(idOferta));
+                if (of) {
+                    if (esCosto) of.COSTO_NETO = nuevoValor;
+                    else of.PVP_SUGERIDO = nuevoValor;
+                    of.UTILIDAD_AGENCIA = res.utilidad;
+                }
+
+                // Actualizar la celda de Margen de la fila
+                const fila = document.getElementById('fila_oferta_' + idOferta);
+                if (fila) {
+                    const celdaMargen = fila.querySelector('.col-oferta-margen');
+                    if (celdaMargen) {
+                        celdaMargen.innerHTML = `
+                            <div class="fw-bold text-success">$${parseFloat(res.utilidad).toFixed(2)}</div>
+                            <small class="text-muted" style="font-size:11px;">${res.margen_pct}% margen</small>
+                        `;
+                    }
+                    if (window.LiveData && typeof LiveData.highlight === 'function') {
+                        LiveData.highlight(fila);
+                    }
+                }
+
+                mostrarToastFlota(res.mensaje || 'Tarifa actualizada en vivo.', 'success');
+            } else {
+                celdaEl.innerHTML = contenidoOriginal;
+                mostrarToastFlota(res.mensaje || 'Error al actualizar tarifa.', 'danger');
+            }
+        })
+        .catch(err => {
+            celdaEl.classList.remove('editando');
+            celdaEl.innerHTML = contenidoOriginal;
+            mostrarToastFlota('Error: ' + err.message, 'danger');
+        });
+    };
+
+    btnCancelar.addEventListener('click', cancelar);
+    btnGuardar.addEventListener('click', guardar);
+
+    input.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            guardar(e);
+        } else if (e.key === 'Escape') {
+            e.preventDefault();
+            cancelar(e);
+        }
+    });
+}
+
+// =========================================================================
+// PROGRAMACIÓN MASIVA / GLOBAL DE DÍAS POR OPERADOR
+// =========================================================================
+
+function togglePanelDiasGlobales(mostrar = null) {
+    const panel = document.getElementById('panelDiasGlobalesOferta');
+    if (!panel) return;
+    
+    const estaVisible = panel.style.display !== 'none';
+    const nuevoEstado = (mostrar !== null) ? !!mostrar : !estaVisible;
+    
+    panel.style.display = nuevoEstado ? 'block' : 'none';
+    
+    const btn = document.getElementById('btnToggleDiasGlobalesOferta');
+    if (btn) {
+        if (nuevoEstado) {
+            btn.classList.remove('btn-outline-success');
+            btn.classList.add('btn-success', 'text-white');
+            btn.innerHTML = '▲ Ocultar Programador de Días';
+        } else {
+            btn.classList.remove('btn-success', 'text-white');
+            btn.classList.add('btn-outline-success');
+            btn.innerHTML = '📅 Programar Días Globales';
+        }
+    }
+    
+    if (nuevoEstado) {
+        alCambiarAlcanceDiasGlobales();
+        setTimeout(() => {
+            panel.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        }, 100);
+    }
+}
+
+function abrirModalOfertasConDiasGlobales(idOperador, nombreOperador) {
+    abrirModalOfertasOperador(idOperador, nombreOperador);
+    // Mostrar el panel de días globales una vez abierto el modal
+    setTimeout(() => {
+        togglePanelDiasGlobales(true);
+    }, 250);
+}
+
+function aplicarPresetDiasGlobales(diasStr) {
+    const diasArray = (diasStr || '').split(',').map(d => d.trim().toUpperCase());
+    
+    document.querySelectorAll('.chk-dia-global').forEach(chk => {
+        const val = chk.value.toUpperCase();
+        chk.checked = diasArray.includes(val);
+    });
+    
+    alCambiarCheckboxDiaGlobal();
+}
+
+function alCambiarCheckboxDiaGlobal() {
+    const seleccionados = [];
+    document.querySelectorAll('.chk-dia-global:checked').forEach(chk => {
+        seleccionados.push(chk.value);
+    });
+    
+    const btnSubmit = document.getElementById('btnSubmitDiasGlobales');
+    if (btnSubmit) {
+        if (seleccionados.length === 0) {
+            btnSubmit.classList.add('disabled');
+        } else {
+            btnSubmit.classList.remove('disabled');
+        }
+    }
+    return seleccionados;
+}
+
+function alCambiarAlcanceDiasGlobales() {
+    const radioChecked = document.querySelector('input[name="alcance_dias_global"]:checked');
+    const alcance = radioChecked ? radioChecked.value : 'IDA';
+    const lbl = document.getElementById('lblResumenAlcanceTramos');
+    if (!lbl) return;
+
+    if (!Array.isArray(ofertasOperadorActual) || ofertasOperadorActual.length === 0) {
+        lbl.innerText = 'Cargando acuerdos del operador...';
+        return;
+    }
+
+    let cantIda = 0;
+    let cantRetorno = 0;
+    const total = ofertasOperadorActual.length;
+
+    ofertasOperadorActual.forEach(of => {
+        const orig = of.ORIGEN_TRAMO || '';
+        const dest = of.DESTINO_TRAMO || '';
+        
+        const destIdaKeywords = ['Tulcán', 'Cúcuta', 'Caracas', 'Valencia', 'Maracay', 'Barinas', 'Acarigua', 'San Cristóbal', 'Bogotá'];
+        const origIdaKeywords = ['Manta', 'Guayaquil', 'Quito', 'Portoviejo', 'Cuenca', 'Ambato', 'Tulcán', 'Ipiales'];
+        
+        let esIda = false;
+        if (dest === 'Tulcán' || dest === 'Cúcuta' || (orig === 'Honda' && dest === 'Bogotá')) {
+            esIda = true;
+        } else if (orig === 'Tulcán' || orig === 'Cúcuta' || (orig === 'Bogotá' && dest === 'Honda')) {
+            esIda = false;
+        } else if (destIdaKeywords.includes(dest) && origIdaKeywords.includes(orig)) {
+            esIda = true;
+        } else if (orig === 'San Cristóbal') {
+            esIda = true;
+        } else if (dest === 'San Cristóbal') {
+            esIda = false;
+        } else if (orig === 'Ipiales' && ['Cali','Bogotá','Medellín','Bucaramanga','Barrancabermeja','Cúcuta','Honda','Ibagué','Palmira','Pereira','Popayán'].includes(dest)) {
+            esIda = true;
+        } else if (['Cali','Bogotá','Medellín','Bucaramanga','Barrancabermeja','Cúcuta','Honda','Ibagué','Palmira','Pereira','Popayán'].includes(orig) && dest === 'Ipiales') {
+            esIda = false;
+        } else {
+            esIda = true;
+        }
+
+        if (esIda) cantIda++;
+        else cantRetorno++;
+    });
+
+    if (alcance === 'IDA') {
+        lbl.innerHTML = `🟢 Se aplicará a <strong>${cantIda} tramos de IDA</strong> hacia el Norte.`;
+    } else if (alcance === 'RETORNO') {
+        lbl.innerHTML = `🔵 Se aplicará a <strong>${cantRetorno} tramos de RETORNO</strong> hacia el Sur.`;
+    } else {
+        lbl.innerHTML = `🌐 Se aplicará a los <strong>${total} tramos acordados</strong> del operador.`;
+    }
+}
+
+function ejecutarActualizacionDiasGlobales(e) {
+    if (e && e.preventDefault) e.preventDefault();
+
+    const idOperador = document.getElementById('oferta_nuevo_id_operador')?.value;
+    if (!idOperador) {
+        mostrarToastFlota('Operador no identificado.', 'danger');
+        return;
+    }
+
+    const radioChecked = document.querySelector('input[name="alcance_dias_global"]:checked');
+    const alcance = radioChecked ? radioChecked.value : 'IDA';
+
+    const chks = document.querySelectorAll('.chk-dia-global:checked');
+    const diasSeleccionados = Array.from(chks).map(c => c.value);
+
+    if (diasSeleccionados.length === 0) {
+        mostrarToastFlota('Debes seleccionar al menos un día de salida.', 'warning');
+        return;
+    }
+
+    const diasSalidaStr = diasSeleccionados.join(',');
+    const sincronizarRutas = document.getElementById('chkSincronizarRutasGlobal')?.checked ? 1 : 0;
+
+    const btnSubmit = document.getElementById('btnSubmitDiasGlobales');
+    const originalText = btnSubmit ? btnSubmit.innerHTML : '💾 Aplicar Días Globales';
+    if (btnSubmit) {
+        btnSubmit.disabled = true;
+        btnSubmit.innerHTML = `<span class="spinner-border spinner-border-sm me-1"></span> Aplicando...`;
+    }
+
+    const formData = new URLSearchParams();
+    formData.append('id_operador', idOperador);
+    formData.append('alcance', alcance);
+    formData.append('dias_salida', diasSalidaStr);
+    formData.append('sincronizar_rutas', sincronizarRutas);
+
+    fetch('/suramerica2030/flota/actualizarDiasGlobalOperador', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/x-www-form-urlencoded'
+        },
+        body: formData.toString()
+    })
+    .then(r => r.json())
+    .then(res => {
+        if (btnSubmit) {
+            btnSubmit.disabled = false;
+            btnSubmit.innerHTML = originalText;
+        }
+
+        if (res.status === 'success') {
+            mostrarToastFlota(res.mensaje || 'Días de salida actualizados correctamente.', 'success');
+            // Recargar acuerdos del operador en la tabla del modal
+            cargarOfertasOperador(idOperador);
+            // Cerrar el panel
+            togglePanelDiasGlobales(false);
+        } else {
+            mostrarToastFlota(res.mensaje || 'Error al actualizar días.', 'danger');
+        }
+    })
+    .catch(err => {
+        if (btnSubmit) {
+            btnSubmit.disabled = false;
+            btnSubmit.innerHTML = originalText;
+        }
         mostrarToastFlota('Error: ' + err.message, 'danger');
     });
 }
@@ -2044,9 +2626,24 @@ window.toggleFormularioNuevoTramoOferta = toggleFormularioNuevoTramoOferta;
 window.alSeleccionarTramoEnOferta = alSeleccionarTramoEnOferta;
 window.guardarNuevoTramoOferta = guardarNuevoTramoOferta;
 window.conmutarEstadoOfertaOperador = conmutarEstadoOfertaOperador;
+window.editarAcuerdoOperador = editarAcuerdoOperador;
+window.eliminarAcuerdoOperador = eliminarAcuerdoOperador;
+window.recalcularMargenOfertaForm = recalcularMargenOfertaForm;
+window.iniciarEdicionInlineOferta = iniciarEdicionInlineOferta;
+window.alCambiarFiltroOrigenOfertas = alCambiarFiltroOrigenOfertas;
+window.filtrarOfertasEnPantalla = filtrarOfertasEnPantalla;
+window.limpiarFiltrosOfertas = limpiarFiltrosOfertas;
 window.detectarPuenteFronterizoJS = detectarPuenteFronterizoJS;
 window.sonCiudadesConectablesJS = sonCiudadesConectablesJS;
 window.ejecutarAutocompletadoBFS = ejecutarAutocompletadoBFS;
+
+// Exportación global de funciones para programación masiva de días
+window.togglePanelDiasGlobales = togglePanelDiasGlobales;
+window.abrirModalOfertasConDiasGlobales = abrirModalOfertasConDiasGlobales;
+window.aplicarPresetDiasGlobales = aplicarPresetDiasGlobales;
+window.alCambiarCheckboxDiaGlobal = alCambiarCheckboxDiaGlobal;
+window.alCambiarAlcanceDiasGlobales = alCambiarAlcanceDiasGlobales;
+window.ejecutarActualizacionDiasGlobales = ejecutarActualizacionDiasGlobales;
 
 
 

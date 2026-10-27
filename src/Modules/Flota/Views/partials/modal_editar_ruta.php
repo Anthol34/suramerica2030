@@ -70,8 +70,9 @@ if (!isset($generarOpcionesOperadores) || !is_callable($generarOpcionesOperadore
 }
 
 $esActivo = ($r['ESTADO'] ?? 'ACTIVO') === 'ACTIVO';
-$diasArr = explode(',', $r['DIAS_SALIDA'] ?? '');
-$mapaDias = $mapaDias ?? ['1'=>'Lun', '2'=>'Mar', '3'=>'Mié', '4'=>'Jue', '5'=>'Vie', '6'=>'Sáb', '7'=>'Dom'];
+$diasArr = array_map('trim', explode(',', $r['DIAS_SALIDA'] ?? ''));
+$mapaDias = ['1'=>'Lun', '2'=>'Mar', '3'=>'Mié', '4'=>'Jue', '5'=>'Vie', '6'=>'Sáb', '7'=>'Dom'];
+$mapaNumCod = ['1'=>'LUN', '2'=>'MAR', '3'=>'MIE', '4'=>'JUE', '5'=>'VIE', '6'=>'SAB', '7'=>'DOM'];
 ?>
 <!-- MODAL CONFIGURACION AVANZADA RUTA -->
 <div class="modal fade text-start" id="modalEditarRuta<?= $r['ID_RUTA'] ?>" tabindex="-1">
@@ -286,9 +287,12 @@ $mapaDias = $mapaDias ?? ['1'=>'Lun', '2'=>'Mar', '3'=>'Mié', '4'=>'Jue', '5'=>
                     <div class="mb-3">
                         <label class="form-label text-secondary fw-bold">Días de Salida Fija</label>
                         <div class="d-flex flex-wrap gap-2 mt-1">
-                            <?php foreach($mapaDias as $numDia => $txtDia): ?>
+                            <?php foreach($mapaDias as $numDia => $txtDia): 
+                                $codDia = $mapaNumCod[$numDia] ?? '';
+                                $isChecked = in_array((string)$numDia, $diasArr) || in_array($codDia, $diasArr);
+                            ?>
                                 <label class="btn btn-outline-secondary btn-sm">
-                                    <input type="checkbox" name="dias[]" value="<?= $numDia ?>" <?= in_array((string)$numDia, $diasArr) ? 'checked' : '' ?>> <?= $txtDia ?>
+                                    <input type="checkbox" name="dias[]" value="<?= $numDia ?>" <?= $isChecked ? 'checked' : '' ?>> <?= $txtDia ?>
                                 </label>
                             <?php endforeach; ?>
                         </div>

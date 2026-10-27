@@ -90,8 +90,9 @@ function getRutasValidasPorFecha() {
             return r.DIAS_SALIDA_EFECTIVOS.includes(diaPhp);
         }
         if (!r.DIAS_SALIDA) return true;
-        let dias = r.DIAS_SALIDA.split(',').map(s => s.trim());
-        return dias.includes(diaPhp.toString());
+        let dias = r.DIAS_SALIDA.split(',').map(s => s.trim().toUpperCase());
+        const mapaCodDia = { 1: 'LUN', 2: 'MAR', 3: 'MIE', 4: 'JUE', 5: 'VIE', 6: 'SAB', 7: 'DOM' };
+        return dias.includes(diaPhp.toString()) || dias.includes(mapaCodDia[diaPhp]);
     });
 }
 
@@ -350,6 +351,10 @@ function seleccionarRutaEspecifica(rutaId) {
                     </div>
                     <div class="d-flex flex-column gap-1">
             `;
+            const inpFechaViaje = document.getElementById('fecha_viaje_nuevo');
+            const fechaBaseStr = inpFechaViaje ? inpFechaViaje.value : '';
+            const esFechaAbierta = document.getElementById('fecha_abierta')?.checked;
+
             r.TRAMOS.forEach((tr, idx) => {
                 let idOp = parseInt(tr.ID_OPERADOR || 0);
                 let opNombre = tr.OPERADOR_TRAMO_NOMBRE || tr.OPERADOR || 'Suramérica 2030';
@@ -369,14 +374,34 @@ function seleccionarRutaEspecifica(rutaId) {
                 let pvpNum = parseFloat(tr.PVP_TRAMO || 0);
                 let pvpBadge = pvpNum > 0 ? `<span class="badge bg-white text-dark border ms-1">$${pvpNum.toFixed(2)}</span>` : '';
                 
+                let desfaseTramo = parseInt(tr.DIA_DESFASE || tr.dia_desfase || 0);
+                let fechaBadge = '';
+
+                if (fechaBaseStr && !esFechaAbierta) {
+                    let partes = fechaBaseStr.split('-');
+                    if (partes.length === 3) {
+                        let fObj = new Date(parseInt(partes[0]), parseInt(partes[1]) - 1, parseInt(partes[2]));
+                        fObj.setDate(fObj.getDate() + desfaseTramo);
+                        const diasNombres = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
+                        const diaSemTxt = diasNombres[fObj.getDay()];
+                        const diaNum = String(fObj.getDate()).padStart(2, '0');
+                        const mesNum = String(fObj.getMonth() + 1).padStart(2, '0');
+                        const desfaseTxt = desfaseTramo > 0 ? ` (+${desfaseTramo}d)` : '';
+                        fechaBadge = `<span class="badge bg-light text-primary border ms-1 fw-bold" style="font-size:11px;" title="Fecha estimada de abordaje para este tramo">📅 ${diaSemTxt} ${diaNum}/${mesNum}${desfaseTxt}</span>`;
+                    }
+                } else if (desfaseTramo > 0) {
+                    fechaBadge = `<span class="badge bg-info-subtle text-info border ms-1 fw-bold" style="font-size:11px;">📅 Día +${desfaseTramo}</span>`;
+                }
+                
                 htmlTramos += `
                     <div class="d-flex justify-content-between align-items-center bg-white px-2 py-1 rounded border small">
                         <div>
                             <span class="badge bg-dark me-1">Tramo ${tr.ORDEN || (idx + 1)}</span>
                             <strong>${tr.ORIGEN_TRAMO}</strong> <i class="fas fa-arrow-right text-muted mx-1"></i> <strong>${tr.DESTINO_TRAMO}</strong>
                         </div>
-                        <div class="d-flex align-items-center">
+                        <div class="d-flex align-items-center flex-wrap gap-1">
                             <span class="${opBadgeClass}"><i class="fas ${opIcon} me-1"></i>${opNombre}</span>
+                            ${fechaBadge}
                             ${horasBadge}
                             ${pvpBadge}
                         </div>

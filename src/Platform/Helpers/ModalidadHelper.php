@@ -44,6 +44,67 @@ class ModalidadHelper {
     }
 
     /**
+     * Matriz de políticas comerciales y condiciones operativas por modalidad.
+     * Define qué operadores son permitidos y cuáles están vetados en cada modalidad.
+     */
+    public static function politicasModalidad() {
+        return [
+            'CONEXIONES' => [
+                'codigo' => 'CONEXIONES',
+                'nombre' => 'Conexiones Locales',
+                'operadores_permitidos' => [3, 4, 5], // Solo aliados locales (EC, COL, VE)
+                'operadores_prohibidos' => [1, 2],    // Vetados: Expresos Suramérica y Panamericana
+                'descripcion_politica' => 'Exclusivo para empresas locales aliadas (Ecuador, Colombia, Venezuela). Sin operadores troncales.'
+            ],
+            'PANAMERICANA' => [
+                'codigo' => 'PANAMERICANA',
+                'nombre' => 'Vía Panamericana',
+                'operadores_permitidos' => [2, 3, 4, 5], // Salto Panamericana (2) + Alimentadores/Conexiones Locales (3 EC, 4 COL, 5 VE)
+                'operadores_prohibidos' => [1],          // Vetado: Expresos Suramérica 2030 (solo opera en Venezuela)
+                'descripcion_politica' => 'Salto binacional con Panamericana Internacional + Conexiones con Empresas Locales (Colombia/Venezuela).'
+            ],
+            'EXPRESOS_SURAMERICA' => [
+                'codigo' => 'EXPRESOS_SURAMERICA',
+                'nombre' => 'Expresos Suramérica 2030',
+                'operadores_permitidos' => [1, 3, 4, 5], // Locales andinos + Troncal propia Suramérica 2030
+                'operadores_prohibidos' => [2],          // Vetado: Panamericana
+                'descripcion_politica' => 'Ruta con tramo troncal venezolano operado por Expresos Suramérica 2030.'
+            ],
+            'PANA_EXPRESOS' => [
+                'codigo' => 'PANA_EXPRESOS',
+                'nombre' => 'Alianza Pana-Expresos',
+                'operadores_permitidos' => [1, 2, 3, 5], // Salto Panamericana (2) + Troncal Suramérica (1) + Alimentadores Locales (3 EC, 5 VE)
+                'operadores_prohibidos' => [4],          // Vetado: Local Colombia (4) ya que el trayecto colombiano lo cubre Panamericana
+                'descripcion_politica' => 'Alianza rápida: Salto binacional Panamericana + Troncal venezolana Expresos Suramérica 2030.'
+            ]
+        ];
+    }
+
+    /**
+     * Obtiene la política de una modalidad.
+     */
+    public static function getPolitica($modalidad) {
+        $politicas = self::politicasModalidad();
+        $cod = self::normalizarCodigo($modalidad);
+        return $politicas[$cod] ?? $politicas['CONEXIONES'];
+    }
+
+    /**
+     * Verifica si un operador es válido para una modalidad según su política.
+     */
+    public static function validarOperadorEnModalidad($idOperador, $modalidad) {
+        $pol = self::getPolitica($modalidad);
+        $idOp = intval($idOperador);
+        if (in_array($idOp, $pol['operadores_prohibidos'])) {
+            return false;
+        }
+        if (!empty($pol['operadores_permitidos']) && !in_array($idOp, $pol['operadores_permitidos'])) {
+            return false;
+        }
+        return true;
+    }
+
+    /**
      * Normaliza cualquier variante de texto a uno de los 4 códigos canónicos de modalidad.
      */
     public static function normalizarCodigo($modalidad) {

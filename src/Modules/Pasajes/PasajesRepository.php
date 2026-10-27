@@ -50,14 +50,49 @@ class PasajesRepository {
                 $r['TRAMOS'] = $tramos;
                 $r['NUM_TRAMOS'] = count($tramos);
 
+                // Días configurados formalmente en la ruta
+                $mapaCodToNum = ['LUN'=>1, 'MAR'=>2, 'MIE'=>3, 'JUE'=>4, 'VIE'=>5, 'SAB'=>6, 'DOM'=>7];
+                $mapaNumToCod = [1=>'LUN', 2=>'MAR', 3=>'MIE', 4=>'JUE', 5=>'VIE', 6=>'SAB', 7=>'DOM'];
+
+                $diasRutaRaw = !empty($r['DIAS_SALIDA']) ? explode(',', $r['DIAS_SALIDA']) : [];
+                $diasRutaNums = [];
+                foreach ($diasRutaRaw as $dr) {
+                    $drTrim = strtoupper(trim($dr));
+                    if (isset($mapaCodToNum[$drTrim])) {
+                        $diasRutaNums[] = $mapaCodToNum[$drTrim];
+                    } elseif (is_numeric($drTrim)) {
+                        $diasRutaNums[] = intval($drTrim);
+                    }
+                }
+                $diasRutaNums = array_values(array_unique($diasRutaNums));
+
                 // Cálculo dinámico de días de salida efectivos con desfase
                 if (!empty($tramos)) {
                     $diasEf = $routingEngine->calcularDiasSalidaEfectivos($tramos);
-                    $r['DIAS_SALIDA_EFECTIVOS'] = $diasEf['dias_numeros'];
-                    $r['DIAS_SALIDA_TEXTO'] = $diasEf['dias_texto'];
+                    $diasNumTramos = $diasEf['dias_numeros'];
+
+                    // Intersectar días de la oferta operativa con los días comerciales de la ruta
+                    if (!empty($diasRutaNums)) {
+                        $diasFinales = array_values(array_intersect($diasRutaNums, $diasNumTramos));
+                        $diasEfectivos = !empty($diasFinales) ? $diasFinales : $diasRutaNums;
+                    } else {
+                        $diasEfectivos = $diasNumTramos;
+                    }
+
+                    $textosFinales = array_map(function($n) use ($mapaNumToCod) {
+                        return $mapaNumToCod[$n] ?? (string)$n;
+                    }, $diasEfectivos);
+
+                    $r['DIAS_SALIDA_EFECTIVOS'] = $diasEfectivos;
+                    $r['DIAS_SALIDA_TEXTO'] = implode(',', $textosFinales);
                 } else {
-                    $r['DIAS_SALIDA_EFECTIVOS'] = !empty($r['DIAS_SALIDA']) ? array_map('intval', explode(',', $r['DIAS_SALIDA'])) : [1,2,3,4,5,6,7];
-                    $r['DIAS_SALIDA_TEXTO'] = '';
+                    $diasEfectivos = !empty($diasRutaNums) ? $diasRutaNums : [1,2,3,4,5,6,7];
+                    $textosFinales = array_map(function($n) use ($mapaNumToCod) {
+                        return $mapaNumToCod[$n] ?? (string)$n;
+                    }, $diasEfectivos);
+
+                    $r['DIAS_SALIDA_EFECTIVOS'] = $diasEfectivos;
+                    $r['DIAS_SALIDA_TEXTO'] = implode(',', $textosFinales);
                 }
 
                 // Calcular horas totales sumando tramos
@@ -90,12 +125,15 @@ class PasajesRepository {
 
                 // Lista de operadores intervinientes
                 $ops = [];
-                if (!empty($r['OPERADOR_NOMBRE'])) $ops[] = $r['OPERADOR_NOMBRE'];
-                foreach ($tramos as $tr) {
-                    $nomOp = $tr['OPERADOR_TRAMO_NOMBRE'] ?: ($tr['OPERADOR'] ?: '');
-                    if (!empty($nomOp) && !in_array($nomOp, $ops)) {
-                        $ops[] = $nomOp;
+                if (!empty($tramos)) {
+                    foreach ($tramos as $tr) {
+                        $nomOp = $tr['OPERADOR_TRAMO_NOMBRE'] ?: ($tr['OPERADOR'] ?: '');
+                        if (!empty($nomOp) && !in_array($nomOp, $ops)) {
+                            $ops[] = $nomOp;
+                        }
                     }
+                } elseif (!empty($r['OPERADOR_NOMBRE'])) {
+                    $ops[] = $r['OPERADOR_NOMBRE'];
                 }
                 $r['OPERADORES_LISTA'] = $ops;
                 $r['OPERADORES_RESUMEN'] = implode(', ', $ops);

@@ -479,7 +479,7 @@ class FlotaService {
 
         $opciones = [
             'crear_retorno' => !empty($postData['crear_retorno']),
-            'dias_salida' => !empty($postData['dias_salida']) ? $postData['dias_salida'] : 'LUN,MIE,VIE',
+            'dias_salida' => !empty($postData['dias_salida']) ? $postData['dias_salida'] : 'MAR,VIE',
             'hora_salida' => !empty($postData['hora_salida']) ? $postData['hora_salida'] : '08:00',
             'dias_retorno' => !empty($postData['dias_retorno']) ? $postData['dias_retorno'] : 'MAR,JUE,SAB',
             'hora_retorno' => !empty($postData['hora_retorno']) ? $postData['hora_retorno'] : '08:00'

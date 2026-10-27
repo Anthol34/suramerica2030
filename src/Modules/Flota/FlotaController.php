@@ -390,6 +390,67 @@ class FlotaController {
         exit();
     }
 
+    /**
+     * Elimina un tramo acordado de la oferta del operador
+     */
+    public function eliminarOfertaOperador() {
+        $this->verificarPermiso();
+        header('Content-Type: application/json; charset=utf-8');
+
+        if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+            echo json_encode(['status' => 'error', 'mensaje' => 'Método no permitido.']);
+            exit();
+        }
+
+        $idOferta = intval($_POST['id_oferta'] ?? 0);
+        $res = $this->repository->eliminarOfertaOperadorBD($idOferta);
+        echo json_encode($res);
+        exit();
+    }
+
+    /**
+     * Actualiza rápidamente en vivo el costo o PVP de un acuerdo de tramo (inline edit)
+     */
+    public function actualizarTarifaRapidaOferta() {
+        $this->verificarPermiso();
+        header('Content-Type: application/json; charset=utf-8');
+
+        if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+            echo json_encode(['status' => 'error', 'mensaje' => 'Método no permitido.']);
+            exit();
+        }
+
+        $idOferta = intval($_POST['id_oferta'] ?? 0);
+        $costo = isset($_POST['costo']) ? floatval($_POST['costo']) : null;
+        $pvp = isset($_POST['pvp']) ? floatval($_POST['pvp']) : null;
+
+        $res = $this->repository->actualizarTarifaRapidaOfertaBD($idOferta, $costo, $pvp);
+        echo json_encode($res);
+        exit();
+    }
+
+    /**
+     * Endpoint AJAX para asignación masiva/global de días de salida por operador
+     */
+    public function actualizarDiasGlobalOperador() {
+        $this->verificarPermiso();
+        header('Content-Type: application/json; charset=utf-8');
+
+        if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+            echo json_encode(['status' => 'error', 'mensaje' => 'Método no permitido.']);
+            exit();
+        }
+
+        $idOperador = intval($_POST['id_operador'] ?? 0);
+        $alcance = trim($_POST['alcance'] ?? 'IDA');
+        $diasSalida = $_POST['dias_salida'] ?? 'MAR,VIE';
+        $sincronizarRutas = !empty($_POST['sincronizar_rutas']);
+
+        $res = $this->repository->actualizarDiasGlobalOperadorBD($idOperador, $alcance, $diasSalida, $sincronizarRutas);
+        echo json_encode($res);
+        exit();
+    }
+
     // --- ACCIONES DE BUSES ---
     public function guardarBus() {
         $this->verificarPermiso();

@@ -2,7 +2,10 @@
     <!-- PESTAÑA 2: RUTAS COMERCIALES Y MATRIZ DE TARIFAS        -->
     <!-- ======================================================== -->
     <?php 
-    $mapaDias = $mapaDias ?? ['1'=>'Lun', '2'=>'Mar', '3'=>'Mié', '4'=>'Jue', '5'=>'Vie', '6'=>'Sáb', '7'=>'Dom']; 
+    $mapaDias = $mapaDias ?? [
+        '1'=>'Lun', '2'=>'Mar', '3'=>'Mié', '4'=>'Jue', '5'=>'Vie', '6'=>'Sáb', '7'=>'Dom',
+        'LUN'=>'Lun', 'MAR'=>'Mar', 'MIE'=>'Mié', 'JUE'=>'Jue', 'VIE'=>'Vie', 'SAB'=>'Sáb', 'DOM'=>'Dom'
+    ]; 
     if (!isset($generarOpcionesCiudades) || !is_callable($generarOpcionesCiudades)) {
         $generarOpcionesCiudades = function($idUnused = null, $valorSeleccionado = '', $placeholder = '-- Seleccionar Ciudad --') use (&$ciudadesCatalogo) {
             $html = '<option value="">' . htmlspecialchars($placeholder) . '</option>';
@@ -105,9 +108,9 @@
                             ➕ Nueva Ruta Comercial
                         </button>
 
-                        <!-- Enlace Rápido a Acuerdos de Liquidación en Tab 2 -->
-                        <button class="btn btn-outline-primary fw-bold shadow-sm px-3" onclick="irATabOperadores('subtab-tramos')">
-                            🤝 Acuerdos de Liquidación
+                        <!-- Enlace Rápido a Operadores y Acuerdos de Liquidación en Tab 2 -->
+                        <button class="btn btn-outline-primary fw-bold shadow-sm px-3" onclick="irATabOperadores('subtab-operadores')">
+                            🤝 Operadores y Acuerdos
                         </button>
 
                         <!-- Menú de Opciones -->
@@ -352,7 +355,10 @@
                         <?php foreach($rutas as $r): 
                             $diasArr = explode(',', $r['DIAS_SALIDA'] ?? '');
                             $diasTexto = [];
-                            foreach($diasArr as $d) { if(isset($mapaDias[$d])) $diasTexto[] = $mapaDias[$d]; }
+                            foreach($diasArr as $d) { 
+                                $dTrim = trim($d);
+                                if(isset($mapaDias[$dTrim])) $diasTexto[] = $mapaDias[$dTrim]; 
+                            }
                             $strDias = empty($diasTexto) ? 'Sin definir' : implode(', ', $diasTexto);
                             $esActivo = ($r['ESTADO'] ?? 'ACTIVO') === 'ACTIVO';
 
@@ -1308,7 +1314,7 @@
             document.getElementById('nueva_barra_margen').style.width = Math.min(100, numMargen) + '%';
         }
 
-        function irATabOperadores(subtab = 'subtab-tramos') {
+        function irATabOperadores(subtab = 'subtab-operadores') {
             const tabFlotaBtn = document.querySelector('button[data-bs-target="#tab-flota"]');
             if (tabFlotaBtn) {
                 bootstrap.Tab.getOrCreateInstance(tabFlotaBtn).show();

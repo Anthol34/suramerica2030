@@ -645,7 +645,8 @@ class FlotaRepository {
         $cols = array_column($this->db->query("DESCRIBE OPERADOR")->fetchAll(PDO::FETCH_ASSOC), 'Field');
         $sql = "SELECT op.*, 
                        (SELECT COUNT(*) FROM BUS b WHERE b.ID_OPERADOR = op.ID_OPERADOR) as TOTAL_BUSES,
-                       (SELECT GROUP_CONCAT(b.BUS_PLACA SEPARATOR ', ') FROM BUS b WHERE b.ID_OPERADOR = op.ID_OPERADOR) as PLACAS_BUSES
+                       (SELECT GROUP_CONCAT(b.BUS_PLACA SEPARATOR ', ') FROM BUS b WHERE b.ID_OPERADOR = op.ID_OPERADOR) as PLACAS_BUSES,
+                       (SELECT COUNT(*) FROM OPERADOR_OFERTA_TRAMO oot WHERE oot.ID_OPERADOR = op.ID_OPERADOR) as TOTAL_OFERTAS
                 FROM OPERADOR op ";
         if ($soloActivos) {
             $sql .= " WHERE op.ESTADO = 'ACTIVO' ";
@@ -1424,14 +1425,14 @@ class FlotaRepository {
     }
 
     /**
-     * Guarda o actualiza un registro de oferta de operador en un tramo
+     * Guarda o actualiza un registro de oferta de operador en un tramo, sincronizando costos con el catálogo maestro
      */
     public function guardarOfertaOperadorBD($datos) {
         try {
             $idOferta = intval($datos['id_oferta'] ?? 0);
             $idTramo = intval($datos['id_tramo_catalogo'] ?? 0);
             $idOperador = intval($datos['id_operador'] ?? 0);
-            $dias = !empty($datos['dias_salida']) ? (is_array($datos['dias_salida']) ? implode(',', $datos['dias_salida']) : trim($datos['dias_salida'])) : 'LUN,MIE,VIE,DOM';
+            $dias = !empty($datos['dias_salida']) ? (is_array($datos['dias_salida']) ? implode(',', $datos['dias_salida']) : trim($datos['dias_salida'])) : 'MAR,VIE';
             $hora = !empty($datos['hora_salida']) ? trim($datos['hora_salida']) : '08:00:00';
             $costo = floatval($datos['costo_neto'] ?? 0);
             $pvp = floatval($datos['pvp_sugerido'] ?? 0);
@@ -1444,8 +1445,18 @@ class FlotaRepository {
                     SET DIAS_SALIDA = ?, HORA_SALIDA = ?, COSTO_NETO = ?, PVP_SUGERIDO = ?, UTILIDAD_AGENCIA = ?, VENTA_DIRECTA = ?, PRECIO_TRAMO_SOLO = ? 
                     WHERE ID_OFERTA = ?");
                 $upd->execute([$dias, $hora, $costo, $pvp, $util, $ventaDirecta, $precioTramoSolo, $idOferta]);
+
+                // Sincronizar también costo_operador y pvp_sugerido a TRAMO_CATALOGO
+                $stmtTC = $this->db->prepare("SELECT ID_TRAMO_CATALOGO FROM OPERADOR_OFERTA_TRAMO WHERE ID_OFERTA = ?");
+                $stmtTC->execute([$idOferta]);
+                $idTramoCat = $stmtTC->fetchColumn();
+                if ($idTramoCat) {
+                    $updTC = $this->db->prepare("UPDATE TRAMO_CATALOGO SET COSTO_OPERADOR = ?, PVP_SUGERIDO = ?, UTILIDAD_AGENCIA = ? WHERE ID_TRAMO_CATALOGO = ?");
+                    $updTC->execute([$costo, $pvp, $util, $idTramoCat]);
+                }
+
                 $this->sincronizarRutaDirectaDesdeOfertaBD($idOferta);
-                return ['status' => 'success', 'id_oferta' => $idOferta, 'mensaje' => 'Oferta de operador actualizada.'];
+                return ['status' => 'success', 'id_oferta' => $idOferta, 'mensaje' => 'Acuerdo de costo y oferta actualizado exitosamente.'];
             } else {
                 if ($idTramo <= 0 || $idOperador <= 0) {
                     return ['status' => 'error', 'mensaje' => 'Debe especificar el tramo y el operador.'];
@@ -1455,11 +1466,85 @@ class FlotaRepository {
                     VALUES (?, ?, ?, ?, ?, ?, ?, 1, ?, ?)");
                 $ins->execute([$idTramo, $idOperador, $dias, $hora, $costo, $pvp, $util, $ventaDirecta, $precioTramoSolo]);
                 $nuevoId = (int)$this->db->lastInsertId();
+
+                // Sincronizar a TRAMO_CATALOGO
+                $updTC = $this->db->prepare("UPDATE TRAMO_CATALOGO SET ID_OPERADOR = ?, COSTO_OPERADOR = ?, PVP_SUGERIDO = ?, UTILIDAD_AGENCIA = ? WHERE ID_TRAMO_CATALOGO = ?");
+                $updTC->execute([$idOperador, $costo, $pvp, $util, $idTramo]);
+
                 $this->sincronizarRutaDirectaDesdeOfertaBD($nuevoId);
-                return ['status' => 'success', 'id_oferta' => $nuevoId, 'mensaje' => 'Nuevo tramo agregado a la oferta del operador.'];
+                return ['status' => 'success', 'id_oferta' => $nuevoId, 'mensaje' => 'Nuevo tramo y acuerdo de costo registrado en la oferta del operador.'];
             }
         } catch (\Exception $e) {
-            return ['status' => 'error', 'mensaje' => 'Error al guardar oferta: ' . $e->getMessage()];
+            return ['status' => 'error', 'mensaje' => 'Error al guardar acuerdo de oferta: ' . $e->getMessage()];
+        }
+    }
+
+    /**
+     * Actualiza rápidamente el costo de liquidación o PVP de un tramo acordado en vivo (inline)
+     */
+    public function actualizarTarifaRapidaOfertaBD($idOferta, $nuevoCosto = null, $nuevoPvp = null) {
+        try {
+            $idOferta = intval($idOferta);
+            if ($idOferta <= 0) {
+                return ['status' => 'error', 'mensaje' => 'ID de acuerdo no válido.'];
+            }
+
+            $stmt = $this->db->prepare("SELECT ID_OFERTA, ID_TRAMO_CATALOGO, ID_OPERADOR, COSTO_NETO, PVP_SUGERIDO, VENTA_DIRECTA, PRECIO_TRAMO_SOLO FROM OPERADOR_OFERTA_TRAMO WHERE ID_OFERTA = ?");
+            $stmt->execute([$idOferta]);
+            $actual = $stmt->fetch(PDO::FETCH_ASSOC);
+
+            if (!$actual) {
+                return ['status' => 'error', 'mensaje' => 'Acuerdo de oferta no encontrado.'];
+            }
+
+            $idTramoCat = intval($actual['ID_TRAMO_CATALOGO']);
+            $costoFinal = ($nuevoCosto !== null) ? max(0, floatval($nuevoCosto)) : floatval($actual['COSTO_NETO']);
+            $pvpFinal = ($nuevoPvp !== null) ? max(0, floatval($nuevoPvp)) : floatval($actual['PVP_SUGERIDO']);
+            $utilidad = max(0, $pvpFinal - $costoFinal);
+            $margenPct = $pvpFinal > 0 ? round(($utilidad / $pvpFinal) * 100, 1) : 0;
+
+            // Actualizar OPERADOR_OFERTA_TRAMO
+            $updOOT = $this->db->prepare("UPDATE OPERADOR_OFERTA_TRAMO SET COSTO_NETO = ?, PVP_SUGERIDO = ?, UTILIDAD_AGENCIA = ? WHERE ID_OFERTA = ?");
+            $updOOT->execute([$costoFinal, $pvpFinal, $utilidad, $idOferta]);
+
+            // Sincronizar TRAMO_CATALOGO
+            if ($idTramoCat > 0) {
+                $updTC = $this->db->prepare("UPDATE TRAMO_CATALOGO SET COSTO_OPERADOR = ?, PVP_SUGERIDO = ?, UTILIDAD_AGENCIA = ? WHERE ID_TRAMO_CATALOGO = ?");
+                $updTC->execute([$costoFinal, $pvpFinal, $utilidad, $idTramoCat]);
+            }
+
+            // Sincronizar ruta directa si aplica
+            $this->sincronizarRutaDirectaDesdeOfertaBD($idOferta);
+
+            return [
+                'status' => 'success',
+                'id_oferta' => $idOferta,
+                'id_tramo_catalogo' => $idTramoCat,
+                'costo' => $costoFinal,
+                'pvp' => $pvpFinal,
+                'utilidad' => $utilidad,
+                'margen_pct' => $margenPct,
+                'mensaje' => 'Tarifa de liquidación actualizada correctamente.'
+            ];
+        } catch (\Exception $e) {
+            return ['status' => 'error', 'mensaje' => 'Error al actualizar tarifa de oferta: ' . $e->getMessage()];
+        }
+    }
+
+    /**
+     * Elimina un tramo de la oferta y acuerdos del operador
+     */
+    public function eliminarOfertaOperadorBD($idOferta) {
+        try {
+            $idOferta = intval($idOferta);
+            if ($idOferta <= 0) {
+                return ['status' => 'error', 'mensaje' => 'Identificador de acuerdo inválido.'];
+            }
+            $stmt = $this->db->prepare("DELETE FROM OPERADOR_OFERTA_TRAMO WHERE ID_OFERTA = ?");
+            $stmt->execute([$idOferta]);
+            return ['status' => 'success', 'id_oferta' => $idOferta, 'mensaje' => 'Tramo y acuerdo de costo eliminado de la oferta del operador.'];
+        } catch (\Exception $e) {
+            return ['status' => 'error', 'mensaje' => 'Error al eliminar acuerdo: ' . $e->getMessage()];
         }
     }
 
@@ -1602,6 +1687,150 @@ class FlotaRepository {
             return true;
         } catch (\Exception $e) {
             return false;
+        }
+    }
+
+    /**
+     * Actualiza masivamente los días de salida (DIAS_SALIDA) para todos o un subconjunto de tramos
+     * de un operador (Ida, Retorno, o Todos), con sincronización automática de rutas comerciales.
+     * 
+     * @param int $idOperador
+     * @param string $alcance 'IDA' | 'RETORNO' | 'TODOS'
+     * @param string|array $diasSalida Ej: 'MAR,VIE' o ['MAR', 'VIE']
+     * @param bool $sincronizarRutas Sincronizar tabla RUTA
+     * @return array
+     */
+    public function actualizarDiasGlobalOperadorBD($idOperador, $alcance = 'IDA', $diasSalida = 'MAR,VIE', $sincronizarRutas = true) {
+        try {
+            $idOperador = intval($idOperador);
+            if ($idOperador <= 0) {
+                return ['status' => 'error', 'mensaje' => 'Operador no válido.'];
+            }
+
+            $stmtOp = $this->db->prepare("SELECT NOMBRE_COMERCIAL FROM OPERADOR WHERE ID_OPERADOR = ?");
+            $stmtOp->execute([$idOperador]);
+            $nombreOperador = $stmtOp->fetchColumn() ?: "Operador #$idOperador";
+
+            // Normalizar días de salida
+            $mapaDiasValidos = ['LUN', 'MAR', 'MIE', 'JUE', 'VIE', 'SAB', 'DOM'];
+            $mapaNumToCod = [1=>'LUN', 2=>'MAR', 3=>'MIE', 4=>'JUE', 5=>'VIE', 6=>'SAB', 7=>'DOM'];
+            $partes = is_array($diasSalida) ? $diasSalida : explode(',', (string)$diasSalida);
+            $codigosLimpios = [];
+            foreach ($partes as $p) {
+                $pNorm = strtoupper(trim((string)$p));
+                if (isset($mapaNumToCod[intval($pNorm)])) {
+                    $codigosLimpios[] = $mapaNumToCod[intval($pNorm)];
+                } elseif (in_array($pNorm, $mapaDiasValidos)) {
+                    $codigosLimpios[] = $pNorm;
+                }
+            }
+            $codigosLimpios = array_values(array_unique($codigosLimpios));
+            if (empty($codigosLimpios)) {
+                return ['status' => 'error', 'mensaje' => 'Debes seleccionar al menos un día de salida válido.'];
+            }
+            $diasSalidaStr = implode(',', $codigosLimpios);
+            $alcance = strtoupper(trim((string)$alcance));
+            if (!in_array($alcance, ['IDA', 'RETORNO', 'TODOS'])) {
+                $alcance = 'IDA';
+            }
+
+            // Obtener todas las ofertas del operador con sus tramos
+            $stmt = $this->db->prepare("
+                SELECT oot.ID_OFERTA, oot.ID_TRAMO_CATALOGO, tc.ORIGEN_TRAMO, tc.DESTINO_TRAMO, tc.PAIS_TRAMO 
+                FROM OPERADOR_OFERTA_TRAMO oot 
+                JOIN TRAMO_CATALOGO tc ON tc.ID_TRAMO_CATALOGO = oot.ID_TRAMO_CATALOGO 
+                WHERE oot.ID_OPERADOR = ?
+            ");
+            $stmt->execute([$idOperador]);
+            $ofertas = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+            if (empty($ofertas)) {
+                return ['status' => 'error', 'mensaje' => "El operador {$nombreOperador} no tiene tramos acordados en su catálogo."];
+            }
+
+            $idsActualizar = [];
+            foreach ($ofertas as $of) {
+                $orig = $of['ORIGEN_TRAMO'];
+                $dest = $of['DESTINO_TRAMO'];
+                $s = \Platform\Helpers\SentidoHelper::resolverSentido($orig, $dest);
+
+                $esIda = false;
+                $esRetorno = false;
+
+                if ($s === 'NORTE') {
+                    $esIda = true;
+                } elseif ($s === 'SUR') {
+                    $esRetorno = true;
+                } else {
+                    if ($dest === 'Tulcán' || $orig === 'Ipiales' || $orig === 'San Cristóbal' || ($orig === 'Honda' && $dest === 'Bogotá') || $dest === 'Cúcuta') {
+                        $esIda = true;
+                    } elseif ($orig === 'Tulcán' || $dest === 'Ipiales' || $dest === 'San Cristóbal' || ($orig === 'Bogotá' && $dest === 'Honda') || $orig === 'Cúcuta') {
+                        $esRetorno = true;
+                    } else {
+                        $esIda = true;
+                    }
+                }
+
+                if ($alcance === 'IDA' && $esIda) {
+                    $idsActualizar[] = $of['ID_OFERTA'];
+                } elseif ($alcance === 'RETORNO' && $esRetorno) {
+                    $idsActualizar[] = $of['ID_OFERTA'];
+                } elseif ($alcance === 'TODOS') {
+                    $idsActualizar[] = $of['ID_OFERTA'];
+                }
+            }
+
+            if (empty($idsActualizar)) {
+                return ['status' => 'error', 'mensaje' => "No se encontraron tramos de tipo '{$alcance}' para el operador {$nombreOperador}."];
+            }
+
+            // 1. Actualizar OPERADOR_OFERTA_TRAMO
+            $inOfertas = implode(',', array_map('intval', $idsActualizar));
+            $updOOT = $this->db->prepare("UPDATE OPERADOR_OFERTA_TRAMO SET DIAS_SALIDA = ?, UPDATED_AT = NOW() WHERE ID_OFERTA IN ($inOfertas)");
+            $updOOT->execute([$diasSalidaStr]);
+            $totalTramosActualizados = count($idsActualizar);
+
+            // 2. Sincronizar rutas comerciales asociadas si se solicitó
+            $totalRutasSincronizadas = 0;
+            if ($sincronizarRutas) {
+                $sentidosRuta = [];
+                if ($alcance === 'IDA' || $alcance === 'TODOS') $sentidosRuta[] = 'NORTE';
+                if ($alcance === 'RETORNO' || $alcance === 'TODOS') $sentidosRuta[] = 'SUR';
+                if ($alcance === 'TODOS') $sentidosRuta[] = 'NACIONAL';
+
+                foreach ($sentidosRuta as $sentidoRuta) {
+                    if ($idOperador === 2) {
+                        // Panamericana: modalidades PANAMERICANA y PANA_EXPRESOS
+                        $stmtR = $this->db->prepare("UPDATE RUTA SET DIAS_SALIDA = ? WHERE SENTIDO = ? AND (MODALIDAD IN ('PANAMERICANA', 'PANA_EXPRESOS') OR ID_OPERADOR = 2)");
+                        $stmtR->execute([$diasSalidaStr, $sentidoRuta]);
+                        $totalRutasSincronizadas += $stmtR->rowCount();
+                    } elseif ($idOperador === 1) {
+                        // Expresos Suramérica 2030: modalidad EXPRESOS_SURAMERICA o ID_OPERADOR = 1
+                        $stmtR = $this->db->prepare("UPDATE RUTA SET DIAS_SALIDA = ? WHERE SENTIDO = ? AND (MODALIDAD = 'EXPRESOS_SURAMERICA' OR ID_OPERADOR = 1)");
+                        $stmtR->execute([$diasSalidaStr, $sentidoRuta]);
+                        $totalRutasSincronizadas += $stmtR->rowCount();
+                    } else {
+                        // Empresas Locales: modalidad CONEXIONES o ID_OPERADOR = idOperador
+                        $stmtR = $this->db->prepare("UPDATE RUTA SET DIAS_SALIDA = ? WHERE SENTIDO = ? AND (MODALIDAD = 'CONEXIONES' OR ID_OPERADOR = ?)");
+                        $stmtR->execute([$diasSalidaStr, $sentidoRuta, $idOperador]);
+                        $totalRutasSincronizadas += $stmtR->rowCount();
+                    }
+                }
+            }
+
+            $etiquetaAlcance = ($alcance === 'IDA') ? 'de Ida' : (($alcance === 'RETORNO') ? 'de Retorno' : 'totales');
+            return [
+                'status' => 'success',
+                'id_operador' => $idOperador,
+                'nombre_operador' => $nombreOperador,
+                'alcance' => $alcance,
+                'dias_salida' => $diasSalidaStr,
+                'total_tramos' => $totalTramosActualizados,
+                'total_rutas' => $totalRutasSincronizadas,
+                'mensaje' => "Se actualizaron exitosamente {$totalTramosActualizados} tramos {$etiquetaAlcance} de {$nombreOperador} a [{$diasSalidaStr}]" . ($sincronizarRutas ? " y se sincronizaron {$totalRutasSincronizadas} rutas comerciales." : ".")
+            ];
+        } catch (\Exception $e) {
+            return ['status' => 'error', 'mensaje' => 'Error al actualizar programación global: ' . $e->getMessage()];
         }
     }
 }
