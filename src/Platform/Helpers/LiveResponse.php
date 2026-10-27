@@ -62,13 +62,14 @@ class LiveResponse {
      * Si fue un submit convencional de formulario, ejecuta el header Location con redirect.
      *
      * @param bool|array|string $resultado El resultado del Service/Repository (true, string de error o array)
-     * @param string $tab Pestaña destino para la redirección tradicional
+     * @param ?string $tab Pestaña destino para la redirección tradicional (puede ser null o string vacío)
      * @param string $successToken Token para mostrar alerta de éxito en vista tradicional
      * @param string $successMsg Mensaje descriptivo para el toast en vivo
      * @param array $extra Datos adicionales para enviar en el JSON (ej. objeto modificado, IDs, etc.)
      * @param string $baseUrl URL base del módulo (ej. /suramerica2030/usuarios)
      */
-    public static function respond($resultado, string $tab, string $successToken, string $successMsg = 'Cambios guardados correctamente.', array $extra = [], string $baseUrl = ''): void {
+    public static function respond($resultado, ?string $tab = '', string $successToken = 'success', string $successMsg = 'Cambios guardados correctamente.', array $extra = [], string $baseUrl = ''): void {
+        $tab = (string)($tab ?? '');
         $esExito = ($resultado === true) || (is_array($resultado) && (!isset($resultado['status']) || $resultado['status'] === 'success'));
         
         if (self::isAjax()) {
@@ -96,11 +97,12 @@ class LiveResponse {
 
         // Redirección tradicional en caso de que JS no esté activo
         $separator = (strpos($baseUrl, '?') !== false) ? '&' : '?';
+        $tabParam = !empty($tab) ? "tab=" . urlencode($tab) . "&" : "";
         if ($esExito) {
-            header("Location: {$baseUrl}{$separator}tab={$tab}&status={$successToken}");
+            header("Location: {$baseUrl}{$separator}{$tabParam}status=" . urlencode($successToken));
         } else {
             $msgError = is_string($resultado) ? $resultado : ($resultado['mensaje'] ?? 'Error desconocido');
-            header("Location: {$baseUrl}{$separator}tab={$tab}&status=error&msg=" . urlencode($msgError));
+            header("Location: {$baseUrl}{$separator}{$tabParam}status=error&msg=" . urlencode($msgError));
         }
         exit();
     }
