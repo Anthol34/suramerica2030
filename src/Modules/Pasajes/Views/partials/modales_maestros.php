@@ -129,8 +129,12 @@
                                     <button type="button" class="btn btn-outline-secondary" type="button" title="Restablecer precio oficial de la ruta" onclick="ponerPrecioDefault()">🔄</button>
                                 <?php endif; ?>
                             </div>
+                            <div class="d-flex justify-content-between align-items-center mt-1 px-1" style="font-size:11px;">
+                                <span class="text-muted">Costo Operadores: $<strong class="text-danger" id="lbl_costo_operadores">0.00</strong></span>
+                                <span class="text-muted">PVP Oficial: $<strong class="text-primary" id="lbl_pvp_oficial">0.00</strong></span>
+                            </div>
                             <?php if(!$puedeEditarPrecios): ?>
-                                <small class="text-muted d-block mt-1" style="font-size:11px;">🔒 Tarifa oficial de ruta fija (sin permiso de descuento).</small>
+                                <small class="text-muted d-block mt-1" style="font-size:11px;">🔒 Tarifa oficial fija (sin permiso de descuento).</small>
                             <?php endif; ?>
                         </div>
                         <div class="col-4"><label class="fw-bold">¿Cuánto abona hoy? ($)</label><input type="number" step="0.01" name="monto_abonar" id="monto_abonar" class="form-control fw-bold text-success fs-5" required oninput="balancearMixtoVenta('total')"></div>
@@ -141,6 +145,27 @@
                                 <option value="TRANSFERENCIA">Transferencia</option>
                                 <option value="MIXTO">Mixto (Efectivo + Transferencia)</option>
                             </select>
+                        </div>
+
+                        <!-- Alertas Dinámicas de Margen y Pérdida -->
+                        <div class="col-12 mt-2">
+                            <div id="alerta_perdida_pasaje" class="alert alert-danger py-2 px-3 mb-0 d-none border-danger shadow-sm">
+                                <div class="d-flex align-items-center">
+                                    <div class="me-3">
+                                        <i class="fas fa-exclamation-triangle fa-2x text-danger"></i>
+                                    </div>
+                                    <div>
+                                        <strong class="text-danger d-block fs-6">⚠️ ¡Alerta de Pérdida para la Agencia!</strong>
+                                        <span id="txt_alerta_perdida" class="small">El precio ingresado es menor al costo de liquidación de los operadores.</span>
+                                    </div>
+                                </div>
+                            </div>
+                            <div id="alerta_descuento_pasaje" class="alert alert-warning py-2 px-3 mb-0 d-none border-warning shadow-sm">
+                                <div class="d-flex align-items-center">
+                                    <i class="fas fa-tag fa-lg me-2 text-warning"></i>
+                                    <span id="txt_alerta_descuento" class="small">Descuento aplicado: Margen de agencia reducido.</span>
+                                </div>
+                            </div>
                         </div>
                         <div class="col-12 mt-2 d-none" id="div_pago_mixto_nuevo">
                             <div class="p-2 rounded bg-white border border-info shadow-sm">

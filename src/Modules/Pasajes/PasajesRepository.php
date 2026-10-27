@@ -97,11 +97,14 @@ class PasajesRepository {
 
                 // Calcular horas totales sumando tramos
                 $horasTotal = 0;
+                $costoTotalOperadores = 0;
                 foreach ($tramos as $tr) {
                     $horasTotal += floatval($tr['TIEMPO_ESTIMADO_HORAS'] ?? 0);
+                    $costoTotalOperadores += floatval($tr['COSTO_OPERADOR'] ?? 0);
                 }
                 $r['TIEMPO_ESTIMADO_HORAS'] = $horasTotal;
                 $r['DURACION_FORMATO'] = ($horasTotal > 0) ? "⏱️ {$horasTotal}h aprox." : "";
+                $r['COSTO_OPERADORES_TOTAL'] = (!empty($tramos)) ? $costoTotalOperadores : (floatval($r['PRECIO_PASAJE'] ?? 0) * 0.90);
 
                 // Resolver modalidad comercial formal
                 $modRaw = strtoupper(trim($r['MODALIDAD'] ?? ''));
@@ -269,6 +272,15 @@ class PasajesRepository {
             }
             foreach ($pasajes as &$pax) {
                 $pax['TRAMOS'] = $tramosMap[$pax['ID_RUTA']] ?? [];
+                $costoOp = 0;
+                if (!empty($pax['TRAMOS'])) {
+                    foreach ($pax['TRAMOS'] as $tr) {
+                        $costoOp += floatval($tr['COSTO_OPERADOR'] ?? 0);
+                    }
+                } else {
+                    $costoOp = floatval($pax['RUTA_PRECIO'] ?? 0) * 0.90;
+                }
+                $pax['COSTO_OPERADORES_TOTAL'] = $costoOp;
             }
             unset($pax);
         }

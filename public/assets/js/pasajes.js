@@ -450,6 +450,7 @@ function ponerPrecioDefault() {
     if (!r) {
         if (precioTotalEl) precioTotalEl.value = '0.00';
         if (montoAbonarEl) montoAbonarEl.value = '0.00';
+        verificarCostoOperadoresVenta();
         return;
     }
     
@@ -463,6 +464,7 @@ function ponerPrecioDefault() {
     if (typeof balancearMixtoVenta === 'function') {
         balancearMixtoVenta('total');
     }
+    verificarCostoOperadoresVenta();
 }
 
 function alCambiarPrecioTotalManual() {
@@ -472,6 +474,61 @@ function alCambiarPrecioTotalManual() {
     montoAbonarEl.value = precioTotalEl.value;
     if (typeof balancearMixtoVenta === 'function') {
         balancearMixtoVenta('total');
+    }
+    verificarCostoOperadoresVenta();
+}
+
+/**
+ * Evalúa en tiempo real si el precio ingresado cubre los costos de los operadores
+ * o si genera una pérdida / reducción de margen para la agencia.
+ */
+function verificarCostoOperadoresVenta() {
+    let rutaIdEl = document.getElementById('ruta_id_nuevo');
+    let rutaId = rutaIdEl ? rutaIdEl.value : '';
+    let r = TODAS_LAS_RUTAS.find(x => x.ID_RUTA == rutaId);
+    let precioTotalEl = document.getElementById('precio_total');
+    let alertaPerdida = document.getElementById('alerta_perdida_pasaje');
+    let txtPerdida = document.getElementById('txt_alerta_perdida');
+    let alertaDescuento = document.getElementById('alerta_descuento_pasaje');
+    let txtDescuento = document.getElementById('txt_alerta_descuento');
+    let lblCosto = document.getElementById('lbl_costo_operadores');
+    let lblPvp = document.getElementById('lbl_pvp_oficial');
+
+    if (!r || !precioTotalEl) {
+        if (alertaPerdida) alertaPerdida.classList.add('d-none');
+        if (alertaDescuento) alertaDescuento.classList.add('d-none');
+        return;
+    }
+
+    let cantPax = document.querySelectorAll('.pasajero-row').length || 1;
+    let costoUnitario = parseFloat(r.COSTO_OPERADORES_TOTAL) || 0;
+    let costoTotal = costoUnitario * cantPax;
+    let pvpUnitario = parseFloat(r.PRECIO_PASAJE) || 0;
+    let pvpTotal = pvpUnitario * cantPax;
+    let precioIngresado = parseFloat(precioTotalEl.value) || 0;
+
+    if (lblCosto) lblCosto.textContent = costoTotal.toFixed(2);
+    if (lblPvp) lblPvp.textContent = pvpTotal.toFixed(2);
+
+    if (alertaPerdida && alertaDescuento) {
+        alertaPerdida.classList.add('d-none');
+        alertaDescuento.classList.add('d-none');
+
+        if (precioIngresado > 0 && costoTotal > 0 && precioIngresado < (costoTotal - 0.009)) {
+            let perdida = costoTotal - precioIngresado;
+            txtPerdida.innerHTML = `El precio ingresado (<strong>$${precioIngresado.toFixed(2)}</strong>) es menor al costo de liquidación de los operadores (<strong>$${costoTotal.toFixed(2)}</strong>). Esta venta generará una <strong>PÉRDIDA neta de -$${perdida.toFixed(2)}</strong> para la agencia.`;
+            alertaPerdida.classList.remove('d-none');
+            precioTotalEl.classList.add('is-invalid');
+            precioTotalEl.classList.remove('is-valid');
+        } else if (precioIngresado > 0 && precioIngresado < (pvpTotal - 0.009) && precioIngresado >= (costoTotal - 0.009)) {
+            let margen = precioIngresado - costoTotal;
+            let descuento = pvpTotal - precioIngresado;
+            txtDescuento.innerHTML = `Descuento concedido: <strong>-$${descuento.toFixed(2)}</strong>. Margen de ganancia de la agencia reducido a <strong>$${margen.toFixed(2)}</strong> (Tarifa oficial: $${pvpTotal.toFixed(2)}).`;
+            alertaDescuento.classList.remove('d-none');
+            precioTotalEl.classList.remove('is-invalid');
+        } else {
+            precioTotalEl.classList.remove('is-invalid');
+        }
     }
 }
 
@@ -831,6 +888,7 @@ function aplicarFinanciero(id, precio, saldo, estado) {
     if (pInput) pInput.value = parseFloat(precio).toFixed(2);
     if (sInput) sInput.value = parseFloat(saldo).toFixed(2);
     if (eSelect) eSelect.value = estado;
+    recalcularFinanciero(id);
 }
 
 function marcarPagado(id) {
@@ -838,18 +896,70 @@ function marcarPagado(id) {
     const eSelect = document.getElementById('fin_estado_' + id);
     if (sInput) sInput.value = '0.00';
     if (eSelect) eSelect.value = 'PAGADO';
+    recalcularFinanciero(id);
 }
 
 function recalcularFinanciero(id) {
     const sInput = document.getElementById('fin_saldo_' + id);
+    const pInput = document.getElementById('fin_precio_' + id);
     const eSelect = document.getElementById('fin_estado_' + id);
     if (!sInput || !eSelect) return;
+    
     const saldo = parseFloat(sInput.value) || 0;
     if (saldo <= 0) {
         eSelect.value = 'PAGADO';
     } else {
         eSelect.value = 'RESERVA';
     }
+
+    if (pInput) {
+        const costoOp = parseFloat(pInput.getAttribute('data-costo-operadores')) || 0;
+        const pvpRuta = parseFloat(pInput.getAttribute('data-pvp-ruta')) || 0;
+        const precio = parseFloat(pInput.value) || 0;
+        const alertaPerdida = document.getElementById('fin_alerta_perdida_' + id);
+        const txtPerdida = document.getElementById('fin_txt_perdida_' + id);
+        const alertaDescuento = document.getElementById('fin_alerta_descuento_' + id);
+        const txtDescuento = document.getElementById('fin_txt_descuento_' + id);
+
+        if (alertaPerdida && alertaDescuento) {
+            alertaPerdida.classList.add('d-none');
+            alertaDescuento.classList.add('d-none');
+            pInput.classList.remove('is-invalid');
+
+            if (precio > 0 && costoOp > 0 && precio < (costoOp - 0.009)) {
+                const perdida = costoOp - precio;
+                if (txtPerdida) {
+                    txtPerdida.innerHTML = `El precio ($<strong>${precio.toFixed(2)}</strong>) es menor al costo de los operadores ($<strong>${costoOp.toFixed(2)}</strong>). Provocará una <strong>PÉRDIDA neta de -$${perdida.toFixed(2)}</strong>.`;
+                }
+                alertaPerdida.classList.remove('d-none');
+                pInput.classList.add('is-invalid');
+            } else if (precio > 0 && precio < (pvpRuta - 0.009) && precio >= (costoOp - 0.009)) {
+                const margen = precio - costoOp;
+                const desc = pvpRuta - precio;
+                if (txtDescuento) {
+                    txtDescuento.innerHTML = `Descuento: <strong>-$${desc.toFixed(2)}</strong>. Margen de ganancia de agencia: <strong>$${margen.toFixed(2)}</strong> (Tarifa oficial: $${pvpRuta.toFixed(2)}).`;
+                }
+                alertaDescuento.classList.remove('d-none');
+            }
+        }
+    }
+}
+
+function validarAjusteFinanciero(id) {
+    const pInput = document.getElementById('fin_precio_' + id);
+    if (!pInput) return true;
+    const costoOp = parseFloat(pInput.getAttribute('data-costo-operadores')) || 0;
+    const precio = parseFloat(pInput.value) || 0;
+    if (costoOp > 0 && precio < (costoOp - 0.009)) {
+        const perdida = costoOp - precio;
+        return confirm(
+            "⚠️ ATENCIÓN: AJUSTE DE PRECIO A PÉRDIDA\n\n" +
+            "El precio establecido ($" + precio.toFixed(2) + ") es INFERIOR al costo de los operadores ($" + costoOp.toFixed(2) + ").\n\n" +
+            "Esta operación generará una PÉRDIDA neta de -$" + perdida.toFixed(2) + " para la agencia.\n\n" +
+            "¿Desea autorizar y guardar este precio con pérdida?"
+        );
+    }
+    return true;
 }
 
 // Si en nueva venta el abono supera el total asignado, ajustar el total automáticamente
@@ -1015,6 +1125,31 @@ function validarVentaMixto(form) {
             return false;
         }
     }
+
+    // Validación preventiva de costo de operadores vs precio de venta
+    const rutaIdEl = document.getElementById('ruta_id_nuevo');
+    if (rutaIdEl && rutaIdEl.value) {
+        const r = TODAS_LAS_RUTAS.find(x => x.ID_RUTA == rutaIdEl.value);
+        if (r) {
+            const cantPax = document.querySelectorAll('.pasajero-row').length || 1;
+            const costoTotal = (parseFloat(r.COSTO_OPERADORES_TOTAL) || 0) * cantPax;
+            const precioTotalEl = document.getElementById('precio_total');
+            const precioTotal = parseFloat(precioTotalEl ? precioTotalEl.value : 0) || 0;
+            if (costoTotal > 0 && precioTotal < (costoTotal - 0.009)) {
+                const perdida = costoTotal - precioTotal;
+                const confirmacion = confirm(
+                    "⚠️ ADVERTENCIA: VENTA CON PÉRDIDA PARA LA AGENCIA\n\n" +
+                    "El precio ingresado ($" + precioTotal.toFixed(2) + ") es INFERIOR al costo que se debe pagar a los operadores ($" + costoTotal.toFixed(2) + ").\n\n" +
+                    "Esta venta causará una PÉRDIDA neta para la agencia de: -$" + perdida.toFixed(2) + "\n\n" +
+                    "¿Está seguro de que desea autorizar y guardar esta venta a pérdida?"
+                );
+                if (!confirmacion) {
+                    return false;
+                }
+            }
+        }
+    }
+
     return true;
 }
 

@@ -1,0 +1,1740 @@
+-- phpMyAdmin SQL Dump
+-- version 4.9.1
+-- https://www.phpmyadmin.net/
+--
+-- Servidor: localhost
+-- Tiempo de generación: 27-10-2026 a las 08:46:04
+-- Versión del servidor: 8.0.17
+-- Versión de PHP: 7.3.10
+
+SET SQL_MODE = "NO_AUTO_VALUE_ON_ZERO";
+SET AUTOCOMMIT = 0;
+START TRANSACTION;
+SET time_zone = "+00:00";
+
+
+/*!40101 SET @OLD_CHARACTER_SET_CLIENT=@@CHARACTER_SET_CLIENT */;
+/*!40101 SET @OLD_CHARACTER_SET_RESULTS=@@CHARACTER_SET_RESULTS */;
+/*!40101 SET @OLD_COLLATION_CONNECTION=@@COLLATION_CONNECTION */;
+/*!40101 SET NAMES utf8mb4 */;
+
+--
+-- Base de datos: `suramerica2030_db`
+--
+
+-- --------------------------------------------------------
+
+--
+-- Estructura de tabla para la tabla `abono`
+--
+
+CREATE TABLE `abono` (
+  `ID_ABONO` int(11) NOT NULL,
+  `ID_PASAJE` int(11) NOT NULL,
+  `ID_FACTURA` int(11) NOT NULL,
+  `MONTO` decimal(10,2) NOT NULL,
+  `FECHA` datetime DEFAULT CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+-- --------------------------------------------------------
+
+--
+-- Estructura de tabla para la tabla `bus`
+--
+
+CREATE TABLE `bus` (
+  `ID_BUS` int(11) NOT NULL,
+  `ID_OPERADOR` int(11) DEFAULT NULL,
+  `BUS_MARCA` varchar(20) NOT NULL,
+  `BUS_MODELO` varchar(20) NOT NULL,
+  `BUS_PLACA` varchar(10) NOT NULL,
+  `BUS_ASIENTOS` int(11) NOT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+--
+-- Volcado de datos para la tabla `bus`
+--
+
+INSERT INTO `bus` (`ID_BUS`, `ID_OPERADOR`, `BUS_MARCA`, `BUS_MODELO`, `BUS_PLACA`, `BUS_ASIENTOS`) VALUES
+(2, 1, '0', '0', '000000', 60);
+
+-- --------------------------------------------------------
+
+--
+-- Estructura de tabla para la tabla `cierre_caja`
+--
+
+CREATE TABLE `cierre_caja` (
+  `ID_CIERRE` int(11) NOT NULL,
+  `ID_USUARIO` int(11) NOT NULL,
+  `ID_SUCURSAL` int(11) NOT NULL,
+  `FECHA_CAJA` date NOT NULL,
+  `TOTAL_INGRESOS` decimal(10,2) NOT NULL,
+  `TOTAL_EGRESOS` decimal(10,2) NOT NULL,
+  `CAPITAL_REPOSICION` decimal(10,2) DEFAULT '0.00',
+  `COMISION_EMPLEADOS` decimal(10,2) DEFAULT '0.00',
+  `VALOR_A_DEPOSITAR` decimal(10,2) DEFAULT '0.00',
+  `SALDO_FINAL` decimal(10,2) NOT NULL,
+  `EFECTIVO_FISICO` decimal(10,2) DEFAULT '0.00',
+  `DIFERENCIA_ARQUEO` decimal(10,2) DEFAULT '0.00',
+  `OBSERVACIONES_APERTURA` text,
+  `OBSERVACIONES_CIERRE` text,
+  `UTILIDAD` decimal(10,2) DEFAULT '0.00',
+  `FECHA_HORA` datetime DEFAULT CURRENT_TIMESTAMP,
+  `CODIGO_CIERRE` varchar(50) DEFAULT NULL,
+  `APERTURA_FECHA_HORA` datetime DEFAULT NULL,
+  `VALOR_INICIAL` decimal(10,2) DEFAULT '0.00',
+  `DEPOSITO` decimal(10,2) DEFAULT '0.00',
+  `V_POR_DEPOSITAR` decimal(10,2) DEFAULT '0.00',
+  `ESTADO` varchar(20) DEFAULT 'CERRADO',
+  `DEPOSITO_NUM_DOCUMENTO` varchar(50) DEFAULT NULL,
+  `DEPOSITO_ESTADO` varchar(20) DEFAULT 'INICIAL',
+  `DEPOSITO_FECHA_APROBACION` datetime DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+--
+-- Volcado de datos para la tabla `cierre_caja`
+--
+
+INSERT INTO `cierre_caja` (`ID_CIERRE`, `ID_USUARIO`, `ID_SUCURSAL`, `FECHA_CAJA`, `TOTAL_INGRESOS`, `TOTAL_EGRESOS`, `CAPITAL_REPOSICION`, `COMISION_EMPLEADOS`, `VALOR_A_DEPOSITAR`, `SALDO_FINAL`, `EFECTIVO_FISICO`, `DIFERENCIA_ARQUEO`, `OBSERVACIONES_APERTURA`, `OBSERVACIONES_CIERRE`, `UTILIDAD`, `FECHA_HORA`, `CODIGO_CIERRE`, `APERTURA_FECHA_HORA`, `VALOR_INICIAL`, `DEPOSITO`, `V_POR_DEPOSITAR`, `ESTADO`, `DEPOSITO_NUM_DOCUMENTO`, `DEPOSITO_ESTADO`, `DEPOSITO_FECHA_APROBACION`) VALUES
+(1, 3, 1, '2026-10-08', '184.20', '0.00', '0.00', '0.00', '184.20', '184.20', '0.00', '0.00', NULL, NULL, '184.20', '2026-10-08 17:03:42', '081026000000796', NULL, '0.00', '0.00', '184.20', 'CERRADO', NULL, 'PENDIENTE', NULL),
+(5, 3, 1, '2026-10-13', '0.00', '0.00', '0.00', '0.00', '0.00', '0.00', '0.00', '0.00', '', NULL, '0.00', '2026-10-13 12:06:51', '131026000000383', '2026-10-13 12:06:51', '0.00', '0.00', '0.00', 'ABIERTO', NULL, 'PENDIENTE', NULL),
+(6, 7, 3, '2026-10-16', '0.00', '0.00', '0.00', '0.00', '0.00', '0.00', '0.00', '0.00', '', NULL, '0.00', '2026-10-16 15:03:17', '161026000000574', '2026-10-16 15:03:17', '0.00', '0.00', '0.00', 'ABIERTO', NULL, 'PENDIENTE', NULL);
+
+-- --------------------------------------------------------
+
+--
+-- Estructura de tabla para la tabla `cierre_deposito_detalle`
+--
+
+CREATE TABLE `cierre_deposito_detalle` (
+  `ID_DEPOSITO` int(11) NOT NULL,
+  `ID_CIERRE` int(11) NOT NULL,
+  `ID_USUARIO` int(11) NOT NULL,
+  `BANCO` varchar(100) DEFAULT 'Banco Pichincha',
+  `NUM_DOCUMENTO` varchar(100) NOT NULL,
+  `MONTO` decimal(10,2) NOT NULL,
+  `FECHA_DEPOSITO` datetime DEFAULT CURRENT_TIMESTAMP,
+  `OBSERVACIONES` varchar(255) DEFAULT NULL,
+  `ESTADO` varchar(20) DEFAULT 'REGISTRADO',
+  `ID_USUARIO_AUDITA` int(11) DEFAULT NULL,
+  `FECHA_AUDITORIA` datetime DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+-- --------------------------------------------------------
+
+--
+-- Estructura de tabla para la tabla `ciudad`
+--
+
+CREATE TABLE `ciudad` (
+  `ID_CIUDAD` int(11) NOT NULL,
+  `NOMBRE` varchar(50) NOT NULL,
+  `PAIS` varchar(30) NOT NULL,
+  `ESTADO` tinyint(1) DEFAULT '1'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+--
+-- Volcado de datos para la tabla `ciudad`
+--
+
+INSERT INTO `ciudad` (`ID_CIUDAD`, `NOMBRE`, `PAIS`, `ESTADO`) VALUES
+(1, 'Manta', 'ECUADOR', 1),
+(2, 'Portoviejo', 'ECUADOR', 1),
+(3, 'Guayaquil', 'ECUADOR', 1),
+(4, 'Quito', 'ECUADOR', 1),
+(5, 'Tulcán', 'ECUADOR', 1),
+(6, 'Ipiales', 'COLOMBIA', 1),
+(7, 'Pasto', 'COLOMBIA', 1),
+(8, 'Cali', 'COLOMBIA', 1),
+(9, 'Bogotá', 'COLOMBIA', 1),
+(10, 'Bucaramanga', 'COLOMBIA', 1),
+(11, 'Cúcuta', 'COLOMBIA', 1),
+(12, 'San Cristóbal', 'VENEZUELA', 1),
+(13, 'Barinas', 'VENEZUELA', 1),
+(14, 'Valencia', 'VENEZUELA', 1),
+(15, 'Maracay', 'VENEZUELA', 1),
+(16, 'Caracas', 'VENEZUELA', 1),
+(17, 'Barcelona', 'VENEZUELA', 1),
+(18, 'Puerto La Cruz', 'VENEZUELA', 1);
+
+-- --------------------------------------------------------
+
+--
+-- Estructura de tabla para la tabla `cliente`
+--
+
+CREATE TABLE `cliente` (
+  `ID_CLIENTE` varchar(15) NOT NULL,
+  `CLI_NOMBRE` varchar(25) NOT NULL,
+  `CLI_APELLIDO` varchar(25) NOT NULL,
+  `CLI_TELEFONO` varchar(15) DEFAULT NULL,
+  `CLI_CORREO` varchar(50) DEFAULT NULL,
+  `CLI_NACIONALIDAD` varchar(50) DEFAULT 'ECUATORIANA',
+  `CLI_FECHANAC` date DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+--
+-- Volcado de datos para la tabla `cliente`
+--
+
+INSERT INTO `cliente` (`ID_CLIENTE`, `CLI_NOMBRE`, `CLI_APELLIDO`, `CLI_TELEFONO`, `CLI_CORREO`, `CLI_NACIONALIDAD`, `CLI_FECHANAC`) VALUES
+('0', 'WILLIAM ANTONIO', 'ESPINOZA MIERES', '', NULL, 'ECUATORIANA', NULL),
+('00', 'MARILU LORCA', 'PALMA', '584129057644', NULL, 'ECUATORIANA', NULL),
+('0000', 'SIKIU', 'BERNAEZ', '04168813302 / 0', NULL, 'ECUATORIANA', NULL),
+('0951076223', 'RONNY', 'BAILON BAIDAL', '0987000292', NULL, 'ECUATORIANA', NULL),
+('0962171088', 'ADBER', 'MOTA', '0998122412', NULL, 'ECUATORIANA', NULL),
+('0962359162', 'KARLA', 'OCHOA', '0995670827', NULL, 'ECUATORIANA', NULL),
+('0962498192', 'DANIELA CAROLINA', 'VALERO HOLGUIN', '096', NULL, 'VENEZOLANA', NULL),
+('0962652392', 'KATHERINE ADRIANA', 'BALZA MERO', '0989195698', NULL, 'ECUATORIANA', NULL),
+('0962709283', 'CARLOS ALBERTO', 'SANTANA COLORADO', '17506587', NULL, 'ECUATORIANA', NULL),
+('0962944310', 'ROBERTO CARLOS', 'PONCE MARTINEZ', '0984393550', NULL, 'ECUATORIANA', NULL),
+('0963298484', 'MARYELYS NAILET', 'MENDOZA SOJO', '09638788806', NULL, 'VENEZOLANA', NULL),
+('0963472162', 'DOUGLINTHON NERVIN', 'NUÑEZ GUSMAN', '0989540796', NULL, 'VENEZOLANA', NULL),
+('0963757695', 'EDGAR', 'PEÑA ROSAS', '0963757695', NULL, 'ECUATORIANA', NULL),
+('0964029581', 'TAIZA AMBROCIA', 'ACUÑA', '0959103775', NULL, 'ECUATORIANA', NULL),
+('0987654321', 'Anthony Josue', 'Solórzano Roldán', '0967099841', 'josue10anthony1@gmail.com', 'ECUATORIANA', '2004-10-13'),
+('1', 'MAXIMO JOSE', 'NUÑEZ CRUCES', '', NULL, 'ECUATORIANA', NULL),
+('10278770', 'RORAIMA', 'OCHOA', '04242727986', NULL, 'ECUATORIANA', NULL),
+('10351689', 'MARIELA', 'COROMOTO GONZALEZ', '09', NULL, 'ECUATORIANA', NULL),
+('10461527', 'LUIS', 'GERALDINO', '04122730590', NULL, 'ECUATORIANA', NULL),
+('10791880', 'JOSE GREORIO', 'MENDOZA CHAVEZ', '', NULL, 'ECUATORIANA', NULL),
+('11049488', 'CESAR', 'GONZALEZ', '04243790610', NULL, 'ECUATORIANA', NULL),
+('11111111111', 'Josue', 'Roldan', '099999999999', 'jajacemamoxd123@gmail.com', 'ECUATORIANA', '2005-11-14'),
+('11202304', 'MARIA', 'LUCAS LUCAS', '04248942370', NULL, 'ECUATORIANA', NULL),
+('1122334455', 'Melanie Michelle ', 'Solorzano Roldan', '0967099841', '', 'ECUATORIANA', '2026-09-01'),
+('11378809', 'RUBEN RAFAEL', 'MILLAN', '0963660369', NULL, 'ECUATORIANA', NULL),
+('11775917', 'LUISA ELENA', 'RIVAS', '09', NULL, 'ECUATORIANA', NULL),
+('12221177', 'ARIS JOSE', 'MARIN', '04123896993', NULL, 'ECUATORIANA', NULL),
+('1234567890', 'Nataly Jean', 'Moreira Suarez', '0987654321', '', 'ECUATORIANA', '2026-09-01'),
+('12390204', 'JOSE ANGEL', 'RAMIREZ NIÑO', '04123474493', NULL, 'ECUATORIANA', NULL),
+('12955820', 'LENNYS ELIZABETH', 'HERNANDEZ PEREZ', '04220275021/042', NULL, 'ECUATORIANA', NULL),
+('1301354966', 'Karen ', 'Moreira', '0963696202', 'josue10anthony1@gmail.com', 'VENEZOLANA', '2004-10-13'),
+('1301433395', 'PERLA DIVINA', 'SUAREZ CENTENO', '0982467635', NULL, 'ECUATORIANA', NULL),
+('1302227077', 'DIAGNA', 'HOLGUIN RIVERA', '04127055036', NULL, 'ECUATORIANA', NULL),
+('1302296262', 'ROCIO', 'MENDOZA CHAVEZ', '0999178177', NULL, 'ECUATORIANA', NULL),
+('1304122946', 'YOLANDA FILADELFIA', 'CARREÑO ANCHUNDIA', '0985332677', NULL, 'ECUATORIANA', NULL),
+('13052326', 'JESUS ANTONIO', 'CORDOVA GARCIA', '', NULL, 'ECUATORIANA', NULL),
+('1305622589', 'RONALD', 'MERO', '0993165446', NULL, 'ECUATORIANA', NULL),
+('1309296323', 'FARLYS ANTONIO', 'GUIÑA ARCENTALES', '0994346205', NULL, 'ECUATORIANA', NULL),
+('1309406609', 'ISAMAR STIBANIS', 'BRAVO RIVAS', '09', NULL, 'ECUATORIANA', NULL),
+('1309857058', 'MERCEDES EUGENIO', 'PONCE REYES', '', NULL, 'ECUATORIANA', NULL),
+('1311543811', 'GARY GERMAN', 'MENDOZA ZAMORA', '0980744959', NULL, 'ECUATORIANA', NULL),
+('1351304975', 'Anthony Josue', 'Solórzano Roldán', '0967099841', NULL, 'ECUATORIANA', NULL),
+('1352813198', 'SERGIO LUIS', 'MANTUANO QUIJIJE', '0980944016', NULL, 'ECUATORIANA', NULL),
+('1353278177', 'NAOMI YNALIE', 'QUEVEDO LUGO', '09', '', 'ECUATORIANA', NULL),
+('1354024232', 'JOSE MIGUEL ', 'QUEVEDO NAVAS', '09', '', 'ECUATORIANA', NULL),
+('1354119388', 'JOSE MIGUEL', 'SUAREZ FLOREZ', '0983467968', NULL, 'VENEZOLANA', NULL),
+('1354256420', 'MILANGEL DESIREE', 'MORENO SALINAS', '0983467968', NULL, 'VENEZOLANA', NULL),
+('13583776', 'JOSE JOHAN', 'PLUA PLUA', '0963496029', NULL, 'VENEZOLANA', NULL),
+('1391806256001', 'PTK DEL', 'ECUADOR', '0990566364', NULL, 'ECUATORIANA', NULL),
+('14142532', 'MARLYNE DELUVYNA', 'FONTEN', '', NULL, 'ECUATORIANA', NULL),
+('14359534', 'KELLY DEL JESUS', 'PEREZ MORENO', '04165961952', NULL, 'ECUATORIANA', NULL),
+('14990717', 'ANGELLY NAIRE', 'SERRANO SALAZAR', '', NULL, 'ECUATORIANA', NULL),
+('15586279', 'JAVIER FERNANDO', 'ERAZO VALENCIA', '04125927708', NULL, 'ECUATORIANA', NULL),
+('15837543', 'CARMEN DEL ROSARIO', 'ALONZO BAILON', '04129593688', NULL, 'ECUATORIANA', NULL),
+('16473281', 'ROXANA CAROLINA', 'MERO LUCAS', '0422120869', NULL, 'ECUATORIANA', NULL),
+('16701474', 'KEIVIN AUGUSTO', 'LOPEZ MARIN', '0979356013', NULL, 'ECUATORIANA', NULL),
+('16733140', 'ERISBERT ANDREINA', 'BRETO FLORES', '04128796068', NULL, 'ECUATORIANA', NULL),
+('17143847', 'VICTORIA ELENA', 'PONCE DE PONCE', '04127055036', NULL, 'ECUATORIANA', NULL),
+('1729908010', 'YAJAIRA ELIZABETH', 'MERO BAILON', '09', NULL, 'ECUATORIANA', NULL),
+('1729960110', 'ELMO', 'BAILON', '0963042601', NULL, 'ECUATORIANA', NULL),
+('17506586', 'MAXIMO JOSE', 'NUÑEZ CRUCES', '', NULL, 'ECUATORIANA', NULL),
+('18056571', 'JESUS ENRIQUE', 'PEREZ LEAL', '09963966898', NULL, 'VENEZOLANA', NULL),
+('19457160', 'VALERIA ROGEMARY', 'GOMEZ URBANEJA', '04148126174', NULL, 'ECUATORIANA', NULL),
+('2', 'MARISOL DEL VALLE', 'GIL', '', NULL, 'ECUATORIANA', NULL),
+('20677624', 'RONALD JAVIER', 'SANTOS MERO', '04241551498', NULL, 'VENEZOLANA', '1988-11-08'),
+('21468889', 'AISKEL ELIET', 'LUZARDO GIL', '', NULL, 'ECUATORIANA', NULL),
+('2233445566', 'Prueba ', 'Test', '0987654321', '', 'ECUATORIANA', NULL),
+('22662079', 'NICOLAS', 'MOCHA MALES', '0995848348', NULL, 'ECUATORIANA', NULL),
+('23641456', 'DORYS EDITH', 'BAILON MUENTES', '04122011462', NULL, 'VENEZOLANA', '1951-07-05'),
+('24205537', 'ELIZANDRA', 'TOVAR', '04220223745', NULL, 'ECUATORIANA', NULL),
+('24321618', 'LEUDISMAR', 'GUACARE MATA', '04248262406', NULL, 'ECUATORIANA', NULL),
+('26993321', 'CRISTIAN JOSE', 'BALZA MERO', '04120263407', NULL, 'ECUATORIANA', NULL),
+('27483040', 'DARWIN DANIEL', 'ESTABA MARIN', '0982978789', NULL, 'VENEZOLANA', '1999-10-12'),
+('28135380', 'JOSE EDUARDO', 'PICO DELGADO', '0939617514', NULL, 'VENEZOLANA', NULL),
+('28143878', 'OMAR ENRIQUE', 'TORRES CHAVEZ', '04228469690', NULL, 'ECUATORIANA', NULL),
+('29593390', 'MIGUEL ANGEL', 'ESPINOZA AGUILAR', '04123630846', NULL, 'ECUATORIANA', NULL),
+('2991942', 'TRINO JOSE', 'OLIVO TOVAR', '04243272225', NULL, 'ECUATORIANA', NULL),
+('3', 'ANGELA', 'MORANTES', '0917682388', NULL, 'ECUATORIANA', NULL),
+('3050168693', 'VERONICA SANDY', 'MERO LUCAS', '0985899944', NULL, 'ECUATORIANA', NULL),
+('3050267628', 'PATRICIA', 'MACIAS HOLGUIN', '0999571910', NULL, 'ECUATORIANA', NULL),
+('3050431075', 'CARINA YESENI', 'ERAZO VALENCIA', '0984513634', NULL, 'ECUATORIANA', NULL),
+('3050605074', 'ALFREDO JOSE', 'AROCHA SANTANA', '0', NULL, 'ECUATORIANA', NULL),
+('31893140', 'ANGELICA', 'MILLAN', '04248817345', NULL, 'ECUATORIANA', NULL),
+('34454453', 'KENDERSON JESUS', 'HERRERA SEPULVEDA', '09963966898', NULL, 'VENEZOLANA', NULL),
+('4', 'XIOMARA', 'BRAVO', '0982408253', NULL, 'ECUATORIANA', NULL),
+('6891620', 'ANGELA ROSA', 'AGUILAR', '04149136411', NULL, 'VENEZOLANA', NULL),
+('7050655', 'RODOLFO MANUEL', 'TORRES GONZALEZ', '04265335670', NULL, 'ECUATORIANA', NULL),
+('81990350', 'SIXTO GUILLERMO', 'PONCE REYES', '', NULL, 'ECUATORIANA', NULL),
+('82167880', 'PATRICIA', 'VERGARA', '04242604902', NULL, 'ECUATORIANA', NULL),
+('8454854', 'EDGAR RAFAEL', 'GONZALEZ', '04143124532', NULL, 'VENEZOLANA', '1960-09-22'),
+('9415809', 'JOSE GREGORIO', 'GUARACO DIAZ', '04125901095', NULL, 'VENEZOLANA', NULL),
+('965329006', 'EILIANY RUTH NOHEMIAS', 'LUGO MARTINEZ', '09', '', 'ECUATORIANA', NULL);
+
+-- --------------------------------------------------------
+
+--
+-- Estructura de tabla para la tabla `corredor`
+--
+
+CREATE TABLE `corredor` (
+  `ID_CORREDOR` int(11) NOT NULL,
+  `CODIGO` varchar(20) DEFAULT NULL,
+  `NOMBRE` varchar(100) NOT NULL,
+  `ORIGEN_CABECERA` varchar(50) NOT NULL,
+  `DESTINO_TERMINAL` varchar(50) NOT NULL,
+  `DIAS_SALIDA` varchar(50) DEFAULT '2,5',
+  `HORA_SALIDA` time DEFAULT '10:00:00',
+  `ESTADO` varchar(20) DEFAULT 'ACTIVO',
+  `LIMITE_EQUIPAJE_KG` decimal(10,2) DEFAULT '35.00',
+  `PRECIO_SOBREPESO_KG` decimal(10,2) DEFAULT '1.00',
+  `PRECIO_SOBRE` decimal(10,2) DEFAULT '5.00',
+  `PRECIO_VOLUMEN` decimal(10,2) DEFAULT '0.00',
+  `COMISION_VALOR` decimal(5,2) DEFAULT '10.00',
+  `TIPO_UTILIDAD` varchar(15) DEFAULT 'PORCENTAJE',
+  `UTILIDAD_PASAJE` decimal(10,2) DEFAULT '100.00',
+  `UTILIDAD_ENCOMIENDA` decimal(10,2) DEFAULT '100.00',
+  `UTILIDAD_VALORES` decimal(10,2) DEFAULT '100.00',
+  `FECHA_CREACION` datetime DEFAULT CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+--
+-- Volcado de datos para la tabla `corredor`
+--
+
+INSERT INTO `corredor` (`ID_CORREDOR`, `CODIGO`, `NOMBRE`, `ORIGEN_CABECERA`, `DESTINO_TERMINAL`, `DIAS_SALIDA`, `HORA_SALIDA`, `ESTADO`, `LIMITE_EQUIPAJE_KG`, `PRECIO_SOBREPESO_KG`, `PRECIO_SOBRE`, `PRECIO_VOLUMEN`, `COMISION_VALOR`, `TIPO_UTILIDAD`, `UTILIDAD_PASAJE`, `UTILIDAD_ENCOMIENDA`, `UTILIDAD_VALORES`, `FECHA_CREACION`) VALUES
+(1, 'COR-01', 'CORREDOR IDA MANTA - CARACAS', 'Manta', 'Caracas', '2,5', '10:00:00', 'ACTIVO', '35.00', '1.50', '20.00', '0.00', '10.00', 'PORCENTAJE', '100.00', '100.00', '100.00', '2026-10-02 02:33:03'),
+(3, 'COR-02', 'Corredor Retorno Caracas - Manta', 'Caracas', 'Manta', '1,2,5,6', '10:00:00', 'ACTIVO', '35.00', '1.00', '20.00', '0.00', '10.00', 'PORCENTAJE', '100.00', '100.00', '100.00', '2026-10-02 05:03:51');
+
+-- --------------------------------------------------------
+
+--
+-- Estructura de tabla para la tabla `corredor_parada`
+--
+
+CREATE TABLE `corredor_parada` (
+  `ID_CORREDOR_PARADA` int(11) NOT NULL,
+  `ID_CORREDOR` int(11) NOT NULL,
+  `ORDEN` int(11) NOT NULL,
+  `CIUDAD` varchar(50) NOT NULL,
+  `PAIS` varchar(30) NOT NULL,
+  `TIPO_PARADA` varchar(30) DEFAULT 'ESCALA',
+  `PERMITE_SUBIDA` tinyint(1) DEFAULT '1',
+  `PERMITE_BAJADA` tinyint(1) DEFAULT '1',
+  `TIEMPO_ESTIMADO_HORAS` int(11) DEFAULT '0'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+--
+-- Volcado de datos para la tabla `corredor_parada`
+--
+
+INSERT INTO `corredor_parada` (`ID_CORREDOR_PARADA`, `ID_CORREDOR`, `ORDEN`, `CIUDAD`, `PAIS`, `TIPO_PARADA`, `PERMITE_SUBIDA`, `PERMITE_BAJADA`, `TIEMPO_ESTIMADO_HORAS`) VALUES
+(1, 1, 1, 'Manta', 'ECUADOR', 'CABECERA', 1, 1, 0),
+(2, 1, 2, 'Portoviejo', 'ECUADOR', 'ESCALA', 1, 1, 1),
+(3, 1, 3, 'Guayaquil', 'ECUADOR', 'ESCALA', 1, 1, 4),
+(4, 1, 4, 'Quito', 'ECUADOR', 'ESCALA', 1, 1, 10),
+(5, 1, 5, 'Tulcán', 'ECUADOR', 'TRANSBORDO_FRONTERA', 1, 1, 16),
+(6, 1, 6, 'Ipiales', 'COLOMBIA', 'TRANSBORDO_FRONTERA', 1, 1, 18),
+(7, 1, 7, 'Cúcuta', 'COLOMBIA', 'TRANSBORDO_FRONTERA', 1, 1, 36),
+(8, 1, 8, 'San Cristóbal', 'VENEZUELA', 'TRANSBORDO_FRONTERA', 1, 1, 38),
+(9, 1, 10, 'Maracay', 'VENEZUELA', 'ESCALA', 1, 1, 50),
+(10, 1, 11, 'Caracas', 'VENEZUELA', 'TERMINAL', 1, 1, 52),
+(13, 3, 1, 'Caracas', 'VENEZUELA', 'CABECERA', 1, 1, 0),
+(14, 3, 11, 'Manta', 'ECUADOR', 'TERMINAL', 1, 1, 10),
+(15, 3, 2, 'Valencia', 'VENEZUELA', 'ESCALA', 1, 1, 1),
+(16, 3, 3, 'Maracay', 'VENEZUELA', 'ESCALA', 1, 1, 2),
+(18, 3, 4, 'San Cristóbal', 'VENEZUELA', 'TRANSBORDO_FRONTERA', 1, 1, 2),
+(20, 3, 5, 'Cúcuta', 'COLOMBIA', 'TRANSBORDO_FRONTERA', 1, 1, 2),
+(21, 3, 6, 'Ipiales', 'COLOMBIA', 'TRANSBORDO_FRONTERA', 1, 1, 2),
+(22, 3, 7, 'Tulcán', 'ECUADOR', 'TRANSBORDO_FRONTERA', 1, 1, 2),
+(23, 3, 8, 'Quito', 'ECUADOR', 'ESCALA', 1, 1, 2),
+(24, 3, 9, 'Guayaquil', 'ECUADOR', 'ESCALA', 1, 1, 2),
+(25, 3, 10, 'Portoviejo', 'ECUADOR', 'ESCALA', 1, 1, 2),
+(27, 1, 9, 'Valencia', 'VENEZUELA', 'ESCALA', 1, 1, 2);
+
+-- --------------------------------------------------------
+
+--
+-- Estructura de tabla para la tabla `corredor_tramo_operativo`
+--
+
+CREATE TABLE `corredor_tramo_operativo` (
+  `ID_CORREDOR_TRAMO` int(11) NOT NULL,
+  `ID_CORREDOR` int(11) NOT NULL,
+  `ORDEN_TRAMO` int(11) NOT NULL,
+  `NOMBRE_TRAMO` varchar(100) NOT NULL,
+  `ORIGEN_TRAMO` varchar(50) NOT NULL,
+  `DESTINO_TRAMO` varchar(50) NOT NULL,
+  `PAIS` varchar(30) NOT NULL,
+  `ID_BUS_DEFAULT` int(11) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+--
+-- Volcado de datos para la tabla `corredor_tramo_operativo`
+--
+
+INSERT INTO `corredor_tramo_operativo` (`ID_CORREDOR_TRAMO`, `ID_CORREDOR`, `ORDEN_TRAMO`, `NOMBRE_TRAMO`, `ORIGEN_TRAMO`, `DESTINO_TRAMO`, `PAIS`, `ID_BUS_DEFAULT`) VALUES
+(1, 1, 1, 'Tramo Nacional Ecuador', 'Manta', 'Tulcán', 'ECUADOR', 2),
+(2, 1, 2, 'Tramo Nacional Colombia', 'Ipiales', 'Cúcuta', 'COLOMBIA', 2),
+(3, 1, 3, 'Tramo Nacional Venezuela', 'San Cristóbal', 'Caracas', 'VENEZUELA', 2);
+
+-- --------------------------------------------------------
+
+--
+-- Estructura de tabla para la tabla `encomienda`
+--
+
+CREATE TABLE `encomienda` (
+  `ID_ENCOMIENDA` int(11) NOT NULL,
+  `ID_FACTURA` int(11) NOT NULL,
+  `ID_DESTINATARIO` varchar(15) DEFAULT NULL,
+  `DESTINO_FINAL` varchar(100) DEFAULT NULL,
+  `ENC_CANTIDAD` int(11) DEFAULT '1',
+  `ENC_PESO` decimal(10,2) NOT NULL,
+  `ENC_VOLUMEN` decimal(10,2) DEFAULT NULL,
+  `ENC_TIPO` varchar(15) NOT NULL,
+  `ENC_RETIRO` date DEFAULT NULL,
+  `ENC_LLEGADA` date DEFAULT NULL,
+  `ENC_CONTENIDO` text,
+  `ENC_ESTADO` varchar(30) NOT NULL DEFAULT 'Recibido'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+--
+-- Volcado de datos para la tabla `encomienda`
+--
+
+INSERT INTO `encomienda` (`ID_ENCOMIENDA`, `ID_FACTURA`, `ID_DESTINATARIO`, `DESTINO_FINAL`, `ENC_CANTIDAD`, `ENC_PESO`, `ENC_VOLUMEN`, `ENC_TIPO`, `ENC_RETIRO`, `ENC_LLEGADA`, `ENC_CONTENIDO`, `ENC_ESTADO`) VALUES
+(1, 4, '24205537', NULL, 7, '52.70', '0.00', 'MIXTO', '2026-10-16', NULL, '6 Caja(s) [8.1Kg c/u]: cosas personales | 1 Bulto(s) [4.1Kg c/u]: cosas', 'Entregado'),
+(2, 6, '22662079', NULL, 2, '7.60', '0.00', 'Bulto', '2026-10-16', NULL, '2 Bulto(s) [3.8Kg c/u]: Ropa', 'Entregado'),
+(3, 7, '10351689', NULL, 1, '0.00', '0.00', 'Sobre', '2026-10-16', NULL, '1 Sobre(s) [1Kg c/u]: DOCUMENTOS', 'Entregado'),
+(4, 8, '11775917', NULL, 1, '4.90', '0.00', 'Caja', '2026-10-16', NULL, '1 Caja(s) [4.9Kg c/u]: cosas personales', 'Entregado'),
+(5, 9, '3050605074', NULL, 1, '27.60', '0.00', 'Maleta', '2026-10-16', NULL, '1 Maleta(s) [27.6Kg c/u]: cosas personales', 'Entregado'),
+(6, 11, '24321618', 'CUMANA', 3, '18.50', '0.00', 'Caja', '2026-10-16', NULL, '1 Caja(s) [6.2Kg c/u]: Ropa | 1 Caja(s) [6.2Kg c/u]: cosas personales | 1 Caja(s) [6.1Kg c/u]: cosas personales', 'Entregado'),
+(7, 15, '11049488', NULL, 23, '257.30', '0.00', 'Caja', '2026-10-22', '2026-10-18', '23 Caja(s) [1Kg c/u]: FRASCOS [Peso General Global: 257.3Kg (~11.19Kg c/u)]', 'Entregado'),
+(8, 16, '1302227077', NULL, 2, '5.30', '0.00', 'Caja', '2026-10-16', NULL, '2 Caja(s) [1Kg c/u]: MOLDE DE SILICONA 1 ARBOL [Peso General Global: 5.3Kg (~2.65Kg c/u)]', 'Entregado'),
+(9, 17, '17143847', NULL, 1, '4.20', '0.00', 'Caja', '2026-10-16', NULL, '1 Caja(s) [4.2Kg c/u]: ROPA Y ZAPATO CAFE Y TOMATODO', 'Entregado'),
+(10, 18, '16733140', 'MARACAY', 2, '8.40', '0.00', 'Caja', '2026-10-16', NULL, '2 Caja(s) [1Kg c/u]: cosas personales Y DULCE [Peso General Global: 8.4Kg (~4.20Kg c/u)]', 'Entregado'),
+(11, 19, '11202304', NULL, 2, '8.20', '0.00', 'Caja', '2026-10-16', NULL, '2 Caja(s) [1Kg c/u]: VIVERES Y 1 CORTADORA DE TELA [Peso General Global: 8.2Kg (~4.10Kg c/u)]', 'Entregado'),
+(12, 20, '26993321', NULL, 1, '11.60', '0.00', 'Caja', '2026-10-16', NULL, '1 Caja(s) [11.6Kg c/u]: ROPA CREMA Y COSAS PERSONALES', 'Entregado'),
+(13, 21, '22662079', NULL, 2, '10.60', '0.00', 'Caja', '2026-10-16', NULL, '1 Caja(s) [5.3Kg c/u]: BUFANDAS | 1 Caja(s) [5.3Kg c/u]: BUFANDAS', 'Entregado'),
+(14, 22, '15837543', NULL, 2, '9.40', '0.00', 'Caja', '2026-10-16', NULL, '2 Caja(s) [1Kg c/u]: ROPA  VIVERES Y COSAS PERSONALES [Peso General Global: 9.4Kg (~4.70Kg c/u)]', 'Entregado'),
+(15, 26, '12955820', NULL, 1, '10.30', '0.00', 'Caja', NULL, NULL, '1 Caja(s) [10.3Kg c/u]: ropa medicina y viveres aceo posonales', 'En Tránsito'),
+(16, 27, '10278770', NULL, 1, '0.00', '0.00', 'Caja', NULL, NULL, '1 Caja(s) [1Kg c/u]: medicina [Peso General Global: 0Kg (~0.00Kg c/u)]', 'En Tránsito'),
+(17, 33, '16473281', NULL, 1, '8.40', '0.00', 'Caja', NULL, NULL, '1 Caja(s) [8.4Kg c/u]: MEDICAMIENTO , ROPA ,LICUADORA ,ZAPATO Y LINTERNA ', 'En Tránsito'),
+(18, 34, '00', NULL, 1, '2.30', '0.00', 'Caja', NULL, NULL, '1 Caja(s) [1Kg c/u]: ZAPATO VITAMINA ZARDINA Y TANGO [Peso General Global: 2.3Kg (~2.30Kg c/u)]', 'En Tránsito'),
+(19, 36, '22662079', NULL, 2, '9.40', '0.00', 'Bulto', NULL, NULL, '2 Bulto(s) [1Kg c/u]: BUFANDAS [Peso General Global: 9.4Kg (~4.70Kg c/u)]', 'En Tránsito'),
+(20, 37, '10791880', NULL, 1, '9.50', '0.00', 'Caja', NULL, NULL, '1 Caja(s) [1Kg c/u]: VIVERES Y PRODUCTO YAMBAL [Peso General Global: 9.5Kg (~9.50Kg c/u)]', 'En Tránsito'),
+(21, 41, '0962709283', NULL, 2, '21.20', '0.00', 'Caja', NULL, NULL, '2 Caja(s) [10.6Kg c/u]: Mini UPC', 'Anulado'),
+(22, 42, '29593390', NULL, 1, '5.95', '0.00', 'Caja', NULL, NULL, '1 Caja(s) [5.95Kg c/u]: Antena, router, sensor, switch', 'En Tránsito'),
+(23, 43, '0962709283', NULL, 2, '21.20', '0.00', 'Caja', NULL, NULL, '2 Caja(s) [10.6Kg c/u]: Mini UPC', 'En Tránsito'),
+(24, 44, '21468889', NULL, 1, '6.00', '0.00', 'Caja', NULL, NULL, '1 Caja(s) [6Kg c/u]: Ropa y dulce', 'En Tránsito'),
+(25, 45, '82167880', NULL, 1, '5.15', '0.00', 'Bulto', NULL, NULL, '1 Bulto(s) [5.15Kg c/u]: Mochila + Ropa', 'En Tránsito'),
+(26, 46, '2991942', NULL, 3, '17.05', '0.00', 'MIXTO', NULL, NULL, '1 Maleta(s) [0Kg c/u]: Blanca | 1 Maleta(s) [0Kg c/u]: Negra | 1 Bulto(s) [0Kg c/u]: Hielera [Peso General Global: 17.05Kg (~5.68Kg c/u)]', 'En Tránsito'),
+(27, 47, '0962709283', NULL, 6, '63.60', '0.00', 'Caja', NULL, NULL, '6 Caja(s) [10.6Kg c/u]: Mini UPC', 'En Tránsito'),
+(28, 48, '0962709283', NULL, 4, '83.30', '0.00', 'Caja', NULL, NULL, '4 Caja(s) [1Kg c/u]: dc ups [Peso General Global: 83.3Kg (~20.83Kg c/u)]', 'En Tránsito'),
+(29, 49, '22662079', NULL, 1, '28.20', '0.00', 'Bulto', NULL, NULL, '1 Bulto(s) [1Kg c/u]: BUFANDAS [Peso General Global: 28.2Kg (~28.20Kg c/u)]', 'En Tránsito'),
+(30, 53, '15586279', NULL, 1, '7.70', '0.00', 'Caja', NULL, NULL, '1 Caja(s) [1Kg c/u]: viveres  [Peso General Global: 7.7Kg (~7.70Kg c/u)]', 'Recibido'),
+(31, 55, '0951076223', NULL, 1, '1.70', '0.00', 'Caja', NULL, NULL, '1 Caja(s) [1Kg c/u]: viveres  [Peso General Global: 1.7Kg (~1.70Kg c/u)]', 'Recibido'),
+(32, 56, '14359534', 'MARGARITA', 1, '8.90', '0.00', 'Caja', NULL, NULL, '1 Caja(s) [1Kg c/u]: cosas personales y2 botella  de wuisqui [Peso General Global: 8.9Kg (~8.90Kg c/u)]', 'Recibido'),
+(33, 57, '0000', 'CUMANA', 1, '4.29', '0.00', 'Bulto', NULL, NULL, '1 Bulto(s) [4.29Kg c/u]: pelota , ropa y extencion ', 'Recibido'),
+(34, 58, '19457160', 'CUMANA', 1, '19.00', '0.00', 'Maleta', NULL, NULL, '1 Maleta(s) [19Kg c/u]: bicicleta, repuesto, zapato,casco y ropa ', 'Recibido'),
+(35, 59, '81990350', NULL, 1, '3.00', '0.00', 'Caja', NULL, NULL, '1 Caja(s) [1Kg c/u]: viveres [Peso General Global: 3Kg (~3.00Kg c/u)]', 'Recibido'),
+(36, 60, '31893140', 'CUMANA', 1, '9.50', '0.00', 'Caja', NULL, NULL, '1 Caja(s) [1Kg c/u]: COSAS PERSONALES [Peso General Global: 9.5Kg (~9.50Kg c/u)]', 'Recibido'),
+(37, 61, '7050655', 'SAN FERNANDO DE APURE', 1, '9.50', '0.00', 'Caja', NULL, NULL, '1 Caja(s) [0Kg c/u]: zip 7001 planta  [Peso General Global: 9.5Kg (~9.50Kg c/u)]', 'Recibido'),
+(38, 62, '31893140', 'CUMANA', 1, '4.10', '60.00', 'Caja', NULL, NULL, '1 Caja(s) [1Kg c/u]: crema y javon  [Peso General Global: 4.1Kg (~4.10Kg c/u)]', 'Recibido'),
+(39, 63, '22662079', NULL, 5, '40.80', '0.00', 'Bulto', NULL, NULL, '5 Bulto(s) [1Kg c/u]: BUFANDAS [Peso General Global: 40.8Kg (~8.16Kg c/u)]', 'Anulado'),
+(40, 64, '22662079', NULL, 4, '34.00', '0.00', 'Bulto', NULL, NULL, '4 Bulto(s) [1Kg c/u]: BUFANDAS [Peso General Global: 34Kg (~8.50Kg c/u)]', 'Anulado'),
+(41, 65, '22662079', NULL, 5, '34.00', '0.00', 'Bulto', NULL, NULL, '5 Bulto(s) [1Kg c/u]: BUFANDAS [Peso General Global: 34Kg (~6.80Kg c/u)]', 'Recibido'),
+(42, 68, '14990717', NULL, 1, '11.00', '0.00', 'Bulto', NULL, NULL, '1 Bulto(s) [1Kg c/u]: cosas personales [Peso General Global: 11Kg (~11.00Kg c/u)]', 'Recibido'),
+(43, 69, '11049488', NULL, 1, '9.40', '0.00', 'Caja', NULL, NULL, '1 Caja(s) [9.4Kg c/u]: etiquetas', 'Recibido');
+
+-- --------------------------------------------------------
+
+--
+-- Estructura de tabla para la tabla `factura`
+--
+
+CREATE TABLE `factura` (
+  `ID_FACTURA` int(11) NOT NULL,
+  `ID_RUTA` int(11) NOT NULL,
+  `ID_CLIENTE` varchar(15) NOT NULL,
+  `ID_USUARIO` int(11) NOT NULL,
+  `ID_SUCURSAL` int(11) NOT NULL,
+  `FA_FECHA` date NOT NULL,
+  `FA_HORA` time NOT NULL,
+  `FECHA_VIAJE` date DEFAULT NULL,
+  `FA_CANTIDAD` int(11) NOT NULL,
+  `FA_METODO` varchar(15) DEFAULT NULL,
+  `FA_SUBTOTAL` decimal(10,2) NOT NULL,
+  `FA_TOTAL` decimal(10,2) NOT NULL,
+  `FA_DETALLE` text,
+  `FA_TIPO` varchar(15) NOT NULL,
+  `ESTADO` varchar(20) NOT NULL DEFAULT 'EMITIDA'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+--
+-- Volcado de datos para la tabla `factura`
+--
+
+INSERT INTO `factura` (`ID_FACTURA`, `ID_RUTA`, `ID_CLIENTE`, `ID_USUARIO`, `ID_SUCURSAL`, `FA_FECHA`, `FA_HORA`, `FECHA_VIAJE`, `FA_CANTIDAD`, `FA_METODO`, `FA_SUBTOTAL`, `FA_TOTAL`, `FA_DETALLE`, `FA_TIPO`, `ESTADO`) VALUES
+(1, 1, '1309296323', 1, 1, '2026-10-02', '04:59:10', '2026-10-02', 1, 'EFECTIVO', '100.00', '110.00', 'Para: OMAR ENRIQUE TORRES CHAVEZ', 'VALOR', 'EMITIDA'),
+(3, 108, '1354024232', 1, 1, '2026-10-02', '05:37:37', '2026-10-13', 3, 'EFECTIVO', '420.00', '420.00', NULL, 'PASAJE', 'EMITIDA'),
+(4, 1, '0962171088', 5, 1, '2026-10-03', '11:47:02', '2026-10-06', 1, 'EFECTIVO', '300.00', '300.00', NULL, 'ENCOMIENDA', 'EMITIDA'),
+(5, 45, '23641456', 5, 1, '2026-10-03', '11:58:56', '2026-10-06', 2, 'EFECTIVO', '120.00', '120.00', NULL, 'PASAJE', 'EMITIDA'),
+(6, 1, '22662079', 5, 1, '2026-10-03', '12:55:22', '2026-10-06', 1, 'EFECTIVO', '53.20', '53.20', NULL, 'ENCOMIENDA', 'EMITIDA'),
+(7, 1, '1729908010', 1, 1, '2026-10-05', '17:02:50', '2026-10-06', 1, 'EFECTIVO', '30.00', '30.00', NULL, 'ENCOMIENDA', 'EMITIDA'),
+(8, 1, '1309406609', 1, 1, '2026-10-05', '17:12:26', '2026-10-06', 1, 'EFECTIVO', '30.00', '30.00', NULL, 'ENCOMIENDA', 'EMITIDA'),
+(9, 1, '3050605074', 3, 1, '2026-10-06', '15:09:01', '2026-10-06', 1, 'EFECTIVO', '193.00', '193.00', NULL, 'ENCOMIENDA', 'EMITIDA'),
+(10, 49, '6891620', 3, 1, '2026-10-06', '15:29:53', '2026-10-09', 1, 'EFECTIVO', '200.00', '200.00', NULL, 'PASAJE', 'EMITIDA'),
+(11, 1, '10461527', 3, 1, '2026-10-06', '15:50:40', '2026-10-06', 1, 'EFECTIVO', '129.50', '129.50', NULL, 'ENCOMIENDA', 'EMITIDA'),
+(12, 1, '18056571', 3, 1, '2026-10-06', '15:54:39', '2026-10-16', 1, 'EFECTIVO', '200.00', '200.00', NULL, 'PASAJE', 'EMITIDA'),
+(13, 114, '34454453', 3, 1, '2026-10-06', '16:07:22', '2026-10-16', 1, 'EFECTIVO', '140.00', '140.00', NULL, 'PASAJE', 'EMITIDA'),
+(14, 1, '28135380', 3, 1, '2026-10-06', '16:11:26', '2026-10-13', 1, 'EFECTIVO', '200.00', '200.00', NULL, 'PASAJE', 'EMITIDA'),
+(15, 13, '1391806256001', 3, 1, '2026-10-06', '16:21:17', '2026-10-07', 1, 'EFECTIVO', '2573.88', '2573.88', NULL, 'ENCOMIENDA', 'EMITIDA'),
+(16, 1, '3050267628', 3, 1, '2026-10-05', '16:25:21', '2026-10-06', 1, 'EFECTIVO', '37.10', '37.10', NULL, 'ENCOMIENDA', 'EMITIDA'),
+(17, 1, '0962944310', 3, 1, '2026-10-05', '16:30:09', '2026-10-06', 1, 'EFECTIVO', '35.00', '35.00', NULL, 'ENCOMIENDA', 'EMITIDA'),
+(18, 13, '0962359162', 3, 1, '2026-10-05', '16:34:50', '2026-10-07', 1, 'EFECTIVO', '58.80', '58.80', NULL, 'ENCOMIENDA', 'EMITIDA'),
+(19, 1, '1305622589', 3, 1, '2026-10-05', '16:40:21', '2026-10-06', 1, 'EFECTIVO', '55.00', '55.00', NULL, 'ENCOMIENDA', 'EMITIDA'),
+(20, 1, '0962652392', 3, 1, '2026-10-05', '16:46:06', '2026-10-06', 1, 'EFECTIVO', '81.00', '81.00', NULL, 'ENCOMIENDA', 'EMITIDA'),
+(21, 5, '22662079', 3, 1, '2026-10-08', '13:10:47', NULL, 1, 'EFECTIVO', '74.20', '74.20', NULL, 'ENCOMIENDA', 'EMITIDA'),
+(22, 5, '0964029581', 3, 1, '2026-10-08', '14:11:13', NULL, 1, 'EFECTIVO', '60.00', '60.00', NULL, 'ENCOMIENDA', 'EMITIDA'),
+(23, 45, '8454854', 1, 1, '2026-10-08', '14:42:34', '2026-10-06', 1, 'EFECTIVO', '50.00', '50.00', 'Cobro por exceso de equipaje', 'SOBREPESO', 'EMITIDA'),
+(24, 5, '12390204', 3, 1, '2026-10-10', '09:53:42', '2026-10-10', 1, 'EFECTIVO', '200.00', '220.00', 'Para: YOLANDA FILADELFIA CARREÑO ANCHUNDIA', 'VALOR', 'EMITIDA'),
+(25, 45, '20677624', 3, 1, '2026-10-10', '11:08:47', '2026-10-30', 1, 'EFECTIVO', '60.00', '60.00', NULL, 'PASAJE', 'EMITIDA'),
+(26, 5, '1352813198', 3, 1, '2026-10-10', '12:21:23', '2026-10-22', 1, 'EFECTIVO', '72.10', '72.10', NULL, 'ENCOMIENDA', 'EMITIDA'),
+(27, 5, '0963757695', 3, 1, '2026-10-12', '12:26:15', '2026-10-22', 1, 'EFECTIVO', '20.00', '20.00', NULL, 'ENCOMIENDA', 'EMITIDA'),
+(28, 45, '0963298484', 3, 1, '2026-10-12', '15:56:01', '2026-10-23', 1, 'EFECTIVO', '60.00', '60.00', NULL, 'PASAJE', 'EMITIDA'),
+(29, 45, '0962498192', 3, 1, '2026-10-12', '15:59:05', '2026-10-23', 1, 'EFECTIVO', '60.00', '60.00', NULL, 'PASAJE', 'EMITIDA'),
+(30, 114, '0963298484', 3, 1, '2026-10-12', '16:16:50', '2026-10-23', 1, 'EFECTIVO', '140.00', '140.00', NULL, 'PASAJE', 'EMITIDA'),
+(31, 114, '0962498192', 3, 1, '2026-10-12', '16:18:34', '2026-10-23', 1, 'EFECTIVO', '140.00', '140.00', NULL, 'PASAJE', 'EMITIDA'),
+(32, 114, '20677624', 3, 1, '2026-10-10', '12:09:57', '2026-10-30', 1, 'EFECTIVO', '140.00', '140.00', NULL, 'PASAJE', 'EMITIDA'),
+(33, 5, '3050168693', 3, 1, '2026-10-15', '10:14:15', '2026-10-22', 1, 'EFECTIVO', '58.80', '58.80', NULL, 'ENCOMIENDA', 'EMITIDA'),
+(34, 5, '1301433395', 3, 1, '2026-10-15', '12:00:20', '2026-10-16', 1, 'EFECTIVO', '35.00', '35.00', NULL, 'ENCOMIENDA', 'EMITIDA'),
+(36, 5, '22662079', 3, 1, '2026-10-15', '14:55:29', '2026-10-16', 1, 'EFECTIVO', '65.80', '65.80', NULL, 'ENCOMIENDA', 'EMITIDA'),
+(37, 5, '1302296262', 3, 1, '2026-10-15', '15:23:42', '2026-10-16', 1, 'EFECTIVO', '55.00', '55.00', NULL, 'ENCOMIENDA', 'EMITIDA'),
+(38, 1, '18056571', 3, 1, '2026-10-15', '16:25:42', '2026-10-16', 1, 'EFECTIVO', '40.00', '40.00', 'Sobrepeso Tramo Manta ➔ Cúcuta (Panamericana) | Pasaje #7', 'SOBREPESO', 'EMITIDA'),
+(39, 45, '0963472162', 3, 1, '2026-10-16', '12:46:44', '2026-10-20', 1, 'EFECTIVO', '60.00', '60.00', NULL, 'PASAJE', 'EMITIDA'),
+(40, 114, '0963472162', 3, 1, '2026-10-16', '13:04:30', '2026-10-20', 1, 'EFECTIVO', '140.00', '140.00', NULL, 'PASAJE', 'EMITIDA'),
+(41, 28, '0', 7, 3, '2026-10-16', '15:20:27', NULL, 1, 'EFECTIVO', '127.20', '127.20', NULL, 'ENCOMIENDA', 'EMITIDA'),
+(42, 28, '0', 7, 3, '2026-10-16', '15:27:29', '2026-10-16', 1, 'EFECTIVO', '41.65', '41.65', NULL, 'ENCOMIENDA', 'EMITIDA'),
+(43, 28, '1', 7, 3, '2026-10-16', '15:34:00', '2026-10-16', 1, 'EFECTIVO', '127.20', '127.20', NULL, 'ENCOMIENDA', 'EMITIDA'),
+(44, 28, '2', 7, 3, '2026-10-16', '15:36:40', '2026-10-16', 1, 'EFECTIVO', '42.00', '42.00', NULL, 'ENCOMIENDA', 'EMITIDA'),
+(45, 28, '3', 7, 3, '2026-10-16', '15:41:59', '2026-10-16', 1, 'EFECTIVO', '36.05', '36.05', NULL, 'ENCOMIENDA', 'EMITIDA'),
+(46, 27, '4', 7, 3, '2026-10-16', '15:49:45', '2026-10-16', 1, 'EFECTIVO', '119.35', '119.35', NULL, 'ENCOMIENDA', 'EMITIDA'),
+(47, 28, '17506586', 7, 3, '2026-10-16', '16:20:54', NULL, 1, 'EFECTIVO', '381.60', '381.60', NULL, 'ENCOMIENDA', 'EMITIDA'),
+(48, 5, '17506586', 3, 1, '2026-10-19', '19:03:38', '2026-10-22', 1, 'EFECTIVO', '499.80', '499.80', NULL, 'ENCOMIENDA', 'EMITIDA'),
+(49, 1, '22662079', 3, 1, '2026-10-20', '11:34:20', '2026-10-22', 1, 'EFECTIVO', '197.40', '197.40', NULL, 'ENCOMIENDA', 'EMITIDA'),
+(50, 5, '27483040', 3, 1, '2026-10-21', '16:08:35', '2026-10-23', 1, 'EFECTIVO', '185.00', '185.00', NULL, 'PASAJE', 'EMITIDA'),
+(51, 136, '1354256420', 3, 1, '2026-10-21', '16:52:22', '2026-10-26', 1, 'EFECTIVO', '200.00', '200.00', NULL, 'PASAJE', 'EMITIDA'),
+(52, 136, '1354119388', 3, 1, '2026-10-21', '16:55:29', '2026-10-26', 1, 'EFECTIVO', '200.00', '200.00', NULL, 'PASAJE', 'EMITIDA'),
+(53, 5, '3050431075', 3, 1, '2026-10-22', '09:01:07', NULL, 1, 'EFECTIVO', '53.90', '53.90', NULL, 'ENCOMIENDA', 'EMITIDA'),
+(55, 5, '1729960110', 3, 1, '2026-10-22', '10:50:18', NULL, 1, 'EFECTIVO', '35.00', '35.00', NULL, 'ENCOMIENDA', 'EMITIDA'),
+(56, 5, '12221177', 3, 1, '2026-10-22', '11:26:48', NULL, 1, 'EFECTIVO', '62.30', '62.30', NULL, 'ENCOMIENDA', 'EMITIDA'),
+(57, 5, '13052326', 3, 1, '2026-10-22', '16:27:53', NULL, 1, 'EFECTIVO', '30.03', '30.03', NULL, 'ENCOMIENDA', 'EMITIDA'),
+(58, 5, '16701474', 3, 1, '2026-10-22', '16:46:01', NULL, 1, 'EFECTIVO', '133.00', '133.00', NULL, 'ENCOMIENDA', 'EMITIDA'),
+(59, 5, '1309857058', 3, 1, '2026-10-22', '17:09:15', NULL, 1, 'EFECTIVO', '30.00', '30.00', NULL, 'ENCOMIENDA', 'EMITIDA'),
+(60, 5, '11378809', 3, 1, '2026-10-23', '12:03:24', NULL, 1, 'EFECTIVO', '66.50', '66.50', NULL, 'ENCOMIENDA', 'EMITIDA'),
+(61, 5, '1311543811', 3, 1, '2026-10-23', '16:32:57', NULL, 1, 'EFECTIVO', '95.00', '95.00', NULL, 'ENCOMIENDA', 'EMITIDA'),
+(62, 5, '11378809', 3, 1, '2026-10-24', '12:23:24', NULL, 1, 'EFECTIVO', '35.00', '35.00', NULL, 'ENCOMIENDA', 'EMITIDA'),
+(63, 5, '22662079', 3, 1, '2026-10-25', '13:18:22', NULL, 1, 'EFECTIVO', '285.60', '285.60', NULL, 'ENCOMIENDA', 'EMITIDA'),
+(64, 5, '22662079', 3, 1, '2026-10-26', '09:01:22', NULL, 1, 'EFECTIVO', '238.00', '238.00', NULL, 'ENCOMIENDA', 'EMITIDA'),
+(65, 5, '22662079', 3, 1, '2026-10-26', '09:21:32', NULL, 1, 'EFECTIVO', '238.00', '238.00', NULL, 'ENCOMIENDA', 'EMITIDA'),
+(66, 45, '9415809', 3, 1, '2026-10-26', '13:44:39', '2026-10-30', 1, 'EFECTIVO', '60.00', '60.00', NULL, 'PASAJE', 'EMITIDA'),
+(67, 1, '13583776', 3, 1, '2026-10-26', '14:43:14', '2026-12-08', 1, 'EFECTIVO', '100.00', '100.00', NULL, 'PASAJE', 'EMITIDA'),
+(68, 5, '14142532', 3, 1, '2026-10-26', '15:21:19', NULL, 1, 'EFECTIVO', '70.00', '70.00', NULL, 'ENCOMIENDA', 'EMITIDA'),
+(69, 13, '1391806256001', 3, 1, '2026-10-26', '15:53:55', NULL, 1, 'EFECTIVO', '56.40', '56.40', NULL, 'ENCOMIENDA', 'EMITIDA');
+
+-- --------------------------------------------------------
+
+--
+-- Estructura de tabla para la tabla `movimiento_caja`
+--
+
+CREATE TABLE `movimiento_caja` (
+  `ID_MOVIMIENTO` int(11) NOT NULL,
+  `ID_USUARIO` int(11) NOT NULL,
+  `ID_SUCURSAL` int(11) NOT NULL,
+  `ID_FACTURA` int(11) DEFAULT NULL,
+  `TIPO_MOVIMIENTO` enum('INGRESO','EGRESO') NOT NULL,
+  `METODO_PAGO` enum('EFECTIVO','TRANSFERENCIA','TARJETA') NOT NULL,
+  `MONTO` decimal(10,2) NOT NULL,
+  `CONCEPTO` varchar(100) NOT NULL,
+  `FECHA_HORA` datetime DEFAULT CURRENT_TIMESTAMP,
+  `CODIGO_MOVIMIENTO` varchar(50) DEFAULT NULL,
+  `ORIGEN_MOVIMIENTO` varchar(50) DEFAULT 'MOVIMIENTOS CAJA',
+  `TIPO_EGRESO` varchar(100) DEFAULT NULL,
+  `ESTADO_APROBACION` varchar(20) DEFAULT 'POR_APROBAR',
+  `MOTIVO_RECHAZO` text
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+--
+-- Volcado de datos para la tabla `movimiento_caja`
+--
+
+INSERT INTO `movimiento_caja` (`ID_MOVIMIENTO`, `ID_USUARIO`, `ID_SUCURSAL`, `ID_FACTURA`, `TIPO_MOVIMIENTO`, `METODO_PAGO`, `MONTO`, `CONCEPTO`, `FECHA_HORA`, `CODIGO_MOVIMIENTO`, `ORIGEN_MOVIMIENTO`, `TIPO_EGRESO`, `ESTADO_APROBACION`, `MOTIVO_RECHAZO`) VALUES
+(1, 1, 1, 1, 'INGRESO', 'EFECTIVO', '110.00', 'Recepción Envío de Valores', '2026-10-02 04:59:10', NULL, 'MOVIMIENTOS CAJA', NULL, 'POR_APROBAR', NULL),
+(2, 1, 1, 3, 'INGRESO', 'EFECTIVO', '420.00', 'Venta/Reserva de 3 Pasajes', '2026-10-02 05:37:37', NULL, 'MOVIMIENTOS CAJA', NULL, 'POR_APROBAR', NULL),
+(3, 5, 1, 4, 'INGRESO', 'EFECTIVO', '300.00', 'Recepción Encomienda', '2026-10-03 11:47:02', NULL, 'MOVIMIENTOS CAJA', NULL, 'POR_APROBAR', NULL),
+(4, 5, 1, 5, 'INGRESO', 'EFECTIVO', '120.00', 'Venta/Reserva de 2 Pasajes', '2026-10-03 11:58:56', NULL, 'MOVIMIENTOS CAJA', NULL, 'POR_APROBAR', NULL),
+(5, 5, 1, 6, 'INGRESO', 'EFECTIVO', '53.20', 'Recepción Encomienda', '2026-10-03 12:55:22', NULL, 'MOVIMIENTOS CAJA', NULL, 'POR_APROBAR', NULL),
+(6, 3, 1, NULL, 'EGRESO', 'EFECTIVO', '12.00', 'ALMUERZOS', '2026-10-05 12:57:15', NULL, 'MOVIMIENTOS CAJA', NULL, 'APROBADO', NULL),
+(7, 1, 1, 7, 'INGRESO', 'EFECTIVO', '30.00', 'Recepción Encomienda', '2026-10-05 17:02:50', NULL, 'MOVIMIENTOS CAJA', NULL, 'POR_APROBAR', NULL),
+(8, 1, 1, 8, 'INGRESO', 'EFECTIVO', '30.00', 'Recepción Encomienda', '2026-10-05 17:12:26', NULL, 'MOVIMIENTOS CAJA', NULL, 'POR_APROBAR', NULL),
+(9, 3, 1, 9, 'INGRESO', 'EFECTIVO', '193.00', 'Recepción Encomienda', '2026-10-06 15:09:01', NULL, 'MOVIMIENTOS CAJA', NULL, 'POR_APROBAR', NULL),
+(10, 3, 1, 10, 'INGRESO', 'EFECTIVO', '200.00', 'Venta/Reserva Pasaje', '2026-10-06 15:29:53', NULL, 'MOVIMIENTOS CAJA', NULL, 'POR_APROBAR', NULL),
+(11, 3, 1, 11, 'INGRESO', 'EFECTIVO', '129.50', 'Recepción Encomienda', '2026-10-06 15:50:40', NULL, 'MOVIMIENTOS CAJA', NULL, 'POR_APROBAR', NULL),
+(12, 3, 1, 12, 'INGRESO', 'EFECTIVO', '200.00', 'Venta/Reserva Pasaje', '2026-10-06 15:54:39', NULL, 'MOVIMIENTOS CAJA', NULL, 'POR_APROBAR', NULL),
+(13, 3, 1, 13, 'INGRESO', 'EFECTIVO', '140.00', 'Venta/Reserva Pasaje', '2026-10-06 16:07:22', NULL, 'MOVIMIENTOS CAJA', NULL, 'POR_APROBAR', NULL),
+(14, 3, 1, 14, 'INGRESO', 'EFECTIVO', '200.00', 'Venta/Reserva Pasaje', '2026-10-06 16:11:26', NULL, 'MOVIMIENTOS CAJA', NULL, 'POR_APROBAR', NULL),
+(15, 3, 1, 15, 'INGRESO', 'EFECTIVO', '2573.88', 'Recepción Encomienda', '2026-10-06 16:21:17', NULL, 'MOVIMIENTOS CAJA', NULL, 'POR_APROBAR', NULL),
+(16, 3, 1, 16, 'INGRESO', 'EFECTIVO', '37.10', 'Recepción Encomienda', '2026-10-05 16:25:21', NULL, 'MOVIMIENTOS CAJA', NULL, 'POR_APROBAR', NULL),
+(17, 3, 1, 17, 'INGRESO', 'EFECTIVO', '35.00', 'Recepción Encomienda', '2026-10-05 16:30:09', NULL, 'MOVIMIENTOS CAJA', NULL, 'POR_APROBAR', NULL),
+(18, 3, 1, 18, 'INGRESO', 'EFECTIVO', '58.80', 'Recepción Encomienda', '2026-10-05 16:34:50', NULL, 'MOVIMIENTOS CAJA', NULL, 'POR_APROBAR', NULL),
+(19, 3, 1, 19, 'INGRESO', 'EFECTIVO', '55.00', 'Recepción Encomienda', '2026-10-05 16:40:21', NULL, 'MOVIMIENTOS CAJA', NULL, 'POR_APROBAR', NULL),
+(20, 3, 1, 20, 'INGRESO', 'EFECTIVO', '81.00', 'Recepción Encomienda', '2026-10-05 16:46:06', NULL, 'MOVIMIENTOS CAJA', NULL, 'POR_APROBAR', NULL),
+(21, 3, 1, 21, 'INGRESO', 'EFECTIVO', '74.20', 'Recepción Encomienda', '2026-10-08 13:10:47', NULL, 'MOVIMIENTOS CAJA', NULL, 'POR_APROBAR', NULL),
+(22, 3, 1, 22, 'INGRESO', 'EFECTIVO', '60.00', 'Recepción Encomienda', '2026-10-08 14:11:13', NULL, 'MOVIMIENTOS CAJA', NULL, 'POR_APROBAR', NULL),
+(23, 1, 1, 23, 'INGRESO', 'EFECTIVO', '50.00', 'Cobro Sobrepeso Equipaje', '2026-10-08 14:42:34', NULL, 'MOVIMIENTOS CAJA', NULL, 'POR_APROBAR', NULL),
+(24, 3, 1, 24, 'INGRESO', 'EFECTIVO', '220.00', 'Recepción Envío de Valores', '2026-10-10 09:53:42', NULL, 'MOVIMIENTOS CAJA', NULL, 'POR_APROBAR', NULL),
+(25, 3, 1, 25, 'INGRESO', 'EFECTIVO', '60.00', 'Venta/Reserva Pasaje', '2026-10-10 11:08:47', NULL, 'MOVIMIENTOS CAJA', NULL, 'POR_APROBAR', NULL),
+(26, 3, 1, 26, 'INGRESO', 'EFECTIVO', '72.10', 'Recepción Encomienda', '2026-10-10 12:21:23', NULL, 'MOVIMIENTOS CAJA', NULL, 'POR_APROBAR', NULL),
+(28, 3, 1, NULL, 'EGRESO', 'EFECTIVO', '13.00', 'JC', '2026-10-10 02:21:04', NULL, 'MOVIMIENTOS CAJA', NULL, 'APROBADO', NULL),
+(29, 3, 1, NULL, 'EGRESO', 'EFECTIVO', '20.00', 'Cuenta JC por pago parcial', '2026-10-10 02:22:15', NULL, 'MOVIMIENTOS CAJA', NULL, 'APROBADO', NULL),
+(30, 3, 1, NULL, 'EGRESO', 'EFECTIVO', '16.00', 'Almuerzos', '2026-10-10 02:22:32', NULL, 'MOVIMIENTOS CAJA', NULL, 'APROBADO', NULL),
+(31, 3, 1, NULL, 'EGRESO', 'EFECTIVO', '50.00', 'Sueldo Eduardo Solórzano', '2026-10-10 02:24:53', NULL, 'MOVIMIENTOS CAJA', NULL, 'APROBADO', NULL),
+(32, 3, 1, NULL, 'EGRESO', 'EFECTIVO', '31.00', 'JC', '2026-10-10 02:25:23', NULL, 'MOVIMIENTOS CAJA', NULL, 'APROBADO', NULL),
+(33, 3, 1, NULL, 'EGRESO', 'EFECTIVO', '250.00', 'Servicios Cúcuta-San Cristóbal 21 pasajeros', '2026-10-10 02:28:08', NULL, 'MOVIMIENTOS CAJA', NULL, 'APROBADO', NULL),
+(34, 3, 1, NULL, 'EGRESO', 'EFECTIVO', '110.00', 'Pasaje Cúcuta-Manta Panamericana', '2026-10-10 02:29:29', NULL, 'MOVIMIENTOS CAJA', NULL, 'APROBADO', NULL),
+(35, 3, 1, 27, 'INGRESO', 'EFECTIVO', '20.00', 'Recepción Encomienda', '2026-10-12 12:26:15', NULL, 'MOVIMIENTOS CAJA', NULL, 'POR_APROBAR', NULL),
+(36, 3, 1, 28, 'INGRESO', 'EFECTIVO', '60.00', 'Venta/Reserva Pasaje', '2026-10-12 15:56:01', NULL, 'MOVIMIENTOS CAJA', NULL, 'POR_APROBAR', NULL),
+(37, 3, 1, 29, 'INGRESO', 'EFECTIVO', '60.00', 'Venta/Reserva Pasaje', '2026-10-12 15:59:05', NULL, 'MOVIMIENTOS CAJA', NULL, 'POR_APROBAR', NULL),
+(38, 3, 1, 30, 'INGRESO', 'EFECTIVO', '140.00', 'Venta/Reserva Pasaje', '2026-10-12 16:16:50', NULL, 'MOVIMIENTOS CAJA', NULL, 'POR_APROBAR', NULL),
+(39, 3, 1, 31, 'INGRESO', 'EFECTIVO', '140.00', 'Venta/Reserva Pasaje', '2026-10-12 16:18:34', NULL, 'MOVIMIENTOS CAJA', NULL, 'POR_APROBAR', NULL),
+(40, 3, 1, 32, 'INGRESO', 'EFECTIVO', '140.00', 'Venta/Reserva Pasaje', '2026-10-10 12:09:57', NULL, 'MOVIMIENTOS CAJA', NULL, 'POR_APROBAR', NULL),
+(41, 3, 1, 1, 'EGRESO', 'EFECTIVO', '100.00', 'Entrega de Valores a Destinatario', '2026-10-15 09:11:32', NULL, 'MOVIMIENTOS CAJA', NULL, 'APROBADO', NULL),
+(42, 3, 1, 33, 'INGRESO', 'EFECTIVO', '58.80', 'Recepción Encomienda', '2026-10-15 10:14:15', NULL, 'MOVIMIENTOS CAJA', NULL, 'POR_APROBAR', NULL),
+(43, 3, 1, 34, 'INGRESO', 'EFECTIVO', '35.00', 'Recepción Encomienda', '2026-10-15 12:00:20', NULL, 'MOVIMIENTOS CAJA', NULL, 'POR_APROBAR', NULL),
+(45, 3, 1, 36, 'INGRESO', 'EFECTIVO', '65.80', 'Recepción Encomienda', '2026-10-15 14:55:29', NULL, 'MOVIMIENTOS CAJA', NULL, 'POR_APROBAR', NULL),
+(46, 3, 1, 37, 'INGRESO', 'EFECTIVO', '55.00', 'Recepción Encomienda', '2026-10-15 15:23:42', NULL, 'MOVIMIENTOS CAJA', NULL, 'POR_APROBAR', NULL),
+(47, 3, 1, 38, 'INGRESO', 'EFECTIVO', '40.00', 'Cobro Sobrepeso Tramo Manta ➔ Cúcuta (Panamericana)', '2026-10-15 16:25:42', NULL, 'MOVIMIENTOS CAJA', NULL, 'POR_APROBAR', NULL),
+(48, 3, 1, NULL, 'EGRESO', 'EFECTIVO', '10.00', 'JC', '2026-10-15 16:39:04', NULL, 'MOVIMIENTOS CAJA', NULL, 'APROBADO', NULL),
+(49, 3, 1, 39, 'INGRESO', 'EFECTIVO', '60.00', 'Venta/Reserva Pasaje', '2026-10-16 12:46:44', NULL, 'MOVIMIENTOS CAJA', NULL, 'POR_APROBAR', NULL),
+(50, 3, 1, 40, 'INGRESO', 'EFECTIVO', '140.00', 'Venta/Reserva Pasaje', '2026-10-16 13:04:30', NULL, 'MOVIMIENTOS CAJA', NULL, 'POR_APROBAR', NULL),
+(51, 7, 3, 41, 'INGRESO', 'EFECTIVO', '127.20', 'Recepción Encomienda', '2026-10-16 15:20:27', NULL, 'MOVIMIENTOS CAJA', NULL, 'POR_APROBAR', NULL),
+(52, 7, 3, 42, 'INGRESO', 'EFECTIVO', '41.65', 'Recepción Encomienda', '2026-10-16 15:27:29', NULL, 'MOVIMIENTOS CAJA', NULL, 'POR_APROBAR', NULL),
+(53, 1, 3, 41, 'EGRESO', 'EFECTIVO', '127.20', 'Anulación de Encomienda aprobada por Admin (Reembolso)', '2026-10-16 15:29:57', NULL, 'MOVIMIENTOS CAJA', NULL, 'APROBADO', NULL),
+(54, 7, 3, 43, 'INGRESO', 'EFECTIVO', '127.20', 'Recepción Encomienda', '2026-10-16 15:34:00', NULL, 'MOVIMIENTOS CAJA', NULL, 'POR_APROBAR', NULL),
+(55, 7, 3, 44, 'INGRESO', 'EFECTIVO', '42.00', 'Recepción Encomienda', '2026-10-16 15:36:40', NULL, 'MOVIMIENTOS CAJA', NULL, 'POR_APROBAR', NULL),
+(56, 7, 3, 45, 'INGRESO', 'EFECTIVO', '36.05', 'Recepción Encomienda', '2026-10-16 15:41:59', NULL, 'MOVIMIENTOS CAJA', NULL, 'POR_APROBAR', NULL),
+(57, 7, 3, 46, 'INGRESO', 'EFECTIVO', '119.35', 'Recepción Encomienda', '2026-10-16 15:49:45', NULL, 'MOVIMIENTOS CAJA', NULL, 'POR_APROBAR', NULL),
+(58, 7, 3, 47, 'INGRESO', 'EFECTIVO', '381.60', 'Recepción Encomienda', '2026-10-16 16:20:54', NULL, 'MOVIMIENTOS CAJA', NULL, 'POR_APROBAR', NULL),
+(59, 3, 1, 48, 'INGRESO', 'EFECTIVO', '499.80', 'Recepción Encomienda', '2026-10-19 19:03:38', NULL, 'MOVIMIENTOS CAJA', NULL, 'POR_APROBAR', NULL),
+(60, 3, 1, 49, 'INGRESO', 'EFECTIVO', '197.40', 'Recepción Encomienda', '2026-10-20 11:34:20', NULL, 'MOVIMIENTOS CAJA', NULL, 'POR_APROBAR', NULL),
+(61, 3, 1, 50, 'INGRESO', 'EFECTIVO', '185.00', 'Venta/Reserva Pasaje', '2026-10-21 16:08:35', NULL, 'MOVIMIENTOS CAJA', NULL, 'POR_APROBAR', NULL),
+(62, 3, 1, 51, 'INGRESO', 'EFECTIVO', '200.00', 'Venta/Reserva Pasaje', '2026-10-21 16:52:22', NULL, 'MOVIMIENTOS CAJA', NULL, 'POR_APROBAR', NULL),
+(63, 3, 1, 52, 'INGRESO', 'EFECTIVO', '200.00', 'Venta/Reserva Pasaje', '2026-10-21 16:55:29', NULL, 'MOVIMIENTOS CAJA', NULL, 'POR_APROBAR', NULL),
+(64, 3, 1, 53, 'INGRESO', 'EFECTIVO', '53.90', 'Recepción Encomienda', '2026-10-22 09:01:07', NULL, 'MOVIMIENTOS CAJA', NULL, 'POR_APROBAR', NULL),
+(65, 3, 1, 55, 'INGRESO', 'EFECTIVO', '35.00', 'Recepción Encomienda', '2026-10-22 10:50:18', NULL, 'MOVIMIENTOS CAJA', NULL, 'POR_APROBAR', NULL),
+(66, 3, 1, 56, 'INGRESO', 'EFECTIVO', '62.30', 'Recepción Encomienda', '2026-10-22 11:26:48', NULL, 'MOVIMIENTOS CAJA', NULL, 'POR_APROBAR', NULL),
+(67, 3, 1, 57, 'INGRESO', 'EFECTIVO', '30.03', 'Recepción Encomienda', '2026-10-22 16:27:53', NULL, 'MOVIMIENTOS CAJA', NULL, 'POR_APROBAR', NULL),
+(68, 3, 1, 58, 'INGRESO', 'EFECTIVO', '133.00', 'Recepción Encomienda', '2026-10-22 16:46:01', NULL, 'MOVIMIENTOS CAJA', NULL, 'POR_APROBAR', NULL),
+(69, 3, 1, 59, 'INGRESO', 'EFECTIVO', '30.00', 'Recepción Encomienda', '2026-10-22 17:09:15', NULL, 'MOVIMIENTOS CAJA', NULL, 'POR_APROBAR', NULL),
+(70, 3, 1, 60, 'INGRESO', 'EFECTIVO', '66.50', 'Recepción Encomienda', '2026-10-23 12:03:24', NULL, 'MOVIMIENTOS CAJA', NULL, 'POR_APROBAR', NULL),
+(71, 3, 1, 61, 'INGRESO', 'EFECTIVO', '95.00', 'Recepción Encomienda', '2026-10-23 16:32:57', NULL, 'MOVIMIENTOS CAJA', NULL, 'POR_APROBAR', NULL),
+(72, 3, 1, 62, 'INGRESO', 'EFECTIVO', '35.00', 'Recepción Encomienda', '2026-10-24 12:23:24', NULL, 'MOVIMIENTOS CAJA', NULL, 'POR_APROBAR', NULL),
+(73, 3, 1, 63, 'INGRESO', 'EFECTIVO', '285.60', 'Recepción Encomienda', '2026-10-25 13:18:22', NULL, 'MOVIMIENTOS CAJA', NULL, 'POR_APROBAR', NULL),
+(74, 3, 1, 63, 'EGRESO', 'EFECTIVO', '285.60', 'Anulación de Encomienda (Reembolso)', '2026-10-26 08:57:02', NULL, 'MOVIMIENTOS CAJA', NULL, 'POR_APROBAR', NULL),
+(75, 3, 1, 64, 'INGRESO', 'EFECTIVO', '238.00', 'Recepción Encomienda', '2026-10-26 09:01:22', NULL, 'MOVIMIENTOS CAJA', NULL, 'POR_APROBAR', NULL),
+(76, 3, 1, 64, 'EGRESO', 'EFECTIVO', '238.00', 'Anulación de Encomienda (Reembolso)', '2026-10-26 09:17:01', NULL, 'MOVIMIENTOS CAJA', NULL, 'POR_APROBAR', NULL),
+(77, 3, 1, 65, 'INGRESO', 'EFECTIVO', '238.00', 'Recepción Encomienda', '2026-10-26 09:21:32', NULL, 'MOVIMIENTOS CAJA', NULL, 'POR_APROBAR', NULL),
+(78, 3, 1, 66, 'INGRESO', 'EFECTIVO', '60.00', 'Venta/Reserva Pasaje', '2026-10-26 13:44:39', NULL, 'MOVIMIENTOS CAJA', NULL, 'POR_APROBAR', NULL),
+(79, 3, 1, 67, 'INGRESO', 'EFECTIVO', '100.00', 'Venta/Reserva Pasaje', '2026-10-26 14:43:14', NULL, 'MOVIMIENTOS CAJA', NULL, 'POR_APROBAR', NULL),
+(80, 3, 1, 68, 'INGRESO', 'EFECTIVO', '70.00', 'Recepción Encomienda', '2026-10-26 15:21:19', NULL, 'MOVIMIENTOS CAJA', NULL, 'POR_APROBAR', NULL),
+(81, 3, 1, 69, 'INGRESO', 'EFECTIVO', '56.40', 'Recepción Encomienda', '2026-10-26 15:53:55', NULL, 'MOVIMIENTOS CAJA', NULL, 'POR_APROBAR', NULL);
+
+-- --------------------------------------------------------
+
+--
+-- Estructura de tabla para la tabla `operador`
+--
+
+CREATE TABLE `operador` (
+  `ID_OPERADOR` int(11) NOT NULL,
+  `NOMBRE_COMERCIAL` varchar(150) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `RAZON_SOCIAL` varchar(200) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `TIPO_OPERADOR` enum('PROPIO','SOCIO_AFILIADO','EMPRESA_ALIADA') CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT 'SOCIO_AFILIADO',
+  `IDENTIFICACION` varchar(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL COMMENT 'RUC, Cédula o NIT',
+  `TELEFONO` varchar(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `CORREO` varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `BANCO` varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `TIPO_CUENTA` enum('CORRIENTE','AHORROS','OTRO') CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT 'CORRIENTE',
+  `NUMERO_CUENTA` varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `TITULAR_CUENTA` varchar(150) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `TITULAR_DOC` varchar(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `ESTADO` enum('ACTIVO','INACTIVO') CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT 'ACTIVO',
+  `OBSERVACIONES` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci,
+  `CREATED_AT` datetime DEFAULT CURRENT_TIMESTAMP,
+  `UPDATED_AT` datetime DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+--
+-- Volcado de datos para la tabla `operador`
+--
+
+INSERT INTO `operador` (`ID_OPERADOR`, `NOMBRE_COMERCIAL`, `RAZON_SOCIAL`, `TIPO_OPERADOR`, `IDENTIFICACION`, `TELEFONO`, `CORREO`, `BANCO`, `TIPO_CUENTA`, `NUMERO_CUENTA`, `TITULAR_CUENTA`, `TITULAR_DOC`, `ESTADO`, `OBSERVACIONES`, `CREATED_AT`) VALUES
+(1, 'EXPRESOS SURAMERICA 2030', 'Expresos Suramérica 2030 Cía. Ltda.', 'EMPRESA_ALIADA', '1792030203001', '+593992032030', 'gerencia@suramerica2030.com', 'Banco Pichincha', 'CORRIENTE', '2100999999', 'Expresos Suramérica 2030', '1792030203001', 'ACTIVO', '', '2026-10-15 17:48:04'),
+(2, 'PANAMERICANA', 'Panamericana Internacional S.A.', 'EMPRESA_ALIADA', '1790012345001', '+57 310 987 6543', 'operaciones@panamericana.com', 'Banco Pichincha', 'CORRIENTE', '10056789012', 'Panamericana Internacional S.A.', '1790012345001', 'ACTIVO', '', '2026-10-15 17:48:04'),
+(3, 'EMPRESA LOCAL ECUADOR', 'EMPRESA LOCAL ECUADOR', 'EMPRESA_ALIADA', '000000000', '0000000000', 'hola@gmail.com', 'Banco Pichincha', 'CORRIENTE', '00000000', 'EMPRESA LOCAL ECUADOR', '0000000000', 'ACTIVO', '', '2026-10-20 02:38:52'),
+(4, 'EMPRESA LOCAL COLOMBIA', 'EMPRESA LOCAL COLOMBIA', 'EMPRESA_ALIADA', '000000000', '0000000000', 'hola@gmail.com', 'Banco Pichincha', 'CORRIENTE', '00000000', 'EMPRESA LOCAL COLOMBIA', '0000000000', 'ACTIVO', '', '2026-10-20 02:39:35');
+
+-- --------------------------------------------------------
+
+--
+-- Estructura de tabla para la tabla `pasaje`
+--
+
+CREATE TABLE `pasaje` (
+  `ID_PASAJE` int(11) NOT NULL,
+  `ID_FACTURA` int(11) NOT NULL,
+  `ID_CLIENTE` varchar(20) DEFAULT NULL,
+  `ID_BUS` int(11) DEFAULT NULL,
+  `PAX_ASIENTO` int(11) DEFAULT NULL,
+  `ESTADO` varchar(20) DEFAULT 'PAGADO',
+  `PRECIO_TOTAL` decimal(10,2) DEFAULT '0.00',
+  `SALDO` decimal(10,2) DEFAULT '0.00',
+  `PESO_MANO` decimal(10,2) DEFAULT '0.00',
+  `PESO_BODEGA` decimal(10,2) DEFAULT '0.00',
+  `EQUIPAJE_DETALLE` text,
+  `CODIGO_SOCIO` varchar(50) DEFAULT NULL,
+  `OBSERVACION` varchar(255) DEFAULT NULL,
+  `PAX_MENOR` varchar(15) DEFAULT NULL,
+  `PAX_PET` varchar(15) DEFAULT NULL,
+  `ID_FACTURA_SOBREPESO` int(11) DEFAULT NULL,
+  `ID_RUTA_TRAMO_SOBREPESO` int(11) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+--
+-- Volcado de datos para la tabla `pasaje`
+--
+
+INSERT INTO `pasaje` (`ID_PASAJE`, `ID_FACTURA`, `ID_CLIENTE`, `ID_BUS`, `PAX_ASIENTO`, `ESTADO`, `PRECIO_TOTAL`, `SALDO`, `PESO_MANO`, `PESO_BODEGA`, `EQUIPAJE_DETALLE`, `CODIGO_SOCIO`, `OBSERVACION`, `PAX_MENOR`, `PAX_PET`, `ID_FACTURA_SOBREPESO`, `ID_RUTA_TRAMO_SOBREPESO`) VALUES
+(1, 3, '1354024232', 2, 1, 'PAGADO', '140.00', '0.00', '0.00', '0.00', NULL, NULL, NULL, NULL, NULL, NULL, NULL),
+(2, 3, '1353278177', 2, 2, 'PAGADO', '140.00', '0.00', '0.00', '0.00', NULL, NULL, NULL, NULL, NULL, NULL, NULL),
+(3, 3, '965329006', 2, 3, 'PAGADO', '140.00', '0.00', '0.00', '0.00', NULL, NULL, NULL, NULL, NULL, NULL, NULL),
+(4, 5, '23641456', 2, NULL, 'PAGADO', '60.00', '0.00', '0.00', '0.00', NULL, NULL, NULL, NULL, NULL, NULL, NULL),
+(5, 5, '8454854', 2, NULL, 'PAGADO', '60.00', '0.00', '10.00', '66.00', NULL, NULL, NULL, NULL, NULL, NULL, NULL),
+(6, 10, '6891620', 2, NULL, 'PAGADO', '200.00', '0.00', '0.00', '0.00', NULL, NULL, NULL, NULL, NULL, NULL, NULL),
+(7, 12, '18056571', 2, NULL, 'PAGADO', '200.00', '0.00', '10.00', '66.90', '[{\"numero\":1,\"tipo\":\"Bolso\",\"ubicacion\":\"BODEGA\",\"peso\":32.6,\"descripcion\":\"COSAS PERSONALES\"},{\"numero\":2,\"tipo\":\"Maleta\",\"ubicacion\":\"BODEGA\",\"peso\":13.6,\"descripcion\":\"COSAS PERSONALES\"},{\"numero\":3,\"tipo\":\"Maleta\",\"ubicacion\":\"BODEGA\",\"peso\":20.7,\"descripcion\":\"COSAS PERSONALES\"}]', NULL, NULL, NULL, NULL, 38, 160),
+(8, 13, '34454453', 2, NULL, 'PAGADO', '140.00', '0.00', '0.00', '0.00', NULL, NULL, NULL, NULL, NULL, NULL, NULL),
+(9, 14, '28135380', 2, NULL, 'PAGADO', '200.00', '0.00', '0.00', '0.00', NULL, NULL, NULL, NULL, NULL, NULL, NULL),
+(10, 25, '20677624', 2, NULL, 'PAGADO', '60.00', '0.00', '0.00', '0.00', NULL, NULL, NULL, NULL, NULL, NULL, NULL),
+(11, 28, '0963298484', 2, NULL, 'PAGADO', '60.00', '0.00', '0.00', '0.00', NULL, NULL, NULL, NULL, NULL, NULL, NULL),
+(12, 29, '0962498192', 2, NULL, 'PAGADO', '60.00', '0.00', '0.00', '0.00', NULL, NULL, NULL, NULL, NULL, NULL, NULL),
+(13, 30, '0963298484', 2, NULL, 'PAGADO', '140.00', '0.00', '0.00', '0.00', NULL, NULL, NULL, NULL, NULL, NULL, NULL),
+(14, 31, '0962498192', 2, NULL, 'PAGADO', '140.00', '0.00', '0.00', '0.00', NULL, NULL, NULL, NULL, NULL, NULL, NULL),
+(15, 32, '20677624', 2, NULL, 'PAGADO', '140.00', '0.00', '0.00', '0.00', NULL, NULL, NULL, NULL, NULL, NULL, NULL),
+(16, 39, '0963472162', 2, NULL, 'PAGADO', '60.00', '0.00', '0.00', '0.00', NULL, NULL, NULL, NULL, NULL, NULL, NULL),
+(17, 40, '0963472162', 2, NULL, 'PAGADO', '140.00', '0.00', '10.00', '6.90', '[{\"numero\":1,\"tag\":\"EQP-000017-1\",\"codigo\":\"EQP-000017-1\",\"tipo\":\"Maleta\",\"ubicacion\":\"BODEGA\",\"peso\":6.9,\"descripcion\":\"COSAS PERSONALES\"}]', '1982', NULL, NULL, NULL, NULL, NULL),
+(18, 50, '27483040', 2, NULL, 'PAGADO', '185.00', '0.00', '0.00', '0.00', NULL, NULL, NULL, NULL, NULL, NULL, NULL),
+(19, 51, '1354256420', NULL, NULL, 'PAGADO', '200.00', '0.00', '0.00', '0.00', NULL, NULL, NULL, NULL, NULL, NULL, NULL),
+(20, 52, '1354119388', NULL, NULL, 'PAGADO', '200.00', '0.00', '0.00', '0.00', NULL, NULL, NULL, NULL, NULL, NULL, NULL),
+(21, 66, '9415809', 2, NULL, 'PAGADO', '60.00', '0.00', '0.00', '0.00', NULL, NULL, NULL, NULL, NULL, NULL, NULL),
+(22, 67, '13583776', 2, NULL, 'PAGADO', '100.00', '0.00', '0.00', '0.00', NULL, NULL, NULL, NULL, NULL, NULL, NULL);
+
+-- --------------------------------------------------------
+
+--
+-- Estructura de tabla para la tabla `pasaje_tramo`
+--
+
+CREATE TABLE `pasaje_tramo` (
+  `ID_PASAJE_TRAMO` int(11) NOT NULL,
+  `ID_PASAJE` int(11) NOT NULL,
+  `ID_RUTA_TRAMO` int(11) NOT NULL,
+  `FECHA_TRAMO` date DEFAULT NULL,
+  `ID_BUS` int(11) DEFAULT NULL,
+  `PAX_ASIENTO` int(11) DEFAULT NULL,
+  `ESTADO_TRAMO` varchar(50) DEFAULT 'PENDIENTE'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+--
+-- Volcado de datos para la tabla `pasaje_tramo`
+--
+
+INSERT INTO `pasaje_tramo` (`ID_PASAJE_TRAMO`, `ID_PASAJE`, `ID_RUTA_TRAMO`, `FECHA_TRAMO`, `ID_BUS`, `PAX_ASIENTO`, `ESTADO_TRAMO`) VALUES
+(18, 18, 266, '2026-10-23', 2, NULL, 'PENDIENTE'),
+(19, 18, 267, NULL, NULL, NULL, 'PENDIENTE'),
+(20, 18, 268, NULL, NULL, NULL, 'PENDIENTE'),
+(21, 19, 286, '2026-10-26', NULL, NULL, 'PENDIENTE'),
+(22, 19, 287, NULL, NULL, NULL, 'PENDIENTE'),
+(23, 20, 286, '2026-10-26', NULL, NULL, 'PENDIENTE'),
+(24, 20, 287, NULL, NULL, NULL, 'PENDIENTE'),
+(25, 21, 158, '2026-10-30', 2, NULL, 'PENDIENTE'),
+(26, 21, 159, NULL, NULL, NULL, 'PENDIENTE'),
+(27, 22, 269, '2026-12-08', 2, NULL, 'PENDIENTE'),
+(28, 22, 270, NULL, NULL, NULL, 'PENDIENTE');
+
+-- --------------------------------------------------------
+
+--
+-- Estructura de tabla para la tabla `rol`
+--
+
+CREATE TABLE `rol` (
+  `ID_ROL` int(11) NOT NULL,
+  `NOMBRE_ROL` varchar(20) NOT NULL,
+  `P_VENTA` tinyint(1) DEFAULT '0',
+  `P_ANULAR` tinyint(1) DEFAULT '0',
+  `P_CAJA` tinyint(1) DEFAULT '0',
+  `P_FLOTA` tinyint(1) DEFAULT '0',
+  `P_USUARIOS` tinyint(1) DEFAULT '0',
+  `P_DESPACHO` tinyint(1) DEFAULT '0',
+  `P_LLEGADA` tinyint(1) DEFAULT '0',
+  `P_EDITAR_PRECIOS` tinyint(1) DEFAULT '0'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+--
+-- Volcado de datos para la tabla `rol`
+--
+
+INSERT INTO `rol` (`ID_ROL`, `NOMBRE_ROL`, `P_VENTA`, `P_ANULAR`, `P_CAJA`, `P_FLOTA`, `P_USUARIOS`, `P_DESPACHO`, `P_LLEGADA`, `P_EDITAR_PRECIOS`) VALUES
+(1, 'Admin', 1, 1, 1, 1, 1, 1, 1, 1),
+(2, 'Colaborador', 1, 0, 1, 0, 0, 0, 0, 1),
+(3, 'Sustituto', 1, 0, 0, 0, 0, 0, 0, 0),
+(4, 'Colaborador Especial', 1, 1, 1, 0, 0, 1, 1, 1);
+
+-- --------------------------------------------------------
+
+--
+-- Estructura de tabla para la tabla `ruta`
+--
+
+CREATE TABLE `ruta` (
+  `ID_RUTA` int(11) NOT NULL,
+  `ID_CORREDOR` int(11) DEFAULT NULL,
+  `ID_OPERADOR` int(11) DEFAULT NULL,
+  `RUT_ORIGEN` varchar(50) NOT NULL,
+  `RUT_DESTINO` varchar(50) NOT NULL,
+  `TIPO_VIAJE` varchar(20) DEFAULT 'DIRECTO',
+  `DIAS_SALIDA` varchar(50) DEFAULT NULL,
+  `RUT_SAHORA` time DEFAULT NULL,
+  `PRECIO_PASAJE` decimal(10,2) DEFAULT '0.00',
+  `PRECIO_ENCOMIENDA_KG` decimal(10,2) DEFAULT '0.00',
+  `PRECIO_SOBRE` decimal(10,2) DEFAULT '5.00',
+  `PRECIO_VOLUMEN` decimal(10,2) DEFAULT '0.00',
+  `LIMITE_EQUIPAJE_KG` decimal(10,2) DEFAULT '35.00',
+  `PRECIO_SOBREPESO_KG` decimal(10,2) DEFAULT '1.00',
+  `COMISION_VALOR` decimal(5,2) DEFAULT '10.00',
+  `TIPO_UTILIDAD` varchar(15) DEFAULT 'PORCENTAJE',
+  `UTILIDAD_PASAJE` decimal(10,2) DEFAULT '100.00',
+  `UTILIDAD_ENCOMIENDA` decimal(10,2) DEFAULT '100.00',
+  `UTILIDAD_VALORES` decimal(10,2) DEFAULT '100.00',
+  `ESTADO` varchar(20) DEFAULT 'ACTIVO',
+  `MODALIDAD` varchar(60) DEFAULT 'ESTANDAR',
+  `ADMITE_SOBREPESO` tinyint(1) DEFAULT '1'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+--
+-- Volcado de datos para la tabla `ruta`
+--
+
+INSERT INTO `ruta` (`ID_RUTA`, `ID_CORREDOR`, `ID_OPERADOR`, `RUT_ORIGEN`, `RUT_DESTINO`, `TIPO_VIAJE`, `DIAS_SALIDA`, `RUT_SAHORA`, `PRECIO_PASAJE`, `PRECIO_ENCOMIENDA_KG`, `PRECIO_SOBRE`, `PRECIO_VOLUMEN`, `LIMITE_EQUIPAJE_KG`, `PRECIO_SOBREPESO_KG`, `COMISION_VALOR`, `TIPO_UTILIDAD`, `UTILIDAD_PASAJE`, `UTILIDAD_ENCOMIENDA`, `UTILIDAD_VALORES`, `ESTADO`, `MODALIDAD`, `ADMITE_SOBREPESO`) VALUES
+(1, 1, 2, 'Manta', 'Caracas', 'CONEXION', '2,5', '10:00:00', '200.00', '7.00', '5.00', '0.00', '35.00', '2.00', '10.00', 'FIJO', '15.00', '100.00', '100.00', 'ACTIVO', 'PANAMERICANA', 1),
+(2, 1, 2, 'Quito', 'Caracas', 'CONEXION', '2,5', '10:00:00', '190.00', '7.00', '5.00', '0.00', '35.00', '1.00', '10.00', 'PORCENTAJE', '100.00', '100.00', '100.00', 'ACTIVO', 'ESTANDAR', 1),
+(5, 1, 1, 'Manta', 'Caracas', 'CONEXION', '2,5', '10:00:00', '200.00', '7.00', '5.00', '0.00', '35.00', '1.00', '10.00', 'PORCENTAJE', '100.00', '100.00', '100.00', 'ACTIVO', 'CONEXION_TRAMOS', 1),
+(6, 1, 3, 'Manta', 'Portoviejo', 'DIRECTO', '2,5', '10:00:00', '12.00', '2.00', '5.00', '0.00', '35.00', '1.00', '10.00', 'PORCENTAJE', '100.00', '100.00', '100.00', 'INACTIVO', 'ESTANDAR', 1),
+(7, 1, 3, 'Manta', 'Guayaquil', 'DIRECTO', '2,5', '10:00:00', '24.00', '2.00', '5.00', '0.00', '35.00', '1.00', '10.00', 'PORCENTAJE', '100.00', '100.00', '100.00', 'INACTIVO', 'ESTANDAR', 1),
+(8, 1, 3, 'Manta', 'Quito', 'DIRECTO', '2,5', '10:00:00', '36.00', '2.00', '5.00', '0.00', '35.00', '1.00', '10.00', 'PORCENTAJE', '100.00', '100.00', '100.00', 'INACTIVO', 'ESTANDAR', 1),
+(9, 1, 3, 'Manta', 'Tulcán', 'DIRECTO', '2,5', '10:00:00', '48.00', '2.00', '5.00', '0.00', '35.00', '1.00', '10.00', 'PORCENTAJE', '100.00', '100.00', '100.00', 'INACTIVO', 'ESTANDAR', 1),
+(10, 1, 1, 'Manta', 'Ipiales', 'CONEXION', '2,5', '10:00:00', '120.00', '5.00', '5.00', '0.00', '35.00', '1.00', '10.00', 'PORCENTAJE', '100.00', '100.00', '100.00', 'ACTIVO', 'CONEXION_TRAMOS', 1),
+(11, 1, 1, 'Manta', 'Cúcuta', 'CONEXION', '2,5', '10:00:00', '140.00', '7.00', '5.00', '0.00', '35.00', '1.00', '10.00', 'PORCENTAJE', '100.00', '100.00', '100.00', 'ACTIVO', 'CONEXION_TRAMOS', 1),
+(12, 1, 1, 'Manta', 'San Cristóbal', 'CONEXION', '2,5', '10:00:00', '190.00', '7.00', '5.00', '0.00', '35.00', '1.00', '10.00', 'PORCENTAJE', '100.00', '100.00', '100.00', 'ACTIVO', 'ESTANDAR', 1),
+(13, 1, 1, 'Manta', 'Maracay', 'CONEXION', '2,5', '10:00:00', '200.00', '7.00', '5.00', '0.00', '35.00', '1.00', '10.00', 'PORCENTAJE', '100.00', '100.00', '100.00', 'ACTIVO', 'CONEXION_TRAMOS', 1),
+(14, 1, 1, 'Portoviejo', 'Guayaquil', 'DIRECTO', '2,5', '10:00:00', '12.00', '2.00', '5.00', '0.00', '35.00', '1.00', '10.00', 'PORCENTAJE', '100.00', '100.00', '100.00', 'ACTIVO', 'ESTANDAR', 1),
+(15, 1, 1, 'Portoviejo', 'Quito', 'DIRECTO', '2,5', '10:00:00', '24.00', '2.00', '5.00', '0.00', '35.00', '1.00', '10.00', 'PORCENTAJE', '100.00', '100.00', '100.00', 'ACTIVO', 'ESTANDAR', 1),
+(16, 1, 1, 'Portoviejo', 'Tulcán', 'DIRECTO', '2,5', '10:00:00', '36.00', '2.00', '5.00', '0.00', '35.00', '1.00', '10.00', 'PORCENTAJE', '100.00', '100.00', '100.00', 'ACTIVO', 'ESTANDAR', 1),
+(17, 1, 1, 'Portoviejo', 'Ipiales', 'CONEXION', '2,5', '10:00:00', '120.00', '5.00', '5.00', '0.00', '35.00', '1.00', '10.00', 'PORCENTAJE', '100.00', '100.00', '100.00', 'ACTIVO', 'ESTANDAR', 1),
+(18, 1, 2, 'Portoviejo', 'Cúcuta', 'CONEXION', '2,5', '10:00:00', '120.00', '5.00', '5.00', '0.00', '35.00', '1.00', '10.00', 'PORCENTAJE', '100.00', '100.00', '100.00', 'ACTIVO', 'ESTANDAR', 1),
+(19, 1, 1, 'Portoviejo', 'San Cristóbal', 'CONEXION', '2,5', '10:00:00', '190.00', '7.00', '5.00', '0.00', '35.00', '1.00', '10.00', 'PORCENTAJE', '100.00', '100.00', '100.00', 'ACTIVO', 'ESTANDAR', 1),
+(20, 1, 1, 'Portoviejo', 'Maracay', 'CONEXION', '2,5', '10:00:00', '190.00', '7.00', '5.00', '0.00', '35.00', '1.00', '10.00', 'PORCENTAJE', '100.00', '100.00', '100.00', 'ACTIVO', 'ESTANDAR', 1),
+(21, 1, 2, 'Portoviejo', 'Caracas', 'CONEXION', '2,5', '10:00:00', '190.00', '7.00', '5.00', '0.00', '35.00', '1.00', '10.00', 'PORCENTAJE', '100.00', '100.00', '100.00', 'ACTIVO', 'ESTANDAR', 1),
+(22, 1, 1, 'Guayaquil', 'Quito', 'DIRECTO', '2,5', '10:00:00', '12.00', '2.00', '5.00', '0.00', '35.00', '1.00', '10.00', 'PORCENTAJE', '100.00', '100.00', '100.00', 'ACTIVO', 'ESTANDAR', 1),
+(23, 1, 1, 'Guayaquil', 'Tulcán', 'DIRECTO', '2,5', '10:00:00', '24.00', '2.00', '5.00', '0.00', '35.00', '1.00', '10.00', 'PORCENTAJE', '100.00', '100.00', '100.00', 'ACTIVO', 'ESTANDAR', 1),
+(24, 1, 1, 'Guayaquil', 'Ipiales', 'CONEXION', '2,5', '10:00:00', '120.00', '5.00', '5.00', '0.00', '35.00', '1.00', '10.00', 'PORCENTAJE', '100.00', '100.00', '100.00', 'ACTIVO', 'ESTANDAR', 1),
+(25, 1, 2, 'Guayaquil', 'Cúcuta', 'CONEXION', '2,5', '10:00:00', '120.00', '5.00', '5.00', '0.00', '35.00', '1.00', '10.00', 'PORCENTAJE', '100.00', '100.00', '100.00', 'ACTIVO', 'ESTANDAR', 1),
+(26, 1, 1, 'Guayaquil', 'San Cristóbal', 'CONEXION', '2,5', '10:00:00', '190.00', '7.00', '5.00', '0.00', '35.00', '1.00', '10.00', 'PORCENTAJE', '100.00', '100.00', '100.00', 'ACTIVO', 'ESTANDAR', 1),
+(27, 1, 1, 'Guayaquil', 'Maracay', 'CONEXION', '2,5', '10:00:00', '190.00', '7.00', '5.00', '0.00', '35.00', '1.00', '10.00', 'PORCENTAJE', '100.00', '100.00', '100.00', 'ACTIVO', 'ESTANDAR', 1),
+(28, 1, 2, 'Guayaquil', 'Caracas', 'CONEXION', '2,5', '10:00:00', '190.00', '7.00', '5.00', '0.00', '35.00', '1.00', '10.00', 'PORCENTAJE', '100.00', '100.00', '100.00', 'ACTIVO', 'ESTANDAR', 1),
+(29, 1, 1, 'Quito', 'Tulcán', 'DIRECTO', '2,5', '10:00:00', '12.00', '2.00', '5.00', '0.00', '35.00', '1.00', '10.00', 'PORCENTAJE', '100.00', '100.00', '100.00', 'ACTIVO', 'ESTANDAR', 1),
+(30, 1, 1, 'Quito', 'Ipiales', 'CONEXION', '2,5', '10:00:00', '120.00', '5.00', '5.00', '0.00', '35.00', '1.00', '10.00', 'PORCENTAJE', '100.00', '100.00', '100.00', 'ACTIVO', 'ESTANDAR', 1),
+(31, 1, 2, 'Quito', 'Cúcuta', 'CONEXION', '2,5', '10:00:00', '120.00', '5.00', '5.00', '0.00', '35.00', '1.00', '10.00', 'PORCENTAJE', '100.00', '100.00', '100.00', 'ACTIVO', 'ESTANDAR', 1),
+(32, 1, 1, 'Quito', 'San Cristóbal', 'CONEXION', '2,5', '10:00:00', '190.00', '7.00', '5.00', '0.00', '35.00', '1.00', '10.00', 'PORCENTAJE', '100.00', '100.00', '100.00', 'ACTIVO', 'ESTANDAR', 1),
+(33, 1, 1, 'Quito', 'Maracay', 'CONEXION', '2,5', '10:00:00', '190.00', '7.00', '5.00', '0.00', '35.00', '1.00', '10.00', 'PORCENTAJE', '100.00', '100.00', '100.00', 'ACTIVO', 'ESTANDAR', 1),
+(34, 1, 1, 'Tulcán', 'Ipiales', 'CONEXION', '2,5', '10:00:00', '120.00', '5.00', '5.00', '0.00', '35.00', '1.00', '10.00', 'PORCENTAJE', '100.00', '100.00', '100.00', 'ACTIVO', 'ESTANDAR', 1),
+(35, 1, 2, 'Tulcán', 'Cúcuta', 'CONEXION', '2,5', '10:00:00', '120.00', '5.00', '5.00', '0.00', '35.00', '1.00', '10.00', 'PORCENTAJE', '100.00', '100.00', '100.00', 'ACTIVO', 'ESTANDAR', 1),
+(36, 1, 1, 'Tulcán', 'San Cristóbal', 'CONEXION', '2,5', '10:00:00', '190.00', '7.00', '5.00', '0.00', '35.00', '1.00', '10.00', 'PORCENTAJE', '100.00', '100.00', '100.00', 'ACTIVO', 'ESTANDAR', 1),
+(37, 1, 1, 'Tulcán', 'Maracay', 'CONEXION', '2,5', '10:00:00', '190.00', '7.00', '5.00', '0.00', '35.00', '1.00', '10.00', 'PORCENTAJE', '100.00', '100.00', '100.00', 'ACTIVO', 'ESTANDAR', 1),
+(38, 1, 2, 'Tulcán', 'Caracas', 'CONEXION', '2,5', '10:00:00', '190.00', '7.00', '5.00', '0.00', '35.00', '1.00', '10.00', 'PORCENTAJE', '100.00', '100.00', '100.00', 'ACTIVO', 'ESTANDAR', 1),
+(39, 1, 1, 'Ipiales', 'Cúcuta', 'DIRECTO', '2,5', '10:00:00', '12.00', '2.00', '5.00', '0.00', '35.00', '1.00', '10.00', 'PORCENTAJE', '100.00', '100.00', '100.00', 'ACTIVO', 'ESTANDAR', 1),
+(40, 1, 1, 'Ipiales', 'San Cristóbal', 'CONEXION', '2,5', '10:00:00', '60.00', '5.00', '5.00', '0.00', '35.00', '1.00', '10.00', 'PORCENTAJE', '100.00', '100.00', '100.00', 'ACTIVO', 'ESTANDAR', 1),
+(41, 1, 1, 'Ipiales', 'Maracay', 'CONEXION', '2,5', '10:00:00', '60.00', '5.00', '5.00', '0.00', '35.00', '1.00', '10.00', 'PORCENTAJE', '100.00', '100.00', '100.00', 'ACTIVO', 'ESTANDAR', 1),
+(42, 1, 2, 'Ipiales', 'Caracas', 'CONEXION', '2,5', '10:00:00', '60.00', '5.00', '5.00', '0.00', '35.00', '1.00', '10.00', 'PORCENTAJE', '100.00', '100.00', '100.00', 'ACTIVO', 'ESTANDAR', 1),
+(43, 1, 1, 'Cúcuta', 'San Cristóbal', 'CONEXION', '2,5', '10:00:00', '60.00', '5.00', '5.00', '0.00', '35.00', '1.00', '10.00', 'PORCENTAJE', '100.00', '100.00', '100.00', 'ACTIVO', 'ESTANDAR', 1),
+(44, 1, 1, 'Cúcuta', 'Maracay', 'CONEXION', '2,5', '10:00:00', '60.00', '5.00', '5.00', '0.00', '35.00', '1.00', '10.00', 'PORCENTAJE', '100.00', '100.00', '100.00', 'ACTIVO', 'ESTANDAR', 1),
+(45, 1, 2, 'Cúcuta', 'Caracas', 'CONEXION', '2,5', '10:00:00', '60.00', '5.00', '5.00', '0.00', '35.00', '1.50', '10.00', 'FIJO', '5.00', '100.00', '100.00', 'ACTIVO', 'ESTANDAR', 1),
+(46, 1, 1, 'San Cristóbal', 'Maracay', 'DIRECTO', '2,5', '10:00:00', '12.00', '2.00', '5.00', '0.00', '35.00', '1.00', '10.00', 'PORCENTAJE', '100.00', '100.00', '100.00', 'ACTIVO', 'ESTANDAR', 1),
+(47, 1, 1, 'San Cristóbal', 'Caracas', 'DIRECTO', '2,5', '10:00:00', '24.00', '2.00', '5.00', '0.00', '35.00', '1.00', '10.00', 'PORCENTAJE', '100.00', '100.00', '100.00', 'ACTIVO', 'ESTANDAR', 1),
+(48, 1, 1, 'Maracay', 'Caracas', 'DIRECTO', '2,5', '10:00:00', '12.00', '2.00', '5.00', '0.00', '35.00', '1.00', '10.00', 'PORCENTAJE', '100.00', '100.00', '100.00', 'ACTIVO', 'ESTANDAR', 1),
+(49, 3, 1, 'Caracas', 'Manta', 'CONEXION', '1,2,5,6', '10:00:00', '200.00', '8.00', '20.00', '0.00', '35.00', '1.00', '10.00', 'PORCENTAJE', '100.00', '100.00', '100.00', 'ACTIVO', 'ESTANDAR', 1),
+(50, 3, 1, 'Caracas', 'Valencia', 'DIRECTO', '1,2,5,6', '10:00:00', '24.00', '2.00', '20.00', '0.00', '35.00', '1.00', '10.00', 'PORCENTAJE', '100.00', '100.00', '100.00', 'ACTIVO', 'ESTANDAR', 1),
+(51, 3, 1, 'Caracas', 'Maracay', 'DIRECTO', '1,2,5,6', '10:00:00', '36.00', '2.00', '5.00', '0.00', '35.00', '1.00', '10.00', 'PORCENTAJE', '100.00', '100.00', '100.00', 'INACTIVO', 'ESTANDAR', 1),
+(52, 3, 1, 'Caracas', 'San Cristóbal', 'DIRECTO', '1,2,5,6', '10:00:00', '48.00', '2.00', '20.00', '0.00', '35.00', '1.00', '10.00', 'PORCENTAJE', '100.00', '100.00', '100.00', 'ACTIVO', 'ESTANDAR', 1),
+(53, 3, 1, 'Caracas', 'Cúcuta', 'DIRECTO', '1,2,5,6', '10:00:00', '60.00', '2.00', '20.00', '0.00', '35.00', '1.00', '10.00', 'PORCENTAJE', '100.00', '100.00', '100.00', 'ACTIVO', 'ESTANDAR', 1),
+(54, 3, 1, 'Caracas', 'Ipiales', 'CONEXION', '1,2,5,6', '10:00:00', '72.00', '2.00', '20.00', '0.00', '35.00', '1.00', '10.00', 'PORCENTAJE', '100.00', '100.00', '100.00', 'ACTIVO', 'ESTANDAR', 1),
+(55, 3, 1, 'Caracas', 'Tulcán', 'CONEXION', '1,2,5,6', '10:00:00', '84.00', '2.00', '20.00', '0.00', '35.00', '1.00', '10.00', 'PORCENTAJE', '100.00', '100.00', '100.00', 'ACTIVO', 'ESTANDAR', 1),
+(56, 3, 1, 'Caracas', 'Quito', 'CONEXION', '1,2,5,6', '10:00:00', '96.00', '2.00', '20.00', '0.00', '35.00', '1.00', '10.00', 'PORCENTAJE', '100.00', '100.00', '100.00', 'ACTIVO', 'ESTANDAR', 1),
+(57, 3, 1, 'Caracas', 'Guayaquil', 'CONEXION', '1,2,5,6', '10:00:00', '108.00', '2.00', '20.00', '0.00', '35.00', '1.00', '10.00', 'PORCENTAJE', '100.00', '100.00', '100.00', 'ACTIVO', 'ESTANDAR', 1),
+(58, 3, 1, 'Caracas', 'Portoviejo', 'CONEXION', '1,2,5,6', '10:00:00', '120.00', '2.00', '20.00', '0.00', '35.00', '1.00', '10.00', 'PORCENTAJE', '100.00', '100.00', '100.00', 'ACTIVO', 'ESTANDAR', 1),
+(68, 3, 1, 'Valencia', 'Maracay', 'DIRECTO', '1,2,5,6', '10:00:00', '12.00', '2.00', '20.00', '0.00', '35.00', '1.00', '10.00', 'PORCENTAJE', '100.00', '100.00', '100.00', 'ACTIVO', 'ESTANDAR', 1),
+(69, 3, 1, 'Valencia', 'San Cristóbal', 'DIRECTO', '1,2,5,6', '10:00:00', '24.00', '2.00', '20.00', '0.00', '35.00', '1.00', '10.00', 'PORCENTAJE', '100.00', '100.00', '100.00', 'ACTIVO', 'ESTANDAR', 1),
+(70, 3, 1, 'Valencia', 'Cúcuta', 'DIRECTO', '1,2,5,6', '10:00:00', '36.00', '2.00', '20.00', '0.00', '35.00', '1.00', '10.00', 'PORCENTAJE', '100.00', '100.00', '100.00', 'ACTIVO', 'ESTANDAR', 1),
+(71, 3, 1, 'Valencia', 'Ipiales', 'CONEXION', '1,2,5,6', '10:00:00', '48.00', '2.00', '20.00', '0.00', '35.00', '1.00', '10.00', 'PORCENTAJE', '100.00', '100.00', '100.00', 'ACTIVO', 'ESTANDAR', 1),
+(72, 3, 1, 'Valencia', 'Tulcán', 'CONEXION', '1,2,5,6', '10:00:00', '60.00', '2.00', '20.00', '0.00', '35.00', '1.00', '10.00', 'PORCENTAJE', '100.00', '100.00', '100.00', 'ACTIVO', 'ESTANDAR', 1),
+(73, 3, 1, 'Valencia', 'Quito', 'CONEXION', '1,2,5,6', '10:00:00', '72.00', '2.00', '20.00', '0.00', '35.00', '1.00', '10.00', 'PORCENTAJE', '100.00', '100.00', '100.00', 'ACTIVO', 'ESTANDAR', 1),
+(74, 3, 1, 'Valencia', 'Guayaquil', 'CONEXION', '1,2,5,6', '10:00:00', '84.00', '2.00', '20.00', '0.00', '35.00', '1.00', '10.00', 'PORCENTAJE', '100.00', '100.00', '100.00', 'ACTIVO', 'ESTANDAR', 1),
+(75, 3, 1, 'Valencia', 'Portoviejo', 'CONEXION', '1,2,5,6', '10:00:00', '96.00', '2.00', '20.00', '0.00', '35.00', '1.00', '10.00', 'PORCENTAJE', '100.00', '100.00', '100.00', 'ACTIVO', 'ESTANDAR', 1),
+(76, 3, 1, 'Maracay', 'San Cristóbal', 'DIRECTO', '1,2,5,6', '10:00:00', '12.00', '2.00', '20.00', '0.00', '35.00', '1.00', '10.00', 'PORCENTAJE', '100.00', '100.00', '100.00', 'ACTIVO', 'ESTANDAR', 1),
+(77, 3, 1, 'Maracay', 'Cúcuta', 'DIRECTO', '1,2,5,6', '10:00:00', '24.00', '2.00', '20.00', '0.00', '35.00', '1.00', '10.00', 'PORCENTAJE', '100.00', '100.00', '100.00', 'ACTIVO', 'ESTANDAR', 1),
+(78, 3, 1, 'Maracay', 'Ipiales', 'CONEXION', '1,2,5,6', '10:00:00', '36.00', '2.00', '20.00', '0.00', '35.00', '1.00', '10.00', 'PORCENTAJE', '100.00', '100.00', '100.00', 'ACTIVO', 'ESTANDAR', 1),
+(79, 3, 1, 'Maracay', 'Tulcán', 'CONEXION', '1,2,5,6', '10:00:00', '48.00', '2.00', '20.00', '0.00', '35.00', '1.00', '10.00', 'PORCENTAJE', '100.00', '100.00', '100.00', 'ACTIVO', 'ESTANDAR', 1),
+(80, 3, 1, 'Maracay', 'Quito', 'CONEXION', '1,2,5,6', '10:00:00', '60.00', '2.00', '20.00', '0.00', '35.00', '1.00', '10.00', 'PORCENTAJE', '100.00', '100.00', '100.00', 'ACTIVO', 'ESTANDAR', 1),
+(81, 3, 1, 'Maracay', 'Guayaquil', 'CONEXION', '1,2,5,6', '10:00:00', '72.00', '2.00', '20.00', '0.00', '35.00', '1.00', '10.00', 'PORCENTAJE', '100.00', '100.00', '100.00', 'ACTIVO', 'ESTANDAR', 1),
+(82, 3, 1, 'Maracay', 'Portoviejo', 'CONEXION', '1,2,5,6', '10:00:00', '84.00', '2.00', '20.00', '0.00', '35.00', '1.00', '10.00', 'PORCENTAJE', '100.00', '100.00', '100.00', 'ACTIVO', 'ESTANDAR', 1),
+(83, 3, 1, 'San Cristóbal', 'Cúcuta', 'DIRECTO', '1,2,5,6', '10:00:00', '12.00', '2.00', '20.00', '0.00', '35.00', '1.00', '10.00', 'PORCENTAJE', '100.00', '100.00', '100.00', 'ACTIVO', 'ESTANDAR', 1),
+(84, 3, 1, 'San Cristóbal', 'Ipiales', 'DIRECTO', '1,2,5,6', '10:00:00', '24.00', '2.00', '20.00', '0.00', '35.00', '1.00', '10.00', 'PORCENTAJE', '100.00', '100.00', '100.00', 'ACTIVO', 'ESTANDAR', 1),
+(85, 3, 1, 'San Cristóbal', 'Tulcán', 'DIRECTO', '1,2,5,6', '10:00:00', '36.00', '2.00', '20.00', '0.00', '35.00', '1.00', '10.00', 'PORCENTAJE', '100.00', '100.00', '100.00', 'ACTIVO', 'ESTANDAR', 1),
+(86, 3, 1, 'San Cristóbal', 'Quito', 'CONEXION', '1,2,5,6', '10:00:00', '48.00', '2.00', '20.00', '0.00', '35.00', '1.00', '10.00', 'PORCENTAJE', '100.00', '100.00', '100.00', 'ACTIVO', 'ESTANDAR', 1),
+(87, 3, 1, 'San Cristóbal', 'Guayaquil', 'CONEXION', '1,2,5,6', '10:00:00', '60.00', '2.00', '20.00', '0.00', '35.00', '1.00', '10.00', 'PORCENTAJE', '100.00', '100.00', '100.00', 'ACTIVO', 'ESTANDAR', 1),
+(88, 3, 1, 'San Cristóbal', 'Portoviejo', 'CONEXION', '1,2,5,6', '10:00:00', '72.00', '2.00', '20.00', '0.00', '35.00', '1.00', '10.00', 'PORCENTAJE', '100.00', '100.00', '100.00', 'ACTIVO', 'ESTANDAR', 1),
+(89, 3, 1, 'Cúcuta', 'Ipiales', 'DIRECTO', '1,2,5,6', '10:00:00', '12.00', '2.00', '20.00', '0.00', '35.00', '1.00', '10.00', 'PORCENTAJE', '100.00', '100.00', '100.00', 'ACTIVO', 'ESTANDAR', 1),
+(90, 3, 1, 'Cúcuta', 'Tulcán', 'DIRECTO', '1,2,5,6', '10:00:00', '24.00', '2.00', '20.00', '0.00', '35.00', '1.00', '10.00', 'PORCENTAJE', '100.00', '100.00', '100.00', 'ACTIVO', 'ESTANDAR', 1),
+(91, 3, 1, 'Cúcuta', 'Quito', 'CONEXION', '1,2,5,6', '10:00:00', '36.00', '2.00', '20.00', '0.00', '35.00', '1.00', '10.00', 'PORCENTAJE', '100.00', '100.00', '100.00', 'ACTIVO', 'ESTANDAR', 1),
+(92, 3, 1, 'Cúcuta', 'Guayaquil', 'CONEXION', '1,2,5,6', '10:00:00', '48.00', '2.00', '20.00', '0.00', '35.00', '1.00', '10.00', 'PORCENTAJE', '100.00', '100.00', '100.00', 'ACTIVO', 'ESTANDAR', 1),
+(93, 3, 1, 'Cúcuta', 'Portoviejo', 'CONEXION', '1,2,5,6', '10:00:00', '60.00', '2.00', '20.00', '0.00', '35.00', '1.00', '10.00', 'PORCENTAJE', '100.00', '100.00', '100.00', 'ACTIVO', 'ESTANDAR', 1),
+(94, 3, 1, 'Ipiales', 'Tulcán', 'DIRECTO', '1,2,5,6', '10:00:00', '12.00', '2.00', '20.00', '0.00', '35.00', '1.00', '10.00', 'PORCENTAJE', '100.00', '100.00', '100.00', 'ACTIVO', 'ESTANDAR', 1),
+(95, 3, 1, 'Ipiales', 'Quito', 'DIRECTO', '1,2,5,6', '10:00:00', '24.00', '2.00', '20.00', '0.00', '35.00', '1.00', '10.00', 'PORCENTAJE', '100.00', '100.00', '100.00', 'ACTIVO', 'ESTANDAR', 1),
+(96, 3, 1, 'Ipiales', 'Guayaquil', 'DIRECTO', '1,2,5,6', '10:00:00', '36.00', '2.00', '20.00', '0.00', '35.00', '1.00', '10.00', 'PORCENTAJE', '100.00', '100.00', '100.00', 'ACTIVO', 'ESTANDAR', 1),
+(97, 3, 1, 'Ipiales', 'Portoviejo', 'DIRECTO', '1,2,5,6', '10:00:00', '48.00', '2.00', '20.00', '0.00', '35.00', '1.00', '10.00', 'PORCENTAJE', '100.00', '100.00', '100.00', 'ACTIVO', 'ESTANDAR', 1),
+(98, 3, 1, 'Tulcán', 'Quito', 'DIRECTO', '1,2,5,6', '10:00:00', '12.00', '2.00', '20.00', '0.00', '35.00', '1.00', '10.00', 'PORCENTAJE', '100.00', '100.00', '100.00', 'ACTIVO', 'ESTANDAR', 1),
+(99, 3, 1, 'Tulcán', 'Guayaquil', 'DIRECTO', '1,2,5,6', '10:00:00', '24.00', '2.00', '20.00', '0.00', '35.00', '1.00', '10.00', 'PORCENTAJE', '100.00', '100.00', '100.00', 'ACTIVO', 'ESTANDAR', 1),
+(100, 3, 1, 'Tulcán', 'Portoviejo', 'DIRECTO', '1,2,5,6', '10:00:00', '36.00', '2.00', '20.00', '0.00', '35.00', '1.00', '10.00', 'PORCENTAJE', '100.00', '100.00', '100.00', 'ACTIVO', 'ESTANDAR', 1),
+(101, 3, 1, 'Quito', 'Guayaquil', 'DIRECTO', '1,2,5,6', '10:00:00', '12.00', '2.00', '20.00', '0.00', '35.00', '1.00', '10.00', 'PORCENTAJE', '100.00', '100.00', '100.00', 'ACTIVO', 'ESTANDAR', 1),
+(102, 3, 1, 'Quito', 'Portoviejo', 'DIRECTO', '1,2,5,6', '10:00:00', '24.00', '2.00', '20.00', '0.00', '35.00', '1.00', '10.00', 'PORCENTAJE', '100.00', '100.00', '100.00', 'ACTIVO', 'ESTANDAR', 1),
+(103, 3, 1, 'Guayaquil', 'Portoviejo', 'DIRECTO', '1,2,5,6', '10:00:00', '12.00', '2.00', '20.00', '0.00', '35.00', '1.00', '10.00', 'PORCENTAJE', '100.00', '100.00', '100.00', 'ACTIVO', 'ESTANDAR', 1),
+(105, 3, 1, 'Valencia', 'Manta', 'CONEXION', '1,2,5,6', '10:00:00', '108.00', '2.00', '20.00', '0.00', '35.00', '1.00', '10.00', 'PORCENTAJE', '100.00', '100.00', '100.00', 'ACTIVO', 'ESTANDAR', 1),
+(106, 3, 1, 'Maracay', 'Manta', 'CONEXION', '1,2,5,6', '10:00:00', '200.00', '7.00', '5.00', '0.00', '35.00', '1.50', '10.00', 'FIJO', '35.00', '100.00', '100.00', 'ACTIVO', 'CONEXION_TRAMOS', 1),
+(107, 3, 1, 'San Cristóbal', 'Manta', 'CONEXION', '1,2,5,6', '10:00:00', '84.00', '2.00', '20.00', '0.00', '35.00', '1.00', '10.00', 'PORCENTAJE', '100.00', '100.00', '100.00', 'ACTIVO', 'ESTANDAR', 1),
+(108, 3, 2, 'Cúcuta', 'Manta', 'DIRECTO', '1,2,5,6', '17:00:00', '140.00', '7.00', '5.00', '0.00', '35.00', '1.50', '10.00', 'FIJO', '30.00', '100.00', '100.00', 'ACTIVO', 'PANAMERICANA', 1),
+(109, 3, 1, 'Ipiales', 'Manta', 'DIRECTO', '1,2,5,6', '10:00:00', '60.00', '2.00', '20.00', '0.00', '35.00', '1.00', '10.00', 'PORCENTAJE', '100.00', '100.00', '100.00', 'ACTIVO', 'ESTANDAR', 1),
+(110, 3, 1, 'Tulcán', 'Manta', 'DIRECTO', '1,2,5,6', '10:00:00', '48.00', '2.00', '20.00', '0.00', '35.00', '1.00', '10.00', 'PORCENTAJE', '100.00', '100.00', '100.00', 'ACTIVO', 'ESTANDAR', 1),
+(111, 3, 1, 'Quito', 'Manta', 'DIRECTO', '1,2,5,6', '10:00:00', '36.00', '2.00', '20.00', '0.00', '35.00', '1.00', '10.00', 'PORCENTAJE', '100.00', '100.00', '100.00', 'ACTIVO', 'ESTANDAR', 1),
+(112, 3, 1, 'Guayaquil', 'Manta', 'DIRECTO', '1,2,5,6', '10:00:00', '24.00', '2.00', '20.00', '0.00', '35.00', '1.00', '10.00', 'PORCENTAJE', '100.00', '100.00', '100.00', 'ACTIVO', 'ESTANDAR', 1),
+(113, 3, 1, 'Portoviejo', 'Manta', 'DIRECTO', '1,2,5,6', '10:00:00', '12.00', '2.00', '20.00', '0.00', '35.00', '1.00', '10.00', 'PORCENTAJE', '100.00', '100.00', '100.00', 'ACTIVO', 'ESTANDAR', 1),
+(114, 1, 2, 'Manta', 'Cúcuta', 'DIRECTO', '2,5', '10:00:00', '140.00', '7.00', '5.00', '0.00', '35.00', '1.50', '10.00', 'FIJO', '10.00', '100.00', '100.00', 'ACTIVO', 'PANAMERICANA', 1),
+(115, 3, 1, 'Cúcuta', 'Manta', 'CONEXION', '1,2,3,4,5,6,7', '19:00:00', '140.00', '7.00', '5.00', '0.00', '35.00', '1.50', '10.00', 'FIJO', '20.00', '100.00', '100.00', 'ACTIVO', 'CONEXION_TRAMOS', 1),
+(126, 1, NULL, 'Manta', 'Valencia', 'CONEXION', '2,5', '10:00:00', '190.00', '7.00', '20.00', '0.00', '35.00', '1.50', '10.00', 'PORCENTAJE', '100.00', '100.00', '100.00', 'ACTIVO', 'ESTANDAR', 1),
+(127, 1, NULL, 'Portoviejo', 'Valencia', 'CONEXION', '2,5', '10:00:00', '190.00', '7.00', '20.00', '0.00', '35.00', '1.50', '10.00', 'PORCENTAJE', '100.00', '100.00', '100.00', 'ACTIVO', 'ESTANDAR', 1),
+(128, 1, NULL, 'Guayaquil', 'Valencia', 'CONEXION', '2,5', '10:00:00', '190.00', '7.00', '20.00', '0.00', '35.00', '1.50', '10.00', 'PORCENTAJE', '100.00', '100.00', '100.00', 'ACTIVO', 'ESTANDAR', 1),
+(129, 1, NULL, 'Quito', 'Valencia', 'CONEXION', '2,5', '10:00:00', '190.00', '7.00', '20.00', '0.00', '35.00', '1.50', '10.00', 'PORCENTAJE', '100.00', '100.00', '100.00', 'ACTIVO', 'ESTANDAR', 1),
+(130, 1, NULL, 'Tulcán', 'Valencia', 'CONEXION', '2,5', '10:00:00', '190.00', '7.00', '20.00', '0.00', '35.00', '1.50', '10.00', 'PORCENTAJE', '100.00', '100.00', '100.00', 'ACTIVO', 'ESTANDAR', 1),
+(131, 1, NULL, 'Ipiales', 'Valencia', 'CONEXION', '2,5', '10:00:00', '60.00', '5.00', '20.00', '0.00', '35.00', '1.50', '10.00', 'PORCENTAJE', '100.00', '100.00', '100.00', 'ACTIVO', 'ESTANDAR', 1),
+(132, 1, NULL, 'Cúcuta', 'Valencia', 'DIRECTO', '2,5', '10:00:00', '60.00', '5.00', '20.00', '0.00', '35.00', '1.50', '10.00', 'PORCENTAJE', '100.00', '100.00', '100.00', 'ACTIVO', 'ESTANDAR', 1),
+(133, 1, NULL, 'San Cristóbal', 'Valencia', 'DIRECTO', '2,5', '10:00:00', '12.00', '2.00', '20.00', '0.00', '35.00', '1.50', '10.00', 'PORCENTAJE', '100.00', '100.00', '100.00', 'ACTIVO', 'ESTANDAR', 1),
+(134, 1, NULL, 'Valencia', 'Maracay', 'DIRECTO', '2,5', '10:00:00', '12.00', '2.00', '20.00', '0.00', '35.00', '1.50', '10.00', 'PORCENTAJE', '100.00', '100.00', '100.00', 'ACTIVO', 'ESTANDAR', 1),
+(135, 1, NULL, 'Valencia', 'Caracas', 'DIRECTO', '2,5', '10:00:00', '24.00', '2.00', '20.00', '0.00', '35.00', '1.50', '10.00', 'PORCENTAJE', '100.00', '100.00', '100.00', 'ACTIVO', 'ESTANDAR', 1),
+(136, 3, 2, 'Maracay', 'Manta', 'CONEXION', '', '10:00:00', '200.00', '7.00', '5.00', '0.00', '35.00', '1.50', '10.00', 'FIJO', '45.00', '100.00', '100.00', 'ACTIVO', 'PANAMERICANA', 1);
+
+-- --------------------------------------------------------
+
+--
+-- Estructura de tabla para la tabla `ruta_tramo`
+--
+
+CREATE TABLE `ruta_tramo` (
+  `ID_RUTA_TRAMO` int(11) NOT NULL,
+  `ID_RUTA` int(11) NOT NULL,
+  `ID_OPERADOR` int(11) DEFAULT NULL,
+  `ORDEN` int(11) NOT NULL,
+  `ORIGEN_TRAMO` varchar(100) DEFAULT NULL,
+  `DESTINO_TRAMO` varchar(100) DEFAULT NULL,
+  `OPERADOR` varchar(60) DEFAULT 'Propio',
+  `PVP_TRAMO` decimal(10,2) DEFAULT '0.00',
+  `COSTO_OPERADOR` decimal(10,2) DEFAULT '0.00',
+  `UTILIDAD_AGENCIA` decimal(10,2) DEFAULT '0.00',
+  `ADMITE_SOBREPESO` tinyint(1) DEFAULT '0',
+  `LIMITE_EQUIPAJE_KG` decimal(10,2) DEFAULT '35.00',
+  `PRECIO_SOBREPESO_KG` decimal(10,2) DEFAULT '1.00',
+  `COSTO_SOBREPESO_KG` decimal(10,2) DEFAULT '0.00',
+  `UTILIDAD_SOBREPESO_KG` decimal(10,2) DEFAULT '0.00'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+--
+-- Volcado de datos para la tabla `ruta_tramo`
+--
+
+INSERT INTO `ruta_tramo` (`ID_RUTA_TRAMO`, `ID_RUTA`, `ID_OPERADOR`, `ORDEN`, `ORIGEN_TRAMO`, `DESTINO_TRAMO`, `OPERADOR`, `PVP_TRAMO`, `COSTO_OPERADOR`, `UTILIDAD_AGENCIA`, `ADMITE_SOBREPESO`, `LIMITE_EQUIPAJE_KG`, `PRECIO_SOBREPESO_KG`, `COSTO_SOBREPESO_KG`, `UTILIDAD_SOBREPESO_KG`) VALUES
+(8, 12, 1, 1, 'Manta', 'Tulcán', 'EXPRESOS SURAMERICA 2030', '0.00', '0.00', '0.00', 0, '35.00', '1.00', '0.00', '0.00'),
+(9, 12, 1, 2, 'Ipiales', 'Cúcuta', 'EXPRESOS SURAMERICA 2030', '0.00', '0.00', '0.00', 0, '35.00', '1.00', '0.00', '0.00'),
+(10, 12, 1, 3, 'San Cristóbal', 'San Cristóbal', 'EXPRESOS SURAMERICA 2030', '0.00', '0.00', '0.00', 0, '35.00', '1.00', '0.00', '0.00'),
+(17, 17, 1, 1, 'Portoviejo', 'Tulcán', 'EXPRESOS SURAMERICA 2030', '0.00', '0.00', '0.00', 0, '35.00', '1.00', '0.00', '0.00'),
+(18, 17, 1, 2, 'Ipiales', 'Ipiales', 'EXPRESOS SURAMERICA 2030', '0.00', '0.00', '0.00', 0, '35.00', '1.00', '0.00', '0.00'),
+(19, 18, 1, 1, 'Portoviejo', 'Tulcán', 'EXPRESOS SURAMERICA 2030', '0.00', '0.00', '0.00', 0, '35.00', '1.00', '0.00', '0.00'),
+(20, 18, 1, 2, 'Ipiales', 'Cúcuta', 'EXPRESOS SURAMERICA 2030', '0.00', '0.00', '0.00', 0, '35.00', '1.00', '0.00', '0.00'),
+(21, 19, 1, 1, 'Portoviejo', 'Tulcán', 'EXPRESOS SURAMERICA 2030', '0.00', '0.00', '0.00', 0, '35.00', '1.00', '0.00', '0.00'),
+(22, 19, 1, 2, 'Ipiales', 'Cúcuta', 'EXPRESOS SURAMERICA 2030', '0.00', '0.00', '0.00', 0, '35.00', '1.00', '0.00', '0.00'),
+(23, 19, 1, 3, 'San Cristóbal', 'San Cristóbal', 'EXPRESOS SURAMERICA 2030', '0.00', '0.00', '0.00', 0, '35.00', '1.00', '0.00', '0.00'),
+(24, 20, 1, 1, 'Portoviejo', 'Tulcán', 'EXPRESOS SURAMERICA 2030', '0.00', '0.00', '0.00', 0, '35.00', '1.00', '0.00', '0.00'),
+(25, 20, 1, 2, 'Ipiales', 'Cúcuta', 'EXPRESOS SURAMERICA 2030', '0.00', '0.00', '0.00', 0, '35.00', '1.00', '0.00', '0.00'),
+(26, 20, 1, 3, 'San Cristóbal', 'Maracay', 'EXPRESOS SURAMERICA 2030', '0.00', '0.00', '0.00', 0, '35.00', '1.00', '0.00', '0.00'),
+(27, 21, 1, 1, 'Portoviejo', 'Tulcán', 'EXPRESOS SURAMERICA 2030', '0.00', '0.00', '0.00', 0, '35.00', '1.00', '0.00', '0.00'),
+(28, 21, 1, 2, 'Ipiales', 'Cúcuta', 'EXPRESOS SURAMERICA 2030', '0.00', '0.00', '0.00', 0, '35.00', '1.00', '0.00', '0.00'),
+(29, 21, 1, 3, 'San Cristóbal', 'Caracas', 'EXPRESOS SURAMERICA 2030', '0.00', '0.00', '0.00', 0, '35.00', '1.00', '0.00', '0.00'),
+(30, 24, 1, 1, 'Guayaquil', 'Tulcán', 'EXPRESOS SURAMERICA 2030', '0.00', '0.00', '0.00', 0, '35.00', '1.00', '0.00', '0.00'),
+(31, 24, 1, 2, 'Ipiales', 'Ipiales', 'EXPRESOS SURAMERICA 2030', '0.00', '0.00', '0.00', 0, '35.00', '1.00', '0.00', '0.00'),
+(32, 25, 1, 1, 'Guayaquil', 'Tulcán', 'EXPRESOS SURAMERICA 2030', '0.00', '0.00', '0.00', 0, '35.00', '1.00', '0.00', '0.00'),
+(33, 25, 1, 2, 'Ipiales', 'Cúcuta', 'EXPRESOS SURAMERICA 2030', '0.00', '0.00', '0.00', 0, '35.00', '1.00', '0.00', '0.00'),
+(34, 26, 1, 1, 'Guayaquil', 'Tulcán', 'EXPRESOS SURAMERICA 2030', '0.00', '0.00', '0.00', 0, '35.00', '1.00', '0.00', '0.00'),
+(35, 26, 1, 2, 'Ipiales', 'Cúcuta', 'EXPRESOS SURAMERICA 2030', '0.00', '0.00', '0.00', 0, '35.00', '1.00', '0.00', '0.00'),
+(36, 26, 1, 3, 'San Cristóbal', 'San Cristóbal', 'EXPRESOS SURAMERICA 2030', '0.00', '0.00', '0.00', 0, '35.00', '1.00', '0.00', '0.00'),
+(37, 27, 1, 1, 'Guayaquil', 'Tulcán', 'EXPRESOS SURAMERICA 2030', '0.00', '0.00', '0.00', 0, '35.00', '1.00', '0.00', '0.00'),
+(38, 27, 1, 2, 'Ipiales', 'Cúcuta', 'EXPRESOS SURAMERICA 2030', '0.00', '0.00', '0.00', 0, '35.00', '1.00', '0.00', '0.00'),
+(39, 27, 1, 3, 'San Cristóbal', 'Maracay', 'EXPRESOS SURAMERICA 2030', '0.00', '0.00', '0.00', 0, '35.00', '1.00', '0.00', '0.00'),
+(40, 28, 1, 1, 'Guayaquil', 'Tulcán', 'EXPRESOS SURAMERICA 2030', '0.00', '0.00', '0.00', 0, '35.00', '1.00', '0.00', '0.00'),
+(41, 28, 1, 2, 'Ipiales', 'Cúcuta', 'EXPRESOS SURAMERICA 2030', '0.00', '0.00', '0.00', 0, '35.00', '1.00', '0.00', '0.00'),
+(42, 28, 1, 3, 'San Cristóbal', 'Caracas', 'EXPRESOS SURAMERICA 2030', '0.00', '0.00', '0.00', 0, '35.00', '1.00', '0.00', '0.00'),
+(43, 30, 1, 1, 'Quito', 'Tulcán', 'EXPRESOS SURAMERICA 2030', '0.00', '0.00', '0.00', 0, '35.00', '1.00', '0.00', '0.00'),
+(44, 30, 1, 2, 'Ipiales', 'Ipiales', 'EXPRESOS SURAMERICA 2030', '0.00', '0.00', '0.00', 0, '35.00', '1.00', '0.00', '0.00'),
+(45, 31, 1, 1, 'Quito', 'Tulcán', 'EXPRESOS SURAMERICA 2030', '0.00', '0.00', '0.00', 0, '35.00', '1.00', '0.00', '0.00'),
+(46, 31, 1, 2, 'Ipiales', 'Cúcuta', 'EXPRESOS SURAMERICA 2030', '0.00', '0.00', '0.00', 0, '35.00', '1.00', '0.00', '0.00'),
+(47, 32, 1, 1, 'Quito', 'Tulcán', 'EXPRESOS SURAMERICA 2030', '0.00', '0.00', '0.00', 0, '35.00', '1.00', '0.00', '0.00'),
+(48, 32, 1, 2, 'Ipiales', 'Cúcuta', 'EXPRESOS SURAMERICA 2030', '0.00', '0.00', '0.00', 0, '35.00', '1.00', '0.00', '0.00'),
+(49, 32, 1, 3, 'San Cristóbal', 'San Cristóbal', 'EXPRESOS SURAMERICA 2030', '0.00', '0.00', '0.00', 0, '35.00', '1.00', '0.00', '0.00'),
+(50, 33, 1, 1, 'Quito', 'Tulcán', 'EXPRESOS SURAMERICA 2030', '0.00', '0.00', '0.00', 0, '35.00', '1.00', '0.00', '0.00'),
+(51, 33, 1, 2, 'Ipiales', 'Cúcuta', 'EXPRESOS SURAMERICA 2030', '0.00', '0.00', '0.00', 0, '35.00', '1.00', '0.00', '0.00'),
+(52, 33, 1, 3, 'San Cristóbal', 'Maracay', 'EXPRESOS SURAMERICA 2030', '0.00', '0.00', '0.00', 0, '35.00', '1.00', '0.00', '0.00'),
+(53, 2, 1, 1, 'Quito', 'Tulcán', 'EXPRESOS SURAMERICA 2030', '0.00', '0.00', '0.00', 0, '35.00', '1.00', '0.00', '0.00'),
+(54, 2, 1, 2, 'Ipiales', 'Cúcuta', 'EXPRESOS SURAMERICA 2030', '0.00', '0.00', '0.00', 0, '35.00', '1.00', '0.00', '0.00'),
+(55, 2, 1, 3, 'San Cristóbal', 'Caracas', 'EXPRESOS SURAMERICA 2030', '0.00', '0.00', '0.00', 0, '35.00', '1.00', '0.00', '0.00'),
+(56, 34, 1, 1, 'Tulcán', 'Tulcán', 'EXPRESOS SURAMERICA 2030', '0.00', '0.00', '0.00', 0, '35.00', '1.00', '0.00', '0.00'),
+(57, 34, 1, 2, 'Ipiales', 'Ipiales', 'EXPRESOS SURAMERICA 2030', '0.00', '0.00', '0.00', 0, '35.00', '1.00', '0.00', '0.00'),
+(58, 35, 1, 1, 'Tulcán', 'Tulcán', 'EXPRESOS SURAMERICA 2030', '0.00', '0.00', '0.00', 0, '35.00', '1.00', '0.00', '0.00'),
+(59, 35, 1, 2, 'Ipiales', 'Cúcuta', 'EXPRESOS SURAMERICA 2030', '0.00', '0.00', '0.00', 0, '35.00', '1.00', '0.00', '0.00'),
+(60, 36, 1, 1, 'Tulcán', 'Tulcán', 'EXPRESOS SURAMERICA 2030', '0.00', '0.00', '0.00', 0, '35.00', '1.00', '0.00', '0.00'),
+(61, 36, 1, 2, 'Ipiales', 'Cúcuta', 'EXPRESOS SURAMERICA 2030', '0.00', '0.00', '0.00', 0, '35.00', '1.00', '0.00', '0.00'),
+(62, 36, 1, 3, 'San Cristóbal', 'San Cristóbal', 'EXPRESOS SURAMERICA 2030', '0.00', '0.00', '0.00', 0, '35.00', '1.00', '0.00', '0.00'),
+(63, 37, 1, 1, 'Tulcán', 'Tulcán', 'EXPRESOS SURAMERICA 2030', '0.00', '0.00', '0.00', 0, '35.00', '1.00', '0.00', '0.00'),
+(64, 37, 1, 2, 'Ipiales', 'Cúcuta', 'EXPRESOS SURAMERICA 2030', '0.00', '0.00', '0.00', 0, '35.00', '1.00', '0.00', '0.00'),
+(65, 37, 1, 3, 'San Cristóbal', 'Maracay', 'EXPRESOS SURAMERICA 2030', '0.00', '0.00', '0.00', 0, '35.00', '1.00', '0.00', '0.00'),
+(66, 38, 1, 1, 'Tulcán', 'Tulcán', 'EXPRESOS SURAMERICA 2030', '0.00', '0.00', '0.00', 0, '35.00', '1.00', '0.00', '0.00'),
+(67, 38, 1, 2, 'Ipiales', 'Cúcuta', 'EXPRESOS SURAMERICA 2030', '0.00', '0.00', '0.00', 0, '35.00', '1.00', '0.00', '0.00'),
+(68, 38, 1, 3, 'San Cristóbal', 'Caracas', 'EXPRESOS SURAMERICA 2030', '0.00', '0.00', '0.00', 0, '35.00', '1.00', '0.00', '0.00'),
+(69, 40, 1, 1, 'Ipiales', 'Cúcuta', 'EXPRESOS SURAMERICA 2030', '0.00', '0.00', '0.00', 0, '35.00', '1.00', '0.00', '0.00'),
+(70, 40, 1, 2, 'San Cristóbal', 'San Cristóbal', 'EXPRESOS SURAMERICA 2030', '0.00', '0.00', '0.00', 0, '35.00', '1.00', '0.00', '0.00'),
+(71, 41, 1, 1, 'Ipiales', 'Cúcuta', 'EXPRESOS SURAMERICA 2030', '0.00', '0.00', '0.00', 0, '35.00', '1.00', '0.00', '0.00'),
+(72, 41, 1, 2, 'San Cristóbal', 'Maracay', 'EXPRESOS SURAMERICA 2030', '0.00', '0.00', '0.00', 0, '35.00', '1.00', '0.00', '0.00'),
+(73, 42, 1, 1, 'Ipiales', 'Cúcuta', 'EXPRESOS SURAMERICA 2030', '0.00', '0.00', '0.00', 0, '35.00', '1.00', '0.00', '0.00'),
+(74, 42, 1, 2, 'San Cristóbal', 'Caracas', 'EXPRESOS SURAMERICA 2030', '0.00', '0.00', '0.00', 0, '35.00', '1.00', '0.00', '0.00'),
+(75, 43, 1, 1, 'Cúcuta', 'Cúcuta', 'EXPRESOS SURAMERICA 2030', '0.00', '0.00', '0.00', 0, '35.00', '1.00', '0.00', '0.00'),
+(76, 43, 1, 2, 'San Cristóbal', 'San Cristóbal', 'EXPRESOS SURAMERICA 2030', '0.00', '0.00', '0.00', 0, '35.00', '1.00', '0.00', '0.00'),
+(77, 44, 1, 1, 'Cúcuta', 'Cúcuta', 'EXPRESOS SURAMERICA 2030', '0.00', '0.00', '0.00', 0, '35.00', '1.00', '0.00', '0.00'),
+(78, 44, 1, 2, 'San Cristóbal', 'Maracay', 'EXPRESOS SURAMERICA 2030', '0.00', '0.00', '0.00', 0, '35.00', '1.00', '0.00', '0.00'),
+(94, 54, 1, 1, 'Caracas', 'San Cristóbal', 'EXPRESOS SURAMERICA 2030', '0.00', '0.00', '0.00', 0, '35.00', '1.00', '0.00', '0.00'),
+(95, 54, 1, 2, 'Cúcuta', 'Ipiales', 'EXPRESOS SURAMERICA 2030', '0.00', '0.00', '0.00', 0, '35.00', '1.00', '0.00', '0.00'),
+(96, 55, 1, 1, 'Caracas', 'San Cristóbal', 'EXPRESOS SURAMERICA 2030', '0.00', '0.00', '0.00', 0, '35.00', '1.00', '0.00', '0.00'),
+(97, 55, 1, 2, 'Cúcuta', 'Ipiales', 'EXPRESOS SURAMERICA 2030', '0.00', '0.00', '0.00', 0, '35.00', '1.00', '0.00', '0.00'),
+(98, 56, 1, 1, 'Caracas', 'San Cristóbal', 'EXPRESOS SURAMERICA 2030', '0.00', '0.00', '0.00', 0, '35.00', '1.00', '0.00', '0.00'),
+(99, 56, 1, 2, 'Cúcuta', 'Ipiales', 'EXPRESOS SURAMERICA 2030', '0.00', '0.00', '0.00', 0, '35.00', '1.00', '0.00', '0.00'),
+(100, 56, 1, 3, 'Tulcán', 'Quito', 'EXPRESOS SURAMERICA 2030', '0.00', '0.00', '0.00', 0, '35.00', '1.00', '0.00', '0.00'),
+(101, 57, 1, 1, 'Caracas', 'San Cristóbal', 'EXPRESOS SURAMERICA 2030', '0.00', '0.00', '0.00', 0, '35.00', '1.00', '0.00', '0.00'),
+(102, 57, 1, 2, 'Cúcuta', 'Ipiales', 'EXPRESOS SURAMERICA 2030', '0.00', '0.00', '0.00', 0, '35.00', '1.00', '0.00', '0.00'),
+(103, 57, 1, 3, 'Tulcán', 'Guayaquil', 'EXPRESOS SURAMERICA 2030', '0.00', '0.00', '0.00', 0, '35.00', '1.00', '0.00', '0.00'),
+(104, 58, 1, 1, 'Caracas', 'San Cristóbal', 'EXPRESOS SURAMERICA 2030', '0.00', '0.00', '0.00', 0, '35.00', '1.00', '0.00', '0.00'),
+(105, 58, 1, 2, 'Cúcuta', 'Ipiales', 'EXPRESOS SURAMERICA 2030', '0.00', '0.00', '0.00', 0, '35.00', '1.00', '0.00', '0.00'),
+(106, 58, 1, 3, 'Tulcán', 'Portoviejo', 'EXPRESOS SURAMERICA 2030', '0.00', '0.00', '0.00', 0, '35.00', '1.00', '0.00', '0.00'),
+(107, 49, 1, 1, 'Caracas', 'San Cristóbal', 'EXPRESOS SURAMERICA 2030', '0.00', '0.00', '0.00', 0, '35.00', '1.00', '0.00', '0.00'),
+(108, 49, 1, 2, 'Cúcuta', 'Ipiales', 'EXPRESOS SURAMERICA 2030', '0.00', '0.00', '0.00', 0, '35.00', '1.00', '0.00', '0.00'),
+(109, 49, 1, 3, 'Tulcán', 'Manta', 'EXPRESOS SURAMERICA 2030', '0.00', '0.00', '0.00', 0, '35.00', '1.00', '0.00', '0.00'),
+(110, 71, 1, 1, 'Valencia', 'San Cristóbal', 'EXPRESOS SURAMERICA 2030', '0.00', '0.00', '0.00', 0, '35.00', '1.00', '0.00', '0.00'),
+(111, 71, 1, 2, 'Cúcuta', 'Ipiales', 'EXPRESOS SURAMERICA 2030', '0.00', '0.00', '0.00', 0, '35.00', '1.00', '0.00', '0.00'),
+(112, 72, 1, 1, 'Valencia', 'San Cristóbal', 'EXPRESOS SURAMERICA 2030', '0.00', '0.00', '0.00', 0, '35.00', '1.00', '0.00', '0.00'),
+(113, 72, 1, 2, 'Cúcuta', 'Ipiales', 'EXPRESOS SURAMERICA 2030', '0.00', '0.00', '0.00', 0, '35.00', '1.00', '0.00', '0.00'),
+(114, 73, 1, 1, 'Valencia', 'San Cristóbal', 'EXPRESOS SURAMERICA 2030', '0.00', '0.00', '0.00', 0, '35.00', '1.00', '0.00', '0.00'),
+(115, 73, 1, 2, 'Cúcuta', 'Ipiales', 'EXPRESOS SURAMERICA 2030', '0.00', '0.00', '0.00', 0, '35.00', '1.00', '0.00', '0.00'),
+(116, 73, 1, 3, 'Tulcán', 'Quito', 'EXPRESOS SURAMERICA 2030', '0.00', '0.00', '0.00', 0, '35.00', '1.00', '0.00', '0.00'),
+(117, 74, 1, 1, 'Valencia', 'San Cristóbal', 'EXPRESOS SURAMERICA 2030', '0.00', '0.00', '0.00', 0, '35.00', '1.00', '0.00', '0.00'),
+(118, 74, 1, 2, 'Cúcuta', 'Ipiales', 'EXPRESOS SURAMERICA 2030', '0.00', '0.00', '0.00', 0, '35.00', '1.00', '0.00', '0.00'),
+(119, 74, 1, 3, 'Tulcán', 'Guayaquil', 'EXPRESOS SURAMERICA 2030', '0.00', '0.00', '0.00', 0, '35.00', '1.00', '0.00', '0.00'),
+(120, 75, 1, 1, 'Valencia', 'San Cristóbal', 'EXPRESOS SURAMERICA 2030', '0.00', '0.00', '0.00', 0, '35.00', '1.00', '0.00', '0.00'),
+(121, 75, 1, 2, 'Cúcuta', 'Ipiales', 'EXPRESOS SURAMERICA 2030', '0.00', '0.00', '0.00', 0, '35.00', '1.00', '0.00', '0.00'),
+(122, 75, 1, 3, 'Tulcán', 'Portoviejo', 'EXPRESOS SURAMERICA 2030', '0.00', '0.00', '0.00', 0, '35.00', '1.00', '0.00', '0.00'),
+(123, 105, 1, 1, 'Valencia', 'San Cristóbal', 'EXPRESOS SURAMERICA 2030', '0.00', '0.00', '0.00', 0, '35.00', '1.00', '0.00', '0.00'),
+(124, 105, 1, 2, 'Cúcuta', 'Ipiales', 'EXPRESOS SURAMERICA 2030', '0.00', '0.00', '0.00', 0, '35.00', '1.00', '0.00', '0.00'),
+(125, 105, 1, 3, 'Tulcán', 'Manta', 'EXPRESOS SURAMERICA 2030', '0.00', '0.00', '0.00', 0, '35.00', '1.00', '0.00', '0.00'),
+(126, 78, 1, 1, 'Maracay', 'San Cristóbal', 'EXPRESOS SURAMERICA 2030', '0.00', '0.00', '0.00', 0, '35.00', '1.00', '0.00', '0.00'),
+(127, 78, 1, 2, 'Cúcuta', 'Ipiales', 'EXPRESOS SURAMERICA 2030', '0.00', '0.00', '0.00', 0, '35.00', '1.00', '0.00', '0.00'),
+(128, 79, 1, 1, 'Maracay', 'San Cristóbal', 'EXPRESOS SURAMERICA 2030', '0.00', '0.00', '0.00', 0, '35.00', '1.00', '0.00', '0.00'),
+(129, 79, 1, 2, 'Cúcuta', 'Ipiales', 'EXPRESOS SURAMERICA 2030', '0.00', '0.00', '0.00', 0, '35.00', '1.00', '0.00', '0.00'),
+(130, 80, 1, 1, 'Maracay', 'San Cristóbal', 'EXPRESOS SURAMERICA 2030', '0.00', '0.00', '0.00', 0, '35.00', '1.00', '0.00', '0.00'),
+(131, 80, 1, 2, 'Cúcuta', 'Ipiales', 'EXPRESOS SURAMERICA 2030', '0.00', '0.00', '0.00', 0, '35.00', '1.00', '0.00', '0.00'),
+(132, 80, 1, 3, 'Tulcán', 'Quito', 'EXPRESOS SURAMERICA 2030', '0.00', '0.00', '0.00', 0, '35.00', '1.00', '0.00', '0.00'),
+(133, 81, 1, 1, 'Maracay', 'San Cristóbal', 'EXPRESOS SURAMERICA 2030', '0.00', '0.00', '0.00', 0, '35.00', '1.00', '0.00', '0.00'),
+(134, 81, 1, 2, 'Cúcuta', 'Ipiales', 'EXPRESOS SURAMERICA 2030', '0.00', '0.00', '0.00', 0, '35.00', '1.00', '0.00', '0.00'),
+(135, 81, 1, 3, 'Tulcán', 'Guayaquil', 'EXPRESOS SURAMERICA 2030', '0.00', '0.00', '0.00', 0, '35.00', '1.00', '0.00', '0.00'),
+(136, 82, 1, 1, 'Maracay', 'San Cristóbal', 'EXPRESOS SURAMERICA 2030', '0.00', '0.00', '0.00', 0, '35.00', '1.00', '0.00', '0.00'),
+(137, 82, 1, 2, 'Cúcuta', 'Ipiales', 'EXPRESOS SURAMERICA 2030', '0.00', '0.00', '0.00', 0, '35.00', '1.00', '0.00', '0.00'),
+(138, 82, 1, 3, 'Tulcán', 'Portoviejo', 'EXPRESOS SURAMERICA 2030', '0.00', '0.00', '0.00', 0, '35.00', '1.00', '0.00', '0.00'),
+(142, 86, 1, 1, 'Cúcuta', 'Ipiales', 'EXPRESOS SURAMERICA 2030', '0.00', '0.00', '0.00', 0, '35.00', '1.00', '0.00', '0.00'),
+(143, 86, 1, 2, 'Tulcán', 'Quito', 'EXPRESOS SURAMERICA 2030', '0.00', '0.00', '0.00', 0, '35.00', '1.00', '0.00', '0.00'),
+(144, 87, 1, 1, 'Cúcuta', 'Ipiales', 'EXPRESOS SURAMERICA 2030', '0.00', '0.00', '0.00', 0, '35.00', '1.00', '0.00', '0.00'),
+(145, 87, 1, 2, 'Tulcán', 'Guayaquil', 'EXPRESOS SURAMERICA 2030', '0.00', '0.00', '0.00', 0, '35.00', '1.00', '0.00', '0.00'),
+(146, 88, 1, 1, 'Cúcuta', 'Ipiales', 'EXPRESOS SURAMERICA 2030', '0.00', '0.00', '0.00', 0, '35.00', '1.00', '0.00', '0.00'),
+(147, 88, 1, 2, 'Tulcán', 'Portoviejo', 'EXPRESOS SURAMERICA 2030', '0.00', '0.00', '0.00', 0, '35.00', '1.00', '0.00', '0.00'),
+(148, 107, 1, 1, 'Cúcuta', 'Ipiales', 'EXPRESOS SURAMERICA 2030', '0.00', '0.00', '0.00', 0, '35.00', '1.00', '0.00', '0.00'),
+(149, 107, 1, 2, 'Tulcán', 'Manta', 'EXPRESOS SURAMERICA 2030', '0.00', '0.00', '0.00', 0, '35.00', '1.00', '0.00', '0.00'),
+(150, 91, 1, 1, 'Cúcuta', 'Ipiales', 'EXPRESOS SURAMERICA 2030', '0.00', '0.00', '0.00', 0, '35.00', '1.00', '0.00', '0.00'),
+(151, 91, 1, 2, 'Tulcán', 'Quito', 'EXPRESOS SURAMERICA 2030', '0.00', '0.00', '0.00', 0, '35.00', '1.00', '0.00', '0.00'),
+(152, 92, 1, 1, 'Cúcuta', 'Ipiales', 'EXPRESOS SURAMERICA 2030', '0.00', '0.00', '0.00', 0, '35.00', '1.00', '0.00', '0.00'),
+(153, 92, 1, 2, 'Tulcán', 'Guayaquil', 'EXPRESOS SURAMERICA 2030', '0.00', '0.00', '0.00', 0, '35.00', '1.00', '0.00', '0.00'),
+(154, 93, 1, 1, 'Cúcuta', 'Ipiales', 'EXPRESOS SURAMERICA 2030', '0.00', '0.00', '0.00', 0, '35.00', '1.00', '0.00', '0.00'),
+(155, 93, 1, 2, 'Tulcán', 'Portoviejo', 'EXPRESOS SURAMERICA 2030', '0.00', '0.00', '0.00', 0, '35.00', '1.00', '0.00', '0.00'),
+(158, 45, 1, 1, 'Cúcuta', 'Cúcuta', 'EXPRESOS SURAMERICA 2030', '0.00', '0.00', '0.00', 0, '35.00', '1.00', '0.00', '0.00'),
+(159, 45, 1, 2, 'San Cristóbal', 'Caracas', 'EXPRESOS SURAMERICA 2030', '0.00', '0.00', '0.00', 0, '35.00', '1.00', '0.00', '0.00'),
+(166, 115, 1, 1, 'Cúcuta', 'Ipiales', 'Empresa Local Colombia', '110.00', '97.00', '13.00', 0, '35.00', '1.00', '0.00', '1.00'),
+(167, 115, 1, 2, 'Tulcán', 'Manta', 'Empresa Local Ecuador', '30.00', '23.00', '7.00', 0, '35.00', '1.00', '0.00', '1.00'),
+(247, 11, 3, 1, 'Manta', 'Tulcán', 'EMPRESA LOCAL ECUADOR', '30.00', '23.00', '7.00', 1, '35.00', '1.00', '0.00', '0.00'),
+(248, 11, 4, 2, 'Ipiales', 'Cúcuta', 'EMPRESA LOCAL COLOMBIA', '110.00', '97.00', '13.00', 0, '35.00', '1.00', '0.00', '0.00'),
+(250, 126, 1, 1, 'Manta', 'Tulcán', 'EXPRESOS SURAMERICA 2030', '0.00', '0.00', '0.00', 0, '35.00', '1.00', '0.00', '0.00'),
+(251, 126, 1, 2, 'Ipiales', 'Cúcuta', 'EXPRESOS SURAMERICA 2030', '0.00', '0.00', '0.00', 0, '35.00', '1.00', '0.00', '0.00'),
+(252, 126, 1, 3, 'San Cristóbal', 'Valencia', 'EXPRESOS SURAMERICA 2030', '0.00', '0.00', '0.00', 0, '35.00', '1.00', '0.00', '0.00'),
+(253, 127, 1, 1, 'Portoviejo', 'Tulcán', 'EXPRESOS SURAMERICA 2030', '0.00', '0.00', '0.00', 0, '35.00', '1.00', '0.00', '0.00'),
+(254, 127, 1, 2, 'Ipiales', 'Cúcuta', 'EXPRESOS SURAMERICA 2030', '0.00', '0.00', '0.00', 0, '35.00', '1.00', '0.00', '0.00'),
+(255, 127, 1, 3, 'San Cristóbal', 'Valencia', 'EXPRESOS SURAMERICA 2030', '0.00', '0.00', '0.00', 0, '35.00', '1.00', '0.00', '0.00'),
+(256, 128, 1, 1, 'Guayaquil', 'Tulcán', 'EXPRESOS SURAMERICA 2030', '0.00', '0.00', '0.00', 0, '35.00', '1.00', '0.00', '0.00'),
+(257, 128, 1, 2, 'Ipiales', 'Cúcuta', 'EXPRESOS SURAMERICA 2030', '0.00', '0.00', '0.00', 0, '35.00', '1.00', '0.00', '0.00'),
+(258, 128, 1, 3, 'San Cristóbal', 'Valencia', 'EXPRESOS SURAMERICA 2030', '0.00', '0.00', '0.00', 0, '35.00', '1.00', '0.00', '0.00'),
+(259, 129, 1, 1, 'Quito', 'Tulcán', 'EXPRESOS SURAMERICA 2030', '0.00', '0.00', '0.00', 0, '35.00', '1.00', '0.00', '0.00'),
+(260, 129, 1, 2, 'Ipiales', 'Cúcuta', 'EXPRESOS SURAMERICA 2030', '0.00', '0.00', '0.00', 0, '35.00', '1.00', '0.00', '0.00'),
+(261, 129, 1, 3, 'San Cristóbal', 'Valencia', 'EXPRESOS SURAMERICA 2030', '0.00', '0.00', '0.00', 0, '35.00', '1.00', '0.00', '0.00'),
+(262, 130, 1, 1, 'Ipiales', 'Cúcuta', 'EXPRESOS SURAMERICA 2030', '0.00', '0.00', '0.00', 0, '35.00', '1.00', '0.00', '0.00'),
+(263, 130, 1, 2, 'San Cristóbal', 'Valencia', 'EXPRESOS SURAMERICA 2030', '0.00', '0.00', '0.00', 0, '35.00', '1.00', '0.00', '0.00'),
+(264, 131, 1, 1, 'Ipiales', 'Cúcuta', 'EXPRESOS SURAMERICA 2030', '0.00', '0.00', '0.00', 0, '35.00', '1.00', '0.00', '0.00'),
+(265, 131, 1, 2, 'San Cristóbal', 'Valencia', 'EXPRESOS SURAMERICA 2030', '0.00', '0.00', '0.00', 0, '35.00', '1.00', '0.00', '0.00'),
+(266, 5, 3, 1, 'Manta', 'Tulcán', 'EMPRESA LOCAL ECUADOR', '0.00', '0.00', '0.00', 0, '35.00', '1.00', '0.00', '1.00'),
+(267, 5, 4, 2, 'Ipiales', 'Cúcuta', 'EMPRESA LOCAL COLOMBIA', '0.00', '0.00', '0.00', 0, '35.00', '1.00', '0.00', '1.00'),
+(268, 5, 1, 3, 'San Cristóbal', 'Caracas', 'EXPRESOS SURAMERICA 2030', '0.00', '0.00', '0.00', 0, '35.00', '1.00', '0.00', '1.00'),
+(269, 1, 2, 1, 'Manta', 'Cúcuta', 'PANAMERICANA', '140.00', '130.00', '10.00', 1, '35.00', '1.50', '0.00', '1.50'),
+(270, 1, 1, 2, 'Cúcuta', 'Caracas', 'EXPRESOS SURAMERICA 2030', '60.00', '55.00', '5.00', 0, '35.00', '1.50', '0.00', '1.50'),
+(273, 10, 3, 1, 'Manta', 'Tulcán', 'EMPRESA LOCAL ECUADOR', '0.00', '0.00', '0.00', 0, '35.00', '1.00', '0.00', '1.00'),
+(274, 10, 4, 2, 'Ipiales', 'Ipiales', 'EMPRESA LOCAL COLOMBIA', '0.00', '0.00', '0.00', 0, '35.00', '1.00', '0.00', '1.00'),
+(278, 13, 3, 1, 'Manta', 'Tulcán', 'EMPRESA LOCAL ECUADOR', '0.00', '0.00', '0.00', 0, '35.00', '1.00', '0.00', '1.00'),
+(279, 13, 4, 2, 'Ipiales', 'Cúcuta', 'EMPRESA LOCAL COLOMBIA', '0.00', '0.00', '0.00', 0, '35.00', '1.00', '0.00', '1.00'),
+(280, 13, 1, 3, 'San Cristóbal', 'Maracay', 'EXPRESOS SURAMERICA 2030', '0.00', '0.00', '0.00', 0, '35.00', '1.00', '0.00', '1.00'),
+(286, 136, 1, 1, 'Maracay', 'San Cristóbal', 'EXPRESOS SURAMERICA 2030', '60.00', '45.00', '15.00', 0, '35.00', '1.00', '0.00', '1.00'),
+(287, 136, 2, 2, 'Cúcuta', 'Manta', 'PANAMERICANA', '140.00', '110.00', '30.00', 0, '35.00', '1.00', '0.00', '1.00'),
+(288, 106, 1, 1, 'Maracay', 'San Cristóbal', 'EXPRESOS SURAMERICA 2030', '60.00', '45.00', '15.00', 0, '35.00', '1.00', '0.00', '1.00'),
+(289, 106, 4, 2, 'Cúcuta', 'Ipiales', 'EMPRESA LOCAL COLOMBIA', '110.00', '97.00', '13.00', 0, '35.00', '1.00', '0.00', '1.00'),
+(290, 106, 3, 3, 'Tulcán', 'Manta', 'EMPRESA LOCAL ECUADOR', '30.00', '23.00', '7.00', 0, '35.00', '1.00', '0.00', '1.00');
+
+-- --------------------------------------------------------
+
+--
+-- Estructura de tabla para la tabla `sobrepeso`
+--
+
+CREATE TABLE `sobrepeso` (
+  `ID_SOBREPESO` int(11) NOT NULL,
+  `ID_FACTURA` int(11) NOT NULL,
+  `SP_TIPO` varchar(25) NOT NULL,
+  `SP_PESO` decimal(10,2) NOT NULL,
+  `ID_PASAJE` int(11) DEFAULT NULL,
+  `ID_RUTA_TRAMO` int(11) DEFAULT NULL,
+  `SP_OPERADOR` varchar(60) DEFAULT NULL,
+  `SP_TRAMO` varchar(100) DEFAULT NULL,
+  `SP_TARIFA_KG` decimal(10,2) DEFAULT '1.00',
+  `SP_EXCESO_KG` decimal(10,2) DEFAULT '0.00',
+  `SP_TOTAL` decimal(10,2) DEFAULT '0.00',
+  `ESTADO` varchar(20) NOT NULL DEFAULT 'ACTIVO',
+  `PIEZAS_DETALLE` text,
+  `ID_USUARIO` int(11) DEFAULT NULL,
+  `ID_USUARIO_ANULA` int(11) DEFAULT NULL,
+  `MOTIVO_ANULACION` text,
+  `FECHA_ANULACION` datetime DEFAULT NULL,
+  `FECHA_CREACION` datetime DEFAULT CURRENT_TIMESTAMP,
+  `COSTO_SOCIO` decimal(10,2) DEFAULT '0.00',
+  `UTILIDAD_AGENCIA` decimal(10,2) DEFAULT '0.00'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+--
+-- Volcado de datos para la tabla `sobrepeso`
+--
+
+INSERT INTO `sobrepeso` (`ID_SOBREPESO`, `ID_FACTURA`, `SP_TIPO`, `SP_PESO`, `ID_PASAJE`, `ID_RUTA_TRAMO`, `SP_OPERADOR`, `SP_TRAMO`, `SP_TARIFA_KG`, `SP_EXCESO_KG`, `SP_TOTAL`, `ESTADO`, `PIEZAS_DETALLE`, `ID_USUARIO`, `ID_USUARIO_ANULA`, `MOTIVO_ANULACION`, `FECHA_ANULACION`, `FECHA_CREACION`, `COSTO_SOCIO`, `UTILIDAD_AGENCIA`) VALUES
+(2, 38, 'BODEGA', '66.90', 7, 160, 'PANAMERICANA', 'Manta ➔ Cúcuta', '1.50', '26.67', '40.00', 'ACTIVO', NULL, NULL, NULL, NULL, NULL, '2026-10-16 14:24:46', '0.00', '0.00');
+
+-- --------------------------------------------------------
+
+--
+-- Estructura de tabla para la tabla `socio`
+--
+
+CREATE TABLE `socio` (
+  `ID_SOCIO` int(11) NOT NULL,
+  `ID_BUS` int(11) NOT NULL,
+  `SOC_NOMBRE` varchar(25) NOT NULL,
+  `SOC_APELLIDOS` varchar(25) NOT NULL,
+  `SOC_TELEFONO` varchar(15) NOT NULL,
+  `SOC_BANK` varchar(20) DEFAULT NULL,
+  `SOC_CUENTA` varchar(20) DEFAULT NULL,
+  `SOC_CORREO` varchar(50) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+--
+-- Volcado de datos para la tabla `socio`
+--
+
+INSERT INTO `socio` (`ID_SOCIO`, `ID_BUS`, `SOC_NOMBRE`, `SOC_APELLIDOS`, `SOC_TELEFONO`, `SOC_BANK`, `SOC_CUENTA`, `SOC_CORREO`) VALUES
+(1, 2, 'NA', 'NA', '099999999', 'Pichincha', '0', NULL);
+
+-- --------------------------------------------------------
+
+--
+-- Estructura de tabla para la tabla `solicitud_anulacion`
+--
+
+CREATE TABLE `solicitud_anulacion` (
+  `ID_SOLICITUD` int(11) NOT NULL,
+  `TIPO_VENTA` varchar(30) NOT NULL DEFAULT 'PASAJE',
+  `ID_REFERENCIA` int(11) NOT NULL,
+  `ID_FACTURA` int(11) DEFAULT NULL,
+  `ID_USUARIO_SOLICITA` int(11) NOT NULL,
+  `ID_SUCURSAL` int(11) NOT NULL,
+  `MONTO_DEVOLVER` decimal(10,2) NOT NULL DEFAULT '0.00',
+  `MOTIVO` text NOT NULL,
+  `ESTADO` varchar(20) NOT NULL DEFAULT 'PENDIENTE',
+  `FECHA_SOLICITUD` datetime DEFAULT CURRENT_TIMESTAMP,
+  `ID_USUARIO_RESPONDE` int(11) DEFAULT NULL,
+  `FECHA_RESPUESTA` datetime DEFAULT NULL,
+  `MOTIVO_RESPUESTA` text
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+--
+-- Volcado de datos para la tabla `solicitud_anulacion`
+--
+
+INSERT INTO `solicitud_anulacion` (`ID_SOLICITUD`, `TIPO_VENTA`, `ID_REFERENCIA`, `ID_FACTURA`, `ID_USUARIO_SOLICITA`, `ID_SUCURSAL`, `MONTO_DEVOLVER`, `MOTIVO`, `ESTADO`, `FECHA_SOLICITUD`, `ID_USUARIO_RESPONDE`, `FECHA_RESPUESTA`, `MOTIVO_RESPUESTA`) VALUES
+(1, 'ENCOMIENDA', 41, 41, 7, 3, '127.20', 'fallo en la cedula, se autoasigno ese nombre', 'APROBADA', '2026-10-16 15:29:04', 1, '2026-10-16 15:29:57', NULL);
+
+-- --------------------------------------------------------
+
+--
+-- Estructura de tabla para la tabla `sucursal`
+--
+
+CREATE TABLE `sucursal` (
+  `ID_SUCURSAL` int(11) NOT NULL,
+  `PAIS` varchar(20) NOT NULL,
+  `CIUDAD` varchar(50) NOT NULL,
+  `DIRECCION` varchar(150) DEFAULT NULL,
+  `TELEFONO` varchar(50) DEFAULT NULL,
+  `COMISION_EMPLEADO_PCT` decimal(5,2) DEFAULT '0.00',
+  `GASTO_FIJO_DIARIO` decimal(10,2) DEFAULT '0.00'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+--
+-- Volcado de datos para la tabla `sucursal`
+--
+
+INSERT INTO `sucursal` (`ID_SUCURSAL`, `PAIS`, `CIUDAD`, `DIRECCION`, `TELEFONO`, `COMISION_EMPLEADO_PCT`, `GASTO_FIJO_DIARIO`) VALUES
+(1, 'ECUADOR', 'MANTA', 'Calle 17  Av. 24', '0967049757', '0.00', '0.00'),
+(2, 'VENEZUELA', 'CARACAS', 'Terminal Privado San Martín', NULL, '0.00', '0.00'),
+(3, 'ECUADOR', 'GUAYAQUIL', 'Editar', NULL, '0.00', '0.00'),
+(4, 'ECUADOR', 'PORTOVIEJO', 'Editar', NULL, '0.00', '0.00');
+
+-- --------------------------------------------------------
+
+--
+-- Estructura de tabla para la tabla `usuario`
+--
+
+CREATE TABLE `usuario` (
+  `ID_USUARIO` int(11) NOT NULL,
+  `ID_ROL` int(11) NOT NULL,
+  `ID_SUCURSAL` int(11) NOT NULL,
+  `NOMBRE` varchar(50) NOT NULL,
+  `USUARIO` varchar(50) NOT NULL,
+  `EMAIL` varchar(50) NOT NULL,
+  `PASSWORD_HASH` varchar(255) NOT NULL,
+  `ESTADO` tinyint(1) DEFAULT '1'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+--
+-- Volcado de datos para la tabla `usuario`
+--
+
+INSERT INTO `usuario` (`ID_USUARIO`, `ID_ROL`, `ID_SUCURSAL`, `NOMBRE`, `USUARIO`, `EMAIL`, `PASSWORD_HASH`, `ESTADO`) VALUES
+(1, 1, 1, 'Anthony', 'admin', 'admin@suramerica2030.com', '$2y$10$hTbx43X4soSsH2gcSyhTreSowVZeNAvqfQSKzSLUzqYsfGu0lcr1q', 1),
+(2, 4, 1, 'Anthony Solórzano', 'anthony.solorzano', 'josue10anthony1@gmail.com', '$2y$10$wsXa5.BsTPoGYsZHGDf/UOPLjrgnQOZG9hdUtUwyrg/iBDXWeLi4K', 1),
+(3, 4, 1, 'Eduardo Solorzano', 'eduardo.solorzano', 'jsolorzanom1980@gmail.com', '$2y$10$P5.q8XjkzFiDzBAF68yYReKJpso/MwM9ZfsUJ3EITpziEtZ0QBfQu', 1),
+(5, 1, 1, 'Juan Regalado', 'juan.regalado', 'hola@gmail.com', '$2y$10$ZkWMRSObzha0KWtkg7QHBuYqLyVKgaG2joOwUkwUm2xcjJpJpAbl.', 1),
+(7, 2, 3, 'CRISTHEL NICOLE QUIÑONEZ ANCHUNDIA', 'cristhel.qui', 'ejemplo@gmail.com', '$2y$10$zalx6xAzWdiK.bgtLxhm/u0JJM0r89ebLsXlQcENdhUT4vSli9Wya', 1);
+
+-- --------------------------------------------------------
+
+--
+-- Estructura de tabla para la tabla `valor`
+--
+
+CREATE TABLE `valor` (
+  `ID_VALOR` int(11) NOT NULL,
+  `ID_FACTURA` int(11) NOT NULL,
+  `ID_DESTINATARIO` varchar(15) DEFAULT NULL,
+  `VA_RETIRO` date DEFAULT NULL,
+  `VA_ESTADO` varchar(15) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+--
+-- Volcado de datos para la tabla `valor`
+--
+
+INSERT INTO `valor` (`ID_VALOR`, `ID_FACTURA`, `ID_DESTINATARIO`, `VA_RETIRO`, `VA_ESTADO`) VALUES
+(1, 1, '28143878', '2026-10-15', 'Entregado'),
+(2, 24, '1304122946', NULL, 'Por Retirar');
+
+--
+-- Índices para tablas volcadas
+--
+
+--
+-- Indices de la tabla `abono`
+--
+ALTER TABLE `abono`
+  ADD PRIMARY KEY (`ID_ABONO`);
+
+--
+-- Indices de la tabla `bus`
+--
+ALTER TABLE `bus`
+  ADD PRIMARY KEY (`ID_BUS`),
+  ADD KEY `idx_bus_operador` (`ID_OPERADOR`);
+
+--
+-- Indices de la tabla `cierre_caja`
+--
+ALTER TABLE `cierre_caja`
+  ADD PRIMARY KEY (`ID_CIERRE`),
+  ADD KEY `ID_USUARIO` (`ID_USUARIO`),
+  ADD KEY `ID_SUCURSAL` (`ID_SUCURSAL`);
+
+--
+-- Indices de la tabla `cierre_deposito_detalle`
+--
+ALTER TABLE `cierre_deposito_detalle`
+  ADD PRIMARY KEY (`ID_DEPOSITO`),
+  ADD KEY `FK_DEPOSITO_CIERRE` (`ID_CIERRE`);
+
+--
+-- Indices de la tabla `ciudad`
+--
+ALTER TABLE `ciudad`
+  ADD PRIMARY KEY (`ID_CIUDAD`),
+  ADD UNIQUE KEY `idx_ciudad_nombre` (`NOMBRE`);
+
+--
+-- Indices de la tabla `cliente`
+--
+ALTER TABLE `cliente`
+  ADD PRIMARY KEY (`ID_CLIENTE`);
+
+--
+-- Indices de la tabla `corredor`
+--
+ALTER TABLE `corredor`
+  ADD PRIMARY KEY (`ID_CORREDOR`);
+
+--
+-- Indices de la tabla `corredor_parada`
+--
+ALTER TABLE `corredor_parada`
+  ADD PRIMARY KEY (`ID_CORREDOR_PARADA`),
+  ADD UNIQUE KEY `idx_corredor_orden` (`ID_CORREDOR`,`ORDEN`);
+
+--
+-- Indices de la tabla `corredor_tramo_operativo`
+--
+ALTER TABLE `corredor_tramo_operativo`
+  ADD PRIMARY KEY (`ID_CORREDOR_TRAMO`),
+  ADD KEY `fk_tramo_corredor` (`ID_CORREDOR`);
+
+--
+-- Indices de la tabla `encomienda`
+--
+ALTER TABLE `encomienda`
+  ADD PRIMARY KEY (`ID_ENCOMIENDA`),
+  ADD KEY `ID_FACTURA` (`ID_FACTURA`);
+
+--
+-- Indices de la tabla `factura`
+--
+ALTER TABLE `factura`
+  ADD PRIMARY KEY (`ID_FACTURA`),
+  ADD KEY `ID_RUTA` (`ID_RUTA`),
+  ADD KEY `ID_CLIENTE` (`ID_CLIENTE`),
+  ADD KEY `ID_USUARIO` (`ID_USUARIO`),
+  ADD KEY `ID_SUCURSAL` (`ID_SUCURSAL`);
+
+--
+-- Indices de la tabla `movimiento_caja`
+--
+ALTER TABLE `movimiento_caja`
+  ADD PRIMARY KEY (`ID_MOVIMIENTO`),
+  ADD KEY `ID_USUARIO` (`ID_USUARIO`),
+  ADD KEY `ID_SUCURSAL` (`ID_SUCURSAL`),
+  ADD KEY `ID_FACTURA` (`ID_FACTURA`);
+
+--
+-- Indices de la tabla `operador`
+--
+ALTER TABLE `operador`
+  ADD PRIMARY KEY (`ID_OPERADOR`),
+  ADD KEY `idx_tipo_op` (`TIPO_OPERADOR`),
+  ADD KEY `idx_estado_op` (`ESTADO`);
+
+--
+-- Indices de la tabla `pasaje`
+--
+ALTER TABLE `pasaje`
+  ADD PRIMARY KEY (`ID_PASAJE`),
+  ADD KEY `ID_FACTURA` (`ID_FACTURA`),
+  ADD KEY `ID_BUS` (`ID_BUS`);
+
+--
+-- Indices de la tabla `pasaje_tramo`
+--
+ALTER TABLE `pasaje_tramo`
+  ADD PRIMARY KEY (`ID_PASAJE_TRAMO`),
+  ADD KEY `ID_PASAJE` (`ID_PASAJE`),
+  ADD KEY `ID_RUTA_TRAMO` (`ID_RUTA_TRAMO`);
+
+--
+-- Indices de la tabla `rol`
+--
+ALTER TABLE `rol`
+  ADD PRIMARY KEY (`ID_ROL`);
+
+--
+-- Indices de la tabla `ruta`
+--
+ALTER TABLE `ruta`
+  ADD PRIMARY KEY (`ID_RUTA`),
+  ADD KEY `idx_ruta_corredor` (`ID_CORREDOR`),
+  ADD KEY `idx_ruta_origen_destino` (`RUT_ORIGEN`,`RUT_DESTINO`),
+  ADD KEY `idx_ruta_operador` (`ID_OPERADOR`);
+
+--
+-- Indices de la tabla `ruta_tramo`
+--
+ALTER TABLE `ruta_tramo`
+  ADD PRIMARY KEY (`ID_RUTA_TRAMO`),
+  ADD KEY `ID_RUTA` (`ID_RUTA`),
+  ADD KEY `idx_tramo_operador` (`ID_OPERADOR`);
+
+--
+-- Indices de la tabla `sobrepeso`
+--
+ALTER TABLE `sobrepeso`
+  ADD PRIMARY KEY (`ID_SOBREPESO`),
+  ADD KEY `ID_FACTURA` (`ID_FACTURA`);
+
+--
+-- Indices de la tabla `socio`
+--
+ALTER TABLE `socio`
+  ADD PRIMARY KEY (`ID_SOCIO`),
+  ADD KEY `ID_BUS` (`ID_BUS`);
+
+--
+-- Indices de la tabla `solicitud_anulacion`
+--
+ALTER TABLE `solicitud_anulacion`
+  ADD PRIMARY KEY (`ID_SOLICITUD`),
+  ADD KEY `idx_sol_ref` (`TIPO_VENTA`,`ID_REFERENCIA`),
+  ADD KEY `idx_sol_estado` (`ESTADO`),
+  ADD KEY `idx_sol_fecha` (`FECHA_SOLICITUD`);
+
+--
+-- Indices de la tabla `sucursal`
+--
+ALTER TABLE `sucursal`
+  ADD PRIMARY KEY (`ID_SUCURSAL`);
+
+--
+-- Indices de la tabla `usuario`
+--
+ALTER TABLE `usuario`
+  ADD PRIMARY KEY (`ID_USUARIO`),
+  ADD UNIQUE KEY `EMAIL` (`EMAIL`),
+  ADD UNIQUE KEY `USUARIO` (`USUARIO`),
+  ADD KEY `ID_ROL` (`ID_ROL`),
+  ADD KEY `ID_SUCURSAL` (`ID_SUCURSAL`);
+
+--
+-- Indices de la tabla `valor`
+--
+ALTER TABLE `valor`
+  ADD PRIMARY KEY (`ID_VALOR`),
+  ADD KEY `ID_FACTURA` (`ID_FACTURA`);
+
+--
+-- AUTO_INCREMENT de las tablas volcadas
+--
+
+--
+-- AUTO_INCREMENT de la tabla `abono`
+--
+ALTER TABLE `abono`
+  MODIFY `ID_ABONO` int(11) NOT NULL AUTO_INCREMENT;
+
+--
+-- AUTO_INCREMENT de la tabla `bus`
+--
+ALTER TABLE `bus`
+  MODIFY `ID_BUS` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=4;
+
+--
+-- AUTO_INCREMENT de la tabla `cierre_caja`
+--
+ALTER TABLE `cierre_caja`
+  MODIFY `ID_CIERRE` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=7;
+
+--
+-- AUTO_INCREMENT de la tabla `cierre_deposito_detalle`
+--
+ALTER TABLE `cierre_deposito_detalle`
+  MODIFY `ID_DEPOSITO` int(11) NOT NULL AUTO_INCREMENT;
+
+--
+-- AUTO_INCREMENT de la tabla `ciudad`
+--
+ALTER TABLE `ciudad`
+  MODIFY `ID_CIUDAD` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=19;
+
+--
+-- AUTO_INCREMENT de la tabla `corredor`
+--
+ALTER TABLE `corredor`
+  MODIFY `ID_CORREDOR` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=4;
+
+--
+-- AUTO_INCREMENT de la tabla `corredor_parada`
+--
+ALTER TABLE `corredor_parada`
+  MODIFY `ID_CORREDOR_PARADA` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=28;
+
+--
+-- AUTO_INCREMENT de la tabla `corredor_tramo_operativo`
+--
+ALTER TABLE `corredor_tramo_operativo`
+  MODIFY `ID_CORREDOR_TRAMO` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=4;
+
+--
+-- AUTO_INCREMENT de la tabla `encomienda`
+--
+ALTER TABLE `encomienda`
+  MODIFY `ID_ENCOMIENDA` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=44;
+
+--
+-- AUTO_INCREMENT de la tabla `factura`
+--
+ALTER TABLE `factura`
+  MODIFY `ID_FACTURA` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=70;
+
+--
+-- AUTO_INCREMENT de la tabla `movimiento_caja`
+--
+ALTER TABLE `movimiento_caja`
+  MODIFY `ID_MOVIMIENTO` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=82;
+
+--
+-- AUTO_INCREMENT de la tabla `operador`
+--
+ALTER TABLE `operador`
+  MODIFY `ID_OPERADOR` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=5;
+
+--
+-- AUTO_INCREMENT de la tabla `pasaje`
+--
+ALTER TABLE `pasaje`
+  MODIFY `ID_PASAJE` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=23;
+
+--
+-- AUTO_INCREMENT de la tabla `pasaje_tramo`
+--
+ALTER TABLE `pasaje_tramo`
+  MODIFY `ID_PASAJE_TRAMO` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=29;
+
+--
+-- AUTO_INCREMENT de la tabla `rol`
+--
+ALTER TABLE `rol`
+  MODIFY `ID_ROL` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=5;
+
+--
+-- AUTO_INCREMENT de la tabla `ruta`
+--
+ALTER TABLE `ruta`
+  MODIFY `ID_RUTA` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=137;
+
+--
+-- AUTO_INCREMENT de la tabla `ruta_tramo`
+--
+ALTER TABLE `ruta_tramo`
+  MODIFY `ID_RUTA_TRAMO` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=291;
+
+--
+-- AUTO_INCREMENT de la tabla `sobrepeso`
+--
+ALTER TABLE `sobrepeso`
+  MODIFY `ID_SOBREPESO` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=3;
+
+--
+-- AUTO_INCREMENT de la tabla `socio`
+--
+ALTER TABLE `socio`
+  MODIFY `ID_SOCIO` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=3;
+
+--
+-- AUTO_INCREMENT de la tabla `solicitud_anulacion`
+--
+ALTER TABLE `solicitud_anulacion`
+  MODIFY `ID_SOLICITUD` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=2;
+
+--
+-- AUTO_INCREMENT de la tabla `sucursal`
+--
+ALTER TABLE `sucursal`
+  MODIFY `ID_SUCURSAL` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=5;
+
+--
+-- AUTO_INCREMENT de la tabla `usuario`
+--
+ALTER TABLE `usuario`
+  MODIFY `ID_USUARIO` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=8;
+
+--
+-- AUTO_INCREMENT de la tabla `valor`
+--
+ALTER TABLE `valor`
+  MODIFY `ID_VALOR` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=3;
+
+--
+-- Restricciones para tablas volcadas
+--
+
+--
+-- Filtros para la tabla `cierre_caja`
+--
+ALTER TABLE `cierre_caja`
+  ADD CONSTRAINT `cierre_caja_ibfk_1` FOREIGN KEY (`ID_USUARIO`) REFERENCES `usuario` (`ID_USUARIO`),
+  ADD CONSTRAINT `cierre_caja_ibfk_2` FOREIGN KEY (`ID_SUCURSAL`) REFERENCES `sucursal` (`ID_SUCURSAL`);
+
+--
+-- Filtros para la tabla `corredor_parada`
+--
+ALTER TABLE `corredor_parada`
+  ADD CONSTRAINT `fk_parada_corredor` FOREIGN KEY (`ID_CORREDOR`) REFERENCES `corredor` (`ID_CORREDOR`) ON DELETE CASCADE;
+
+--
+-- Filtros para la tabla `corredor_tramo_operativo`
+--
+ALTER TABLE `corredor_tramo_operativo`
+  ADD CONSTRAINT `fk_tramo_corredor` FOREIGN KEY (`ID_CORREDOR`) REFERENCES `corredor` (`ID_CORREDOR`) ON DELETE CASCADE;
+
+--
+-- Filtros para la tabla `encomienda`
+--
+ALTER TABLE `encomienda`
+  ADD CONSTRAINT `encomienda_ibfk_1` FOREIGN KEY (`ID_FACTURA`) REFERENCES `factura` (`ID_FACTURA`) ON DELETE CASCADE ON UPDATE CASCADE;
+
+--
+-- Filtros para la tabla `factura`
+--
+ALTER TABLE `factura`
+  ADD CONSTRAINT `factura_ibfk_1` FOREIGN KEY (`ID_RUTA`) REFERENCES `ruta` (`ID_RUTA`) ON DELETE RESTRICT ON UPDATE CASCADE,
+  ADD CONSTRAINT `factura_ibfk_2` FOREIGN KEY (`ID_CLIENTE`) REFERENCES `cliente` (`ID_CLIENTE`) ON DELETE RESTRICT ON UPDATE CASCADE,
+  ADD CONSTRAINT `factura_ibfk_3` FOREIGN KEY (`ID_USUARIO`) REFERENCES `usuario` (`ID_USUARIO`) ON DELETE RESTRICT ON UPDATE CASCADE,
+  ADD CONSTRAINT `factura_ibfk_4` FOREIGN KEY (`ID_SUCURSAL`) REFERENCES `sucursal` (`ID_SUCURSAL`) ON DELETE RESTRICT ON UPDATE CASCADE;
+
+--
+-- Filtros para la tabla `movimiento_caja`
+--
+ALTER TABLE `movimiento_caja`
+  ADD CONSTRAINT `movimiento_caja_ibfk_1` FOREIGN KEY (`ID_USUARIO`) REFERENCES `usuario` (`ID_USUARIO`) ON DELETE RESTRICT ON UPDATE CASCADE,
+  ADD CONSTRAINT `movimiento_caja_ibfk_2` FOREIGN KEY (`ID_SUCURSAL`) REFERENCES `sucursal` (`ID_SUCURSAL`) ON DELETE RESTRICT ON UPDATE CASCADE,
+  ADD CONSTRAINT `movimiento_caja_ibfk_3` FOREIGN KEY (`ID_FACTURA`) REFERENCES `factura` (`ID_FACTURA`) ON DELETE CASCADE ON UPDATE CASCADE;
+
+--
+-- Filtros para la tabla `pasaje`
+--
+ALTER TABLE `pasaje`
+  ADD CONSTRAINT `pasaje_ibfk_1` FOREIGN KEY (`ID_FACTURA`) REFERENCES `factura` (`ID_FACTURA`) ON DELETE CASCADE ON UPDATE CASCADE,
+  ADD CONSTRAINT `pasaje_ibfk_2` FOREIGN KEY (`ID_BUS`) REFERENCES `bus` (`ID_BUS`) ON DELETE RESTRICT ON UPDATE CASCADE;
+
+--
+-- Filtros para la tabla `pasaje_tramo`
+--
+ALTER TABLE `pasaje_tramo`
+  ADD CONSTRAINT `pasaje_tramo_ibfk_1` FOREIGN KEY (`ID_PASAJE`) REFERENCES `pasaje` (`ID_PASAJE`) ON DELETE CASCADE,
+  ADD CONSTRAINT `pasaje_tramo_ibfk_2` FOREIGN KEY (`ID_RUTA_TRAMO`) REFERENCES `ruta_tramo` (`ID_RUTA_TRAMO`) ON DELETE CASCADE;
+
+--
+-- Filtros para la tabla `ruta`
+--
+ALTER TABLE `ruta`
+  ADD CONSTRAINT `fk_ruta_corredor` FOREIGN KEY (`ID_CORREDOR`) REFERENCES `corredor` (`ID_CORREDOR`) ON DELETE SET NULL;
+
+--
+-- Filtros para la tabla `ruta_tramo`
+--
+ALTER TABLE `ruta_tramo`
+  ADD CONSTRAINT `ruta_tramo_ibfk_1` FOREIGN KEY (`ID_RUTA`) REFERENCES `ruta` (`ID_RUTA`) ON DELETE CASCADE;
+
+--
+-- Filtros para la tabla `sobrepeso`
+--
+ALTER TABLE `sobrepeso`
+  ADD CONSTRAINT `sobrepeso_ibfk_1` FOREIGN KEY (`ID_FACTURA`) REFERENCES `factura` (`ID_FACTURA`) ON DELETE CASCADE ON UPDATE CASCADE;
+
+--
+-- Filtros para la tabla `socio`
+--
+ALTER TABLE `socio`
+  ADD CONSTRAINT `socio_ibfk_1` FOREIGN KEY (`ID_BUS`) REFERENCES `bus` (`ID_BUS`) ON DELETE RESTRICT ON UPDATE CASCADE;
+
+--
+-- Filtros para la tabla `usuario`
+--
+ALTER TABLE `usuario`
+  ADD CONSTRAINT `usuario_ibfk_1` FOREIGN KEY (`ID_ROL`) REFERENCES `rol` (`ID_ROL`) ON DELETE RESTRICT ON UPDATE CASCADE,
+  ADD CONSTRAINT `usuario_ibfk_2` FOREIGN KEY (`ID_SUCURSAL`) REFERENCES `sucursal` (`ID_SUCURSAL`) ON DELETE RESTRICT ON UPDATE CASCADE;
+
+--
+-- Filtros para la tabla `valor`
+--
+ALTER TABLE `valor`
+  ADD CONSTRAINT `valor_ibfk_1` FOREIGN KEY (`ID_FACTURA`) REFERENCES `factura` (`ID_FACTURA`) ON DELETE CASCADE ON UPDATE CASCADE;
+COMMIT;
+
+/*!40101 SET CHARACTER_SET_CLIENT=@OLD_CHARACTER_SET_CLIENT */;
+/*!40101 SET CHARACTER_SET_RESULTS=@OLD_CHARACTER_SET_RESULTS */;
+/*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;

@@ -758,7 +758,7 @@
                                                 <h6 class="modal-title">💳 Actualizar Estado Financiero</h6>
                                                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
                                             </div>
-                                            <form action="/suramerica2030/pasajes/actualizarfinanciero" method="POST">
+                                            <form action="/suramerica2030/pasajes/actualizarfinanciero" method="POST" onsubmit="return validarAjusteFinanciero(<?= $p['ID_PASAJE'] ?>)">
                                                 <div class="modal-body">
                                                     <input type="hidden" name="id_pasaje" value="<?= $p['ID_PASAJE'] ?>">
 
@@ -776,10 +776,13 @@
                                                                 Tarifa Actual de Ruta: <strong class="text-primary">$<?= number_format($p['RUTA_PRECIO'] ?? 0, 2) ?></strong>
                                                             </span>
                                                             <span class="badge bg-white text-dark border">
+                                                                Costo Operadores: <strong class="text-danger">$<?= number_format($p['COSTO_OPERADORES_TOTAL'] ?? 0, 2) ?></strong>
+                                                            </span>
+                                                            <span class="badge bg-white text-dark border">
                                                                 Factura #<?= $p['ID_FACTURA'] ?>: <strong class="text-success">$<?= number_format($p['FA_TOTAL'] ?? 0, 2) ?></strong>
                                                             </span>
                                                             <span class="badge bg-white text-dark border">
-                                                                Pasaje Registrado: <strong class="text-danger">$<?= number_format($p['PRECIO_TOTAL'], 2) ?></strong>
+                                                                Pasaje Registrado: <strong class="text-dark">$<?= number_format($p['PRECIO_TOTAL'], 2) ?></strong>
                                                             </span>
                                                         </div>
                                                     </div>
@@ -805,10 +808,10 @@
                                                     </div>
 
                                                     <!-- Campos Financieros Editables -->
-                                                    <div class="row g-2 mb-3">
+                                                    <div class="row g-2 mb-2">
                                                         <div class="col-6">
                                                             <label class="form-label fw-bold">Precio Total ($)</label>
-                                                            <input type="number" step="0.01" name="precio_total" id="fin_precio_<?= $p['ID_PASAJE'] ?>" class="form-control fw-bold fs-5 text-dark <?= !$puedeEditarPrecios ? 'bg-light' : '' ?>" value="<?= number_format($p['PRECIO_TOTAL'], 2, '.', '') ?>" required oninput="recalcularFinanciero(<?= $p['ID_PASAJE'] ?>)" <?= !$puedeEditarPrecios ? 'readonly' : '' ?>>
+                                                            <input type="number" step="0.01" name="precio_total" id="fin_precio_<?= $p['ID_PASAJE'] ?>" class="form-control fw-bold fs-5 text-dark <?= !$puedeEditarPrecios ? 'bg-light' : '' ?>" value="<?= number_format($p['PRECIO_TOTAL'], 2, '.', '') ?>" data-costo-operadores="<?= number_format($p['COSTO_OPERADORES_TOTAL'] ?? 0, 2, '.', '') ?>" data-pvp-ruta="<?= number_format($p['RUTA_PRECIO'] ?? 0, 2, '.', '') ?>" required oninput="recalcularFinanciero(<?= $p['ID_PASAJE'] ?>)" <?= !$puedeEditarPrecios ? 'readonly' : '' ?>>
                                                             <?php if(!$puedeEditarPrecios): ?>
                                                                 <small class="text-muted d-block" style="font-size:11px;">🔒 Tarifa bloqueada (sin permiso de edición).</small>
                                                             <?php endif; ?>
@@ -816,6 +819,23 @@
                                                         <div class="col-6">
                                                             <label class="form-label fw-bold">Saldo Pendiente ($)</label>
                                                             <input type="number" step="0.01" name="saldo" id="fin_saldo_<?= $p['ID_PASAJE'] ?>" class="form-control fw-bold fs-5 text-danger" value="<?= number_format($p['SALDO'], 2, '.', '') ?>" required oninput="recalcularFinanciero(<?= $p['ID_PASAJE'] ?>)">
+                                                        </div>
+                                                    </div>
+
+                                                    <!-- Alerta en Vivo para Ajuste Financiero -->
+                                                    <div class="mb-3">
+                                                        <div id="fin_alerta_perdida_<?= $p['ID_PASAJE'] ?>" class="alert alert-danger py-2 px-3 mb-0 d-none border-danger shadow-sm" style="font-size:12px;">
+                                                            <div class="d-flex align-items-center">
+                                                                <i class="fas fa-exclamation-triangle fa-2x me-2 text-danger"></i>
+                                                                <div>
+                                                                    <strong class="text-danger d-block">⚠️ ¡Alerta de Pérdida para la Agencia!</strong>
+                                                                    <span id="fin_txt_perdida_<?= $p['ID_PASAJE'] ?>">El precio ingresado no cubre el costo de los operadores.</span>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                        <div id="fin_alerta_descuento_<?= $p['ID_PASAJE'] ?>" class="alert alert-warning py-2 px-3 mb-0 d-none border-warning shadow-sm" style="font-size:12px;">
+                                                            <i class="fas fa-tag me-1 text-warning"></i>
+                                                            <span id="fin_txt_descuento_<?= $p['ID_PASAJE'] ?>">Descuento aplicado: Margen de agencia reducido.</span>
                                                         </div>
                                                     </div>
 
