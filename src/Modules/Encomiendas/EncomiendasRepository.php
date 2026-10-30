@@ -11,6 +11,60 @@ class EncomiendasRepository {
 
     public function __construct() {
         $this->db = (new Database())->getConnection();
+        $this->asegurarTablaEventos();
+    }
+
+    private function asegurarTablaEventos() {
+        $this->db->exec("
+            CREATE TABLE IF NOT EXISTS ENC_EVENTO (
+                ID_EVENTO INT NOT NULL AUTO_INCREMENT,
+                ID_ENCOMIENDA INT NOT NULL,
+                ESTADO_ANTERIOR VARCHAR(30) DEFAULT NULL,
+                ESTADO_NUEVO VARCHAR(30) NOT NULL,
+                ID_USUARIO INT DEFAULT NULL,
+                ID_SUCURSAL INT DEFAULT NULL,
+                FECHA_HORA DATETIME NOT NULL,
+                OBSERVACION VARCHAR(255) DEFAULT NULL,
+                PRIMARY KEY (ID_EVENTO),
+                KEY idx_enc_evento_enc (ID_ENCOMIENDA),
+                KEY idx_enc_evento_fecha (FECHA_HORA)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+        ");
+    }
+
+    private function registrarEvento($idEncomienda, $estadoAnterior, $estadoNuevo, $usuarioId, $sucursalId, $observacion = null) {
+        $stmt = $this->db->prepare("
+            INSERT INTO ENC_EVENTO (ID_ENCOMIENDA, ESTADO_ANTERIOR, ESTADO_NUEVO, ID_USUARIO, ID_SUCURSAL, FECHA_HORA, OBSERVACION)
+            VALUES (?, ?, ?, ?, ?, NOW(), ?)
+        ");
+        $stmt->execute([
+            (int)$idEncomienda,
+            $estadoAnterior,
+            $estadoNuevo,
+            $usuarioId ? (int)$usuarioId : null,
+            $sucursalId ? (int)$sucursalId : null,
+            $observacion
+        ]);
+    }
+
+    public function obtenerTarifaRuta($rutaId) {
+        $stmt = $this->db->prepare("
+            SELECT ID_RUTA, PRECIO_ENCOMIENDA_KG, PRECIO_SOBRE, PRECIO_VOLUMEN, ESTADO
+            FROM RUTA WHERE ID_RUTA = ?
+        ");
+        $stmt->execute([(int)$rutaId]);
+        return $stmt->fetch(PDO::FETCH_ASSOC) ?: null;
+    }
+
+    public function obtenerEncomiendaPorId($id) {
+        $stmt = $this->db->prepare("
+            SELECT e.ID_ENCOMIENDA, e.ENC_ESTADO, e.ID_FACTURA, f.ID_SUCURSAL, f.FA_METODO, f.FA_TOTAL, f.ID_RUTA
+            FROM ENCOMIENDA e
+            INNER JOIN FACTURA f ON e.ID_FACTURA = f.ID_FACTURA
+            WHERE e.ID_ENCOMIENDA = ?
+        ");
+        $stmt->execute([(int)$id]);
+        return $stmt->fetch(PDO::FETCH_ASSOC) ?: null;
     }
 
     public function obtenerRutas() {
@@ -118,7 +172,7 @@ class EncomiendasRepository {
         return $this->db->query($query)->fetchAll(PDO::FETCH_ASSOC);
     }
 
-    public function obtenerKpisEncomiendas() {
+    public function obtenerKpisEncomiendas($filtros = []) {
         $sql = "
             SELECT 
                 COUNT(CASE WHEN e.ENC_ESTADO IN ('Recibido', 'En Tránsito', 'En Oficina') THEN 1 END) AS total_activas,
@@ -140,14 +194,57 @@ class EncomiendasRepository {
                 COUNT(CASE WHEN e.ENC_ESTADO = 'Anulado' THEN 1 END) AS total_anuladas
             FROM ENCOMIENDA e
             INNER JOIN FACTURA f ON e.ID_FACTURA = f.ID_FACTURA
+            INNER JOIN RUTA r ON f.ID_RUTA = r.ID_RUTA
+            WHERE 1=1
         ";
-        $stmt = $this->db->query($sql);
+        $params = [];
+        $this->aplicarFiltroSucursal($sql, $params, $filtros);
+        $stmt = $this->db->prepare($sql);
+        $stmt->execute($params);
         return $stmt->fetch(PDO::FETCH_ASSOC) ?: [];
+    }
+
+    private function aplicarFiltroSucursal(&$query, &$params, $filtros) {
+        $ambito = $filtros['ambito'] ?? 'operacion';
+        if ($ambito === 'todas') {
+            return;
+        }
+
+        $sucursalId = (int)($filtros['sucursal_id'] ?? 0);
+        $ciudad = strtoupper(trim((string)($filtros['ciudad_sucursal'] ?? '')));
+
+        if ($ambito === 'origen' && $sucursalId > 0) {
+            $query .= " AND f.ID_SUCURSAL = :enc_sucursal ";
+            $params[':enc_sucursal'] = $sucursalId;
+            return;
+        }
+
+        if ($ambito === 'destino' && $ciudad !== '') {
+            $query .= " AND (UPPER(r.RUT_DESTINO) = :enc_ciudad OR UPPER(COALESCE(e.DESTINO_FINAL, '')) = :enc_ciudad) ";
+            $params[':enc_ciudad'] = $ciudad;
+            return;
+        }
+
+        $partes = [];
+        if ($sucursalId > 0) {
+            $partes[] = "f.ID_SUCURSAL = :enc_sucursal";
+            $params[':enc_sucursal'] = $sucursalId;
+        }
+        if ($ciudad !== '') {
+            $partes[] = "UPPER(r.RUT_DESTINO) = :enc_ciudad";
+            $partes[] = "UPPER(COALESCE(e.DESTINO_FINAL, '')) = :enc_ciudad";
+            $params[':enc_ciudad'] = $ciudad;
+        }
+        if (!empty($partes)) {
+            $query .= " AND (" . implode(' OR ', $partes) . ") ";
+        }
     }
 
     private function aplicarFiltros(&$query, &$params, $filtros) {
         $tab = $filtros['tab'] ?? 'activos';
         $estado = $filtros['estado'] ?? '';
+
+        $this->aplicarFiltroSucursal($query, $params, $filtros);
 
         if ($tab == 'activos') {
             if (!empty($estado) && in_array($estado, ['Recibido', 'En Tránsito', 'En Oficina'])) {
@@ -179,7 +276,7 @@ class EncomiendasRepository {
     }
 
     public function contarTodas($filtros = []) {
-        $query = "SELECT COUNT(*) FROM ENCOMIENDA e INNER JOIN FACTURA f ON e.ID_FACTURA = f.ID_FACTURA INNER JOIN CLIENTE c_rem ON f.ID_CLIENTE = c_rem.ID_CLIENTE LEFT JOIN CLIENTE c_des ON e.ID_DESTINATARIO = c_des.ID_CLIENTE WHERE 1=1 ";
+        $query = "SELECT COUNT(*) FROM ENCOMIENDA e INNER JOIN FACTURA f ON e.ID_FACTURA = f.ID_FACTURA INNER JOIN CLIENTE c_rem ON f.ID_CLIENTE = c_rem.ID_CLIENTE LEFT JOIN CLIENTE c_des ON e.ID_DESTINATARIO = c_des.ID_CLIENTE INNER JOIN RUTA r ON f.ID_RUTA = r.ID_RUTA WHERE 1=1 ";
         $params = [];
         $this->aplicarFiltros($query, $params, $filtros);
         $stmt = $this->db->prepare($query);
@@ -189,10 +286,10 @@ class EncomiendasRepository {
 
     public function obtenerTodas($filtros = [], $offset = 0, $limit = 10) {
         $query = "SELECT e.ID_ENCOMIENDA, e.ENC_CANTIDAD, e.ENC_PESO, e.ENC_VOLUMEN, e.ENC_TIPO, e.ENC_CONTENIDO, e.ENC_ESTADO, e.ENC_RETIRO, e.ENC_LLEGADA, e.DESTINO_FINAL,
-                         f.ID_FACTURA, f.FA_FECHA, f.FA_TOTAL, f.FECHA_VIAJE AS FECHA_DESPACHO,
+                         f.ID_FACTURA, f.FA_FECHA, f.FA_TOTAL, f.FECHA_VIAJE AS FECHA_DESPACHO, f.ID_SUCURSAL, f.FA_METODO,
                          c_rem.CLI_NOMBRE AS REM_NOMBRE, c_rem.CLI_APELLIDO AS REM_APELLIDO, c_rem.ID_CLIENTE AS REM_CI,
                          c_des.CLI_NOMBRE AS DES_NOMBRE, c_des.CLI_APELLIDO AS DES_APELLIDO, c_des.ID_CLIENTE AS DES_CI,
-                         r.RUT_ORIGEN, r.RUT_DESTINO,
+                         r.RUT_ORIGEN, r.RUT_DESTINO, s_ori.CIUDAD AS SUC_ORIGEN,
                          (SELECT s.ESTADO FROM SOLICITUD_ANULACION s WHERE s.TIPO_VENTA = 'ENCOMIENDA' AND s.ID_REFERENCIA = f.ID_FACTURA ORDER BY s.ID_SOLICITUD DESC LIMIT 1) as SOLICITUD_ESTADO,
                          (SELECT s.ID_SOLICITUD FROM SOLICITUD_ANULACION s WHERE s.TIPO_VENTA = 'ENCOMIENDA' AND s.ID_REFERENCIA = f.ID_FACTURA ORDER BY s.ID_SOLICITUD DESC LIMIT 1) as ID_SOLICITUD
                   FROM ENCOMIENDA e
@@ -200,6 +297,7 @@ class EncomiendasRepository {
                   INNER JOIN CLIENTE c_rem ON f.ID_CLIENTE = c_rem.ID_CLIENTE
                   LEFT JOIN CLIENTE c_des ON e.ID_DESTINATARIO = c_des.ID_CLIENTE
                   INNER JOIN RUTA r ON f.ID_RUTA = r.ID_RUTA
+                  LEFT JOIN SUCURSAL s_ori ON f.ID_SUCURSAL = s_ori.ID_SUCURSAL
                   WHERE 1=1 ";
         $params = [];
         $this->aplicarFiltros($query, $params, $filtros);
@@ -222,12 +320,15 @@ class EncomiendasRepository {
             $stmtDes = $this->db->prepare("INSERT INTO CLIENTE (ID_CLIENTE, CLI_NOMBRE, CLI_APELLIDO, CLI_TELEFONO) VALUES (?, ?, ?, ?) ON DUPLICATE KEY UPDATE CLI_NOMBRE=VALUES(CLI_NOMBRE), CLI_APELLIDO=VALUES(CLI_APELLIDO), CLI_TELEFONO=VALUES(CLI_TELEFONO)");
             $stmtDes->execute([$datos['destinatario_ci'], $datos['destinatario_nombre'], $datos['destinatario_apellido'], $datos['destinatario_telefono']]);
 
+            $subtotal = isset($datos['tarifa_calculada']) ? $datos['tarifa_calculada'] : $datos['total_cobrado'];
             $stmtFac = $this->db->prepare("INSERT INTO FACTURA (ID_RUTA, ID_CLIENTE, ID_USUARIO, ID_SUCURSAL, FA_FECHA, FA_HORA, FA_CANTIDAD, FA_METODO, FA_SUBTOTAL, FA_TOTAL, FA_TIPO) VALUES (?, ?, ?, ?, CURDATE(), CURTIME(), 1, ?, ?, ?, 'ENCOMIENDA')");
-            $stmtFac->execute([$datos['ruta_id'], $datos['cliente_id'], $usuarioId, $sucursalId, $datos['metodo_pago'], $datos['total_cobrado'], $datos['total_cobrado']]);
+            $stmtFac->execute([$datos['ruta_id'], $datos['cliente_id'], $usuarioId, $sucursalId, $datos['metodo_pago'], $subtotal, $datos['total_cobrado']]);
             $idFactura = $this->db->lastInsertId();
 
             $stmtEnc = $this->db->prepare("INSERT INTO ENCOMIENDA (ID_FACTURA, ID_DESTINATARIO, DESTINO_FINAL, ENC_CANTIDAD, ENC_PESO, ENC_VOLUMEN, ENC_TIPO, ENC_CONTENIDO, ENC_ESTADO) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'Recibido')");
             $stmtEnc->execute([$idFactura, $datos['destinatario_ci'], $datos['destino_final'], $datos['cantidad_final'], $datos['peso_final'], $datos['volumen'], $datos['tipo_final'], $datos['contenido_final']]);
+            $idEncomienda = $this->db->lastInsertId();
+            $this->registrarEvento($idEncomienda, null, 'Recibido', $usuarioId, $sucursalId, 'Recepción y cobro');
             
             $stmtCaja = $this->db->prepare("INSERT INTO MOVIMIENTO_CAJA (ID_USUARIO, ID_SUCURSAL, ID_FACTURA, TIPO_MOVIMIENTO, METODO_PAGO, MONTO, CONCEPTO) VALUES (?, ?, ?, 'INGRESO', ?, ?, ?)");
             if ($datos['metodo_pago'] === 'MIXTO') {

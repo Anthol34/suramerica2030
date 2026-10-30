@@ -446,6 +446,8 @@ function ponerPrecioDefault() {
     
     let precioTotalEl = document.getElementById('precio_total');
     let montoAbonarEl = document.getElementById('monto_abonar');
+    let swReserva = document.getElementById('switch_es_reserva');
+    let esReserva = swReserva ? swReserva.checked : false;
     
     if (!r) {
         if (precioTotalEl) precioTotalEl.value = '0.00';
@@ -459,7 +461,12 @@ function ponerPrecioDefault() {
     let totalGlobal = precioBase * cantPasajeros;
     
     if (precioTotalEl) precioTotalEl.value = totalGlobal.toFixed(2);
-    if (montoAbonarEl) montoAbonarEl.value = totalGlobal.toFixed(2);
+    
+    if (!esReserva) {
+        if (montoAbonarEl) montoAbonarEl.value = totalGlobal.toFixed(2);
+    } else {
+        actualizarResumenReserva();
+    }
 
     if (typeof balancearMixtoVenta === 'function') {
         balancearMixtoVenta('total');
@@ -470,12 +477,123 @@ function ponerPrecioDefault() {
 function alCambiarPrecioTotalManual() {
     let precioTotalEl = document.getElementById('precio_total');
     let montoAbonarEl = document.getElementById('monto_abonar');
+    let swReserva = document.getElementById('switch_es_reserva');
+    let esReserva = swReserva ? swReserva.checked : false;
+
     if (!precioTotalEl || !montoAbonarEl) return;
-    montoAbonarEl.value = precioTotalEl.value;
+
+    if (!esReserva) {
+        // En modo pago completo, sincronizar 1:1
+        montoAbonarEl.value = precioTotalEl.value;
+    } else {
+        // En modo reserva, actualizar saldo y resumen
+        actualizarResumenReserva();
+    }
+
     if (typeof balancearMixtoVenta === 'function') {
         balancearMixtoVenta('total');
     }
     verificarCostoOperadoresVenta();
+}
+
+/**
+ * Controla el Switch de Modo Reserva (Abono Parcial) vs Pago Completo
+ */
+function toggleModoReserva() {
+    let sw = document.getElementById('switch_es_reserva');
+    let esReserva = sw ? sw.checked : false;
+
+    let precioTotalEl = document.getElementById('precio_total');
+    let montoAbonarEl = document.getElementById('monto_abonar');
+    let lblMonto = document.getElementById('lbl_monto_abonar');
+    let helpMonto = document.getElementById('help_monto_abonar');
+    let helpPrecio = document.getElementById('help_precio_total');
+    let boxReserva = document.getElementById('box_resumen_reserva');
+    let cajaFact = document.getElementById('caja_facturacion_nuevo');
+
+    if (!precioTotalEl || !montoAbonarEl) return;
+
+    if (esReserva) {
+        // ACTIVAR MODO RESERVA
+        if (cajaFact) {
+            cajaFact.classList.add('border-warning', 'bg-warning', 'bg-opacity-10');
+            cajaFact.classList.remove('bg-light');
+        }
+        if (lblMonto) lblMonto.innerHTML = '<span class="text-warning">💵</span> ¿Cuánto abona hoy? ($)*';
+        if (helpMonto) helpMonto.innerHTML = '<span class="badge bg-warning text-dark fw-bold">Modo Reserva Activo</span> Monto anticipado entregado por el pasajero.';
+        if (helpPrecio) helpPrecio.innerHTML = '<strong class="text-dark">⚠️ Tarifa total acordada del viaje.</strong> (NO ingrese aquí el abono).';
+
+        montoAbonarEl.readOnly = false;
+        montoAbonarEl.classList.remove('bg-light');
+        montoAbonarEl.classList.add('bg-white', 'border-warning', 'border-2', 'shadow-sm');
+
+        if (boxReserva) boxReserva.classList.remove('d-none');
+
+        // Si el abono actual es igual al total, dejar seleccionado para escribir el monto de abono
+        montoAbonarEl.focus();
+        montoAbonarEl.select();
+
+        actualizarResumenReserva();
+    } else {
+        // DESACTIVAR MODO RESERVA (PAGO COMPLETO)
+        if (cajaFact) {
+            cajaFact.classList.remove('border-warning', 'bg-warning', 'bg-opacity-10');
+            cajaFact.classList.add('bg-light');
+        }
+        if (lblMonto) lblMonto.innerHTML = 'Total a Cobrar Hoy ($)';
+        if (helpMonto) helpMonto.innerHTML = '<span class="badge bg-success bg-opacity-75 text-white" id="badge_tipo_cobro">✔ Pago Completo</span> (Sin saldo pendiente)';
+        if (helpPrecio) helpPrecio.innerHTML = 'Tarifa pactada final que cuesta el boleto.';
+
+        montoAbonarEl.readOnly = true;
+        montoAbonarEl.classList.remove('border-warning', 'border-2', 'shadow-sm');
+        montoAbonarEl.classList.add('bg-white');
+
+        // Sincronizar monto a abonar con el total
+        montoAbonarEl.value = precioTotalEl.value;
+
+        if (boxReserva) boxReserva.classList.add('d-none');
+
+        if (typeof balancearMixtoVenta === 'function') {
+            balancearMixtoVenta('total');
+        }
+    }
+}
+
+/**
+ * Escucha cambios cuando el usuario escribe en el campo de abono
+ */
+function alCambiarMontoAbonarManual() {
+    actualizarResumenReserva();
+    if (typeof balancearMixtoVenta === 'function') {
+        balancearMixtoVenta('total');
+    }
+}
+
+/**
+ * Actualiza la tarjeta de resumen financiero de la reserva (Precio Total, Abono, Saldo Pendiente)
+ */
+function actualizarResumenReserva() {
+    let precioTotalEl = document.getElementById('precio_total');
+    let montoAbonarEl = document.getElementById('monto_abonar');
+    let resTotal = document.getElementById('res_total_disp');
+    let resAbono = document.getElementById('res_abono_disp');
+    let resSaldo = document.getElementById('res_saldo_disp');
+
+    let total = parseFloat(precioTotalEl ? precioTotalEl.value : 0) || 0;
+    let abono = parseFloat(montoAbonarEl ? montoAbonarEl.value : 0) || 0;
+    let saldo = Math.max(0, total - abono);
+
+    if (resTotal) resTotal.textContent = total.toFixed(2);
+    if (resAbono) resAbono.textContent = abono.toFixed(2);
+    if (resSaldo) {
+        if (saldo <= 0.001) {
+            resSaldo.className = 'badge bg-success fs-6 px-2 py-1 shadow-sm';
+            resSaldo.textContent = '$0.00 (Totalmente Cubierto)';
+        } else {
+            resSaldo.className = 'badge bg-danger fs-6 px-2 py-1 shadow-sm';
+            resSaldo.textContent = '$' + saldo.toFixed(2);
+        }
+    }
 }
 
 /**
@@ -1111,6 +1229,39 @@ function balancearMixtoVenta(origen) {
 }
 
 function validarVentaMixto(form) {
+    const swReserva = document.getElementById('switch_es_reserva');
+    const esReserva = swReserva ? swReserva.checked : false;
+    const precioTotalEl = document.getElementById('precio_total');
+    const montoAbonarEl = document.getElementById('monto_abonar');
+    const precioTotal = parseFloat(precioTotalEl ? precioTotalEl.value : 0) || 0;
+    const montoAbonar = parseFloat(montoAbonarEl ? montoAbonarEl.value : 0) || 0;
+
+    // Validación de Modo Reserva vs Pago Completo
+    if (esReserva) {
+        if (montoAbonar <= 0) {
+            alert("⚠️ ATENCIÓN: Ha marcado 'Reserva con Abono Parcial', pero el monto a abonar está en $0.00.\n\nPor favor ingrese el monto que el cliente está abonando hoy.");
+            if (montoAbonarEl) { montoAbonarEl.focus(); montoAbonarEl.select(); }
+            return false;
+        }
+        if (montoAbonar > precioTotal) {
+            alert("⚠️ ATENCIÓN: El abono ingresado ($" + montoAbonar.toFixed(2) + ") supera el precio total del pasaje ($" + precioTotal.toFixed(2) + ").\n\nEl abono no puede ser mayor al valor total.");
+            if (montoAbonarEl) montoAbonarEl.focus();
+            return false;
+        }
+        if (Math.abs(montoAbonar - precioTotal) < 0.01) {
+            const deseaPagoTotal = confirm("ℹ️ INFORMACIÓN: El abono ingresado ($" + montoAbonar.toFixed(2) + ") cubre el 100% del precio total del pasaje ($" + precioTotal.toFixed(2) + ").\n\n¿Desea registrar esta venta como PAGO COMPLETO (sin saldo pendiente)?");
+            if (deseaPagoTotal) {
+                swReserva.checked = false;
+                toggleModoReserva();
+            }
+        }
+    } else {
+        // En pago completo, asegurar que el monto a abonar sea el total
+        if (montoAbonarEl && precioTotalEl) {
+            montoAbonarEl.value = precioTotalEl.value;
+        }
+    }
+
     const sel = document.getElementById('metodo_pago_nuevo');
     if (sel && sel.value === 'MIXTO') {
         const total = parseFloat(document.getElementById('monto_abonar').value) || 0;
@@ -1133,8 +1284,6 @@ function validarVentaMixto(form) {
         if (r) {
             const cantPax = document.querySelectorAll('.pasajero-row').length || 1;
             const costoTotal = (parseFloat(r.COSTO_OPERADORES_TOTAL) || 0) * cantPax;
-            const precioTotalEl = document.getElementById('precio_total');
-            const precioTotal = parseFloat(precioTotalEl ? precioTotalEl.value : 0) || 0;
             if (costoTotal > 0 && precioTotal < (costoTotal - 0.009)) {
                 const perdida = costoTotal - precioTotal;
                 const confirmacion = confirm(
@@ -1292,3 +1441,17 @@ function validarEquipajeMixto(form, id) {
     }
     return true;
 }
+
+// Reset al cerrar modal de Nuevo Pasaje para arrancar siempre en estado seguro
+document.addEventListener('DOMContentLoaded', function() {
+    const modalNuevo = document.getElementById('modalNuevoPasaje');
+    if (modalNuevo) {
+        modalNuevo.addEventListener('hidden.bs.modal', function() {
+            const sw = document.getElementById('switch_es_reserva');
+            if (sw && sw.checked) {
+                sw.checked = false;
+                if (typeof toggleModoReserva === 'function') toggleModoReserva();
+            }
+        });
+    }
+});

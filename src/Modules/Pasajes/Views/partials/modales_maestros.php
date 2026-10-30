@@ -119,26 +119,50 @@
                     </div>
                     <button type="button" class="btn btn-sm btn-outline-primary fw-bold px-3 mb-3" onclick="agregarPasajero()">+ Añadir Otro Pasajero</button>
 
-                    <h6 class="border-bottom pb-1 mt-3 text-primary">3. Facturación y Cobro</h6>
-                    <div class="row mb-2 bg-light p-3 border rounded">
-                        <div class="col-4">
-                            <label class="fw-bold">Precio Total Global ($)</label>
+                    <!-- 3. FACTURACIÓN Y COBRO CON SWITCH DE RESERVA -->
+                    <div class="d-flex justify-content-between align-items-center border-bottom pb-2 mt-3 mb-2 flex-wrap gap-2">
+                        <h6 class="mb-0 text-primary fw-bold"><i class="fas fa-cash-register me-1"></i> 3. Facturación y Cobro</h6>
+                        <div class="form-check form-switch m-0 d-flex align-items-center gap-2 p-1 px-3 rounded border bg-white shadow-sm" style="min-height: 38px;">
+                            <input class="form-check-input ms-0 me-1" type="checkbox" id="switch_es_reserva" name="es_reserva" value="1" style="cursor: pointer; width: 2.2em; height: 1.2em;" onchange="toggleModoReserva()">
+                            <label class="form-check-label fw-bold text-dark user-select-none mb-0" for="switch_es_reserva" style="cursor: pointer; font-size: 13px;">
+                                📌 ¿Es Reserva con Abono Parcial?
+                            </label>
+                        </div>
+                    </div>
+
+                    <!-- Indicador oculto para backend -->
+                    <input type="hidden" name="es_reserva_switch_presente" value="1">
+
+                    <div class="row mb-2 bg-light p-3 border rounded transition-all" id="caja_facturacion_nuevo">
+                        <!-- Columna 1: Precio Total del Pasaje -->
+                        <div class="col-md-4 mb-2 mb-md-0">
+                            <label class="fw-bold" id="lbl_precio_total">Precio Total del Pasaje ($)</label>
                             <div class="input-group">
                                 <input type="number" step="0.01" name="precio_total" id="precio_total" class="form-control bg-white fw-bold" required oninput="alCambiarPrecioTotalManual()" <?= !$puedeEditarPrecios ? 'readonly' : '' ?>>
                                 <?php if($puedeEditarPrecios): ?>
-                                    <button type="button" class="btn btn-outline-secondary" type="button" title="Restablecer precio oficial de la ruta" onclick="ponerPrecioDefault()">🔄</button>
+                                    <button type="button" class="btn btn-outline-secondary" title="Restablecer precio oficial de la ruta" onclick="ponerPrecioDefault()">🔄</button>
                                 <?php endif; ?>
                             </div>
                             <div class="d-flex justify-content-between align-items-center mt-1 px-1" style="font-size:11px;">
                                 <span class="text-muted">Costo Operadores: $<strong class="text-danger" id="lbl_costo_operadores">0.00</strong></span>
                                 <span class="text-muted">PVP Oficial: $<strong class="text-primary" id="lbl_pvp_oficial">0.00</strong></span>
                             </div>
-                            <?php if(!$puedeEditarPrecios): ?>
-                                <small class="text-muted d-block mt-1" style="font-size:11px;">🔒 Tarifa oficial fija (sin permiso de descuento).</small>
-                            <?php endif; ?>
+                            <small id="help_precio_total" class="text-muted d-block mt-1" style="font-size:11px;">
+                                <?= !$puedeEditarPrecios ? '🔒 Tarifa oficial fija (sin permiso de descuento).' : 'Tarifa pactada final que cuesta el boleto.' ?>
+                            </small>
                         </div>
-                        <div class="col-4"><label class="fw-bold">¿Cuánto abona hoy? ($)</label><input type="number" step="0.01" name="monto_abonar" id="monto_abonar" class="form-control fw-bold text-success fs-5" required oninput="balancearMixtoVenta('total')"></div>
-                        <div class="col-4">
+
+                        <!-- Columna 2: Monto a Cobrar / Abono -->
+                        <div class="col-md-4 mb-2 mb-md-0">
+                            <label class="fw-bold" id="lbl_monto_abonar">Total a Cobrar Hoy ($)</label>
+                            <input type="number" step="0.01" name="monto_abonar" id="monto_abonar" class="form-control fw-bold text-success fs-5 bg-white" required readonly oninput="alCambiarMontoAbonarManual()">
+                            <small id="help_monto_abonar" class="text-muted d-block mt-1" style="font-size:11px;">
+                                <span class="badge bg-success bg-opacity-75 text-white" id="badge_tipo_cobro">✔ Pago Completo</span> (Sin saldo pendiente)
+                            </small>
+                        </div>
+
+                        <!-- Columna 3: Método de Pago -->
+                        <div class="col-md-4">
                             <label class="fw-bold">Método de Pago</label>
                             <select name="metodo_pago" id="metodo_pago_nuevo" class="form-select border-success" onchange="togglePagoMixtoVenta()">
                                 <option value="EFECTIVO">Efectivo</option>
@@ -146,6 +170,23 @@
                                 <option value="MIXTO">Mixto (Efectivo + Transferencia)</option>
                             </select>
                         </div>
+
+                        <!-- Panel de Resumen en Vivo de la Reserva -->
+                        <div class="col-12 mt-2 d-none" id="box_resumen_reserva">
+                            <div class="p-2 px-3 rounded bg-warning bg-opacity-10 border border-warning d-flex flex-wrap justify-content-between align-items-center">
+                                <div class="mb-1 mb-md-0">
+                                    <span class="badge bg-warning text-dark fw-bold me-2 shadow-sm">MODO RESERVA</span>
+                                    <span class="small text-dark fw-bold">Precio Total: $<span id="res_total_disp">0.00</span></span>
+                                    <span class="small text-muted mx-1">|</span>
+                                    <span class="small text-success fw-bold">Abono Hoy: $<span id="res_abono_disp">0.00</span></span>
+                                </div>
+                                <div class="d-flex align-items-center">
+                                    <span class="small text-danger fw-bold me-1">Saldo Pendiente a Cobrar:</span>
+                                    <span class="badge bg-danger fs-6 px-2 py-1 shadow-sm" id="res_saldo_disp">$0.00</span>
+                                </div>
+                            </div>
+                        </div>
+
 
                         <!-- Alertas Dinámicas de Margen y Pérdida -->
                         <div class="col-12 mt-2">
@@ -167,6 +208,8 @@
                                 </div>
                             </div>
                         </div>
+
+                        <!-- Desglose de Pago Mixto -->
                         <div class="col-12 mt-2 d-none" id="div_pago_mixto_nuevo">
                             <div class="p-2 rounded bg-white border border-info shadow-sm">
                                 <div class="d-flex justify-content-between align-items-center mb-1">

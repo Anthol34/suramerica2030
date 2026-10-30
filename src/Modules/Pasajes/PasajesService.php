@@ -61,6 +61,15 @@ class PasajesService {
         $precioTotalGlobal = floatval($postData['precio_total']);
         $montoAbonadoGlobal = floatval($postData['monto_abonar']);
         
+        $switchPresente = isset($postData['es_reserva_switch_presente']);
+        $esReserva = !empty($postData['es_reserva']);
+
+        // Si el switch estaba presente en el formulario y no se activó la reserva,
+        // garantizamos que el cobro sea por el 100% del precio pactado (pago completo)
+        if ($switchPresente && !$esReserva) {
+            $montoAbonadoGlobal = $precioTotalGlobal;
+        }
+
         // Si el usuario cobró o abonó más que el precio total sugerido (ej: tarifa desactualizada en ruta)
         if ($montoAbonadoGlobal > $precioTotalGlobal) {
             $precioTotalGlobal = $montoAbonadoGlobal;
