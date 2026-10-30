@@ -1,3 +1,4 @@
+<?php
 namespace Modules\Valores;
 
 use Platform\Validation\Validator;
